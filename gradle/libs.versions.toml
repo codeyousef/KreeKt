@@ -1,14 +1,29 @@
 [versions]
+kotlin = "1.9.22"
 agp = "8.10.1"
-kotlin = "2.2.10"
+coroutines = "1.8.0"
+serialization = "1.6.2"
+ktor = "2.3.7"
+compose = "1.5.11"
+dokka = "1.9.10"
+lwjgl = "3.3.3"
+atomicfu = "0.23.1"
 android-minSdk = "24"
 android-compileSdk = "36"
-vanniktechMavenPublish = "0.34.0"
 
 [libraries]
+kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+lwjgl-core = { module = "org.lwjgl:lwjgl", version.ref = "lwjgl" }
+lwjgl-vulkan = { module = "org.lwjgl:lwjgl-vulkan", version.ref = "lwjgl" }
 
 [plugins]
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
-kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-vanniktech-mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktechMavenPublish" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+compose = { id = "org.jetbrains.compose", version.ref = "compose" }
