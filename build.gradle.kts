@@ -2,7 +2,19 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.dokka)
+    alias(libs.plugins.kover)
     id("maven-publish")
+}
+
+// Apply plugins to all subprojects
+subprojects {
+    apply(plugin = "org.jetbrains.dokka")
+
+    if (name.startsWith("tools")) {
+        group = "io.kreekt.tools"
+        version = rootProject.version
+    }
 }
 
 group = "io.kreekt"
@@ -28,6 +40,7 @@ kotlin {
     }
 
     // WASM Target (experimental)
+    @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
     wasmJs {
         browser()
     }
@@ -62,6 +75,15 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.atomicfu)
+
+                // Advanced 3D features dependencies
+                implementation(libs.kotlinx.datetime)
+
+                // Math and collections
+                implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.6")
+
+                // Asset loading and compression
+                implementation("com.squareup.okio:okio:3.6.0")
             }
         }
 
@@ -76,6 +98,15 @@ kotlin {
             dependencies {
                 implementation(libs.lwjgl.core)
                 implementation(libs.lwjgl.vulkan)
+
+                // Physics: Will be implemented with expect/actual pattern
+                // implementation("org.lwjgl:lwjgl-bullet:3.3.3") // TODO: Add when available
+
+                // Asset loading: Will use platform-specific implementations
+                // implementation("org.lwjgl:lwjgl-draco:3.3.3") // TODO: Add when available
+
+                // Font loading: Will use platform-specific implementations
+                // implementation("org.lwjgl:lwjgl-freetype:3.3.3") // TODO: Add when available
             }
         }
 
@@ -83,6 +114,18 @@ kotlin {
         val jsMain by getting {
             dependencies {
                 implementation(npm("@webgpu/types", "0.1.40"))
+
+                // Physics: Will be implemented with expect/actual pattern
+                // implementation(npm("@dimforge/rapier3d-compat", "0.12.0")) // TODO: Add when needed
+
+                // Asset loading: Will use platform-specific implementations
+                // implementation(npm("draco3dgltf", "1.5.6")) // TODO: Add when needed
+
+                // Font loading: Will use platform-specific implementations
+                // implementation(npm("opentype.js", "1.3.4")) // TODO: Add when needed
+
+                // XR: Will be implemented with expect/actual pattern
+                // implementation(npm("webxr-polyfill", "2.0.3")) // TODO: Add when needed
             }
         }
 
@@ -119,6 +162,10 @@ kotlin {
 
         val androidMain by getting {
             dependsOn(mobileMain)
+            dependencies {
+                // XR: Will be implemented with expect/actual pattern
+                // implementation("com.google.ar:core:1.42.0") // TODO: Add when needed
+            }
         }
     }
 }

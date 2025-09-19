@@ -14,3 +14,10 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "kreekt"
+
+// Tool modules
+include(":tools:editor")
+include(":tools:profiler")
+include(":tools:tests")
+include(":tools:docs")
+include(":tools:cicd")

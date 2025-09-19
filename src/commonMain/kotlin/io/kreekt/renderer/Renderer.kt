@@ -127,7 +127,7 @@ interface Renderer {
     /**
      * Clear the color buffer
      */
-    fun clearColor(): RendererResult<Unit>
+    fun clearColorBuffer(): RendererResult<Unit>
 
     /**
      * Clear the depth buffer

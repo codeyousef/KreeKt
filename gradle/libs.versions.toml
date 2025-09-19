@@ -1,13 +1,17 @@
 [versions]
-kotlin = "1.9.22"
+kotlin = "1.9.10"
 agp = "8.10.1"
-coroutines = "1.8.0"
-serialization = "1.6.2"
+coroutines = "1.7.3"
+coroutines-test = "1.7.3"
+serialization = "1.6.0"
 ktor = "2.3.7"
 compose = "1.5.11"
 dokka = "1.9.10"
 lwjgl = "3.3.3"
 atomicfu = "0.23.1"
+datetime = "0.5.0"
+kover = "0.7.4"
+browser = "1.0.0"
 android-minSdk = "24"
 android-compileSdk = "36"
 
@@ -15,8 +19,11 @@ android-compileSdk = "36"
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines-test" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
+kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.ref = "browser" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 lwjgl-core = { module = "org.lwjgl:lwjgl", version.ref = "lwjgl" }
 lwjgl-vulkan = { module = "org.lwjgl:lwjgl-vulkan", version.ref = "lwjgl" }
@@ -27,3 +34,4 @@ kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref 
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 compose = { id = "org.jetbrains.compose", version.ref = "compose" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }

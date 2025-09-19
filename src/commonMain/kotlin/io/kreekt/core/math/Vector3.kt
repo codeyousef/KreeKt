@@ -203,6 +203,19 @@ data class Vector3(
         return this
     }
 
+    fun applyMatrix3(matrix: Matrix3): Vector3 {
+        val e = matrix.elements
+        val oldX = x
+        val oldY = y
+        val oldZ = z
+
+        x = e[0] * oldX + e[3] * oldY + e[6] * oldZ
+        y = e[1] * oldX + e[4] * oldY + e[7] * oldZ
+        z = e[2] * oldX + e[5] * oldY + e[8] * oldZ
+
+        return this
+    }
+
     fun applyQuaternion(quaternion: Quaternion): Vector3 {
         val qx = quaternion.x
         val qy = quaternion.y

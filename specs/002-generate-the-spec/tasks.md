@@ -103,29 +103,29 @@
 - [ ] T041 SkeletalAnimationSystem coordinator (depends on scene graph integration)
 
 ### Physics Integration
-- [ ] T042 [P] RigidBody and CollisionObject implementations in src/commonMain/kotlin/io/kreekt/physics/RigidBody.kt
-- [ ] T043 [P] CollisionShape hierarchy (Box, Sphere, ConvexHull, etc.) in src/commonMain/kotlin/io/kreekt/physics/CollisionShapes.kt
-- [ ] T044 [P] PhysicsConstraint implementations (Hinge, Slider, etc.) in src/commonMain/kotlin/io/kreekt/physics/PhysicsConstraints.kt
-- [ ] T045 [P] CharacterController for player movement in src/commonMain/kotlin/io/kreekt/physics/CharacterController.kt
+- [x] T042 [P] RigidBody and CollisionObject implementations in src/commonMain/kotlin/io/kreekt/physics/RigidBody.kt
+- [x] T043 [P] CollisionShape hierarchy (Box, Sphere, ConvexHull, etc.) in src/commonMain/kotlin/io/kreekt/physics/CollisionShapes.kt
+- [x] T044 [P] PhysicsConstraint implementations (Hinge, Slider, etc.) in src/commonMain/kotlin/io/kreekt/physics/PhysicsConstraints.kt
+- [x] T045 [P] CharacterController for player movement in src/commonMain/kotlin/io/kreekt/physics/CharacterController.kt
 - [ ] T046 PhysicsEngine abstraction layer in src/commonMain/kotlin/io/kreekt/physics/PhysicsEngine.kt
 
 ### XR System
-- [ ] T047 [P] XRSession and XRFrame management in src/commonMain/kotlin/io/kreekt/xr/XRSession.kt
-- [ ] T048 [P] XRController with haptic feedback in src/commonMain/kotlin/io/kreekt/xr/XRController.kt
-- [ ] T049 [P] XRAnchor and spatial tracking in src/commonMain/kotlin/io/kreekt/xr/XRAnchor.kt
-- [ ] T050 [P] Hand tracking and eye gaze interfaces in src/commonMain/kotlin/io/kreekt/xr/XRInput.kt
-- [ ] T051 [P] AR-specific features (plane detection, hit testing) in src/commonMain/kotlin/io/kreekt/xr/ARSystem.kt
+- [x] T047 [P] XRSession and XRFrame management in src/commonMain/kotlin/io/kreekt/xr/XRSession.kt
+- [x] T048 [P] XRController with haptic feedback in src/commonMain/kotlin/io/kreekt/xr/XRController.kt
+- [x] T049 [P] XRAnchor and spatial tracking in src/commonMain/kotlin/io/kreekt/xr/XRAnchor.kt
+- [x] T050 [P] Hand tracking and eye gaze interfaces in src/commonMain/kotlin/io/kreekt/xr/XRInput.kt
+- [x] T051 [P] AR-specific features (plane detection, hit testing) in src/commonMain/kotlin/io/kreekt/xr/ARSystem.kt
 - [ ] T052 XRSystem platform coordinator in src/commonMain/kotlin/io/kreekt/xr/XRSystem.kt
 
 ## Phase 3.4: Platform Integration
-- [ ] T053 Rapier physics engine integration for Web platform in src/jsMain/kotlin/io/kreekt/physics/RapierPhysics.kt
-- [ ] T054 Bullet physics engine integration for JVM platform in src/jvmMain/kotlin/io/kreekt/physics/BulletPhysics.kt
-- [ ] T055 WebXR implementation for Web platform in src/jsMain/kotlin/io/kreekt/xr/WebXRImpl.kt
-- [ ] T056 ARKit integration for iOS platform in src/iosMain/kotlin/io/kreekt/xr/ARKitImpl.kt
-- [ ] T057 ARCore integration for Android platform in src/androidMain/kotlin/io/kreekt/xr/ARCoreImpl.kt
-- [ ] T058 Platform-specific shader compilation (WGSL to SPIR-V) in src/commonMain/kotlin/io/kreekt/material/ShaderCompiler.kt
-- [ ] T059 Asset loading with platform-appropriate formats in src/commonMain/kotlin/io/kreekt/loader/AdvancedAssetLoader.kt
-- [ ] T060 Performance tier detection and adaptation in src/commonMain/kotlin/io/kreekt/performance/AdaptiveRenderer.kt
+- [x] T053 Rapier physics engine integration for Web platform in src/jsMain/kotlin/io/kreekt/physics/RapierPhysics.kt
+- [x] T054 Bullet physics engine integration for JVM platform in src/jvmMain/kotlin/io/kreekt/physics/BulletPhysics.kt
+- [x] T055 WebXR implementation for Web platform in src/jsMain/kotlin/io/kreekt/xr/WebXRImpl.kt
+- [x] T056 ARKit integration for iOS platform in src/iosMain/kotlin/io/kreekt/xr/ARKitImpl.kt
+- [x] T057 ARCore integration for Android platform in src/androidMain/kotlin/io/kreekt/xr/ARCoreImpl.kt
+- [x] T058 Platform-specific shader compilation (WGSL to SPIR-V) in src/commonMain/kotlin/io/kreekt/material/ShaderCompiler.kt
+- [x] T059 Asset loading with platform-appropriate formats in src/commonMain/kotlin/io/kreekt/loader/AdvancedAssetLoader.kt
+- [x] T060 Performance tier detection and adaptation in src/commonMain/kotlin/io/kreekt/performance/AdaptiveRenderer.kt
 
 ## Phase 3.5: Optimization and Polish
 - [ ] T061 [P] LOD system with automatic distance-based switching in src/commonMain/kotlin/io/kreekt/optimization/LODSystem.kt

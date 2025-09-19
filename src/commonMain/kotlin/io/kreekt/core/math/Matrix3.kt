@@ -42,6 +42,14 @@ data class Matrix3(
          */
         fun translation(x: Float, y: Float): Matrix3 =
             Matrix3().makeTranslation(x, y)
+
+        /**
+         * Creates a normal matrix from a Matrix4 transformation matrix
+         */
+        fun normalMatrix(matrix: Matrix4): Matrix3 {
+            val result = Matrix3()
+            return result.getNormalMatrix(matrix)
+        }
     }
 
     /**

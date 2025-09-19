@@ -1,0 +1,213 @@
+stages:
+  - build
+  - test
+  - quality
+  - package
+  - deploy
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+
+cache:
+  paths:
+    - .gradle/wrapper
+    - .gradle/caches
+
+before_script:
+  - chmod +x ./gradlew
+
+# Build stage
+build:
+  stage: build
+  image: openjdk:17-jdk
+  script:
+    - ./gradlew assemble
+  artifacts:
+    paths:
+      - build/libs/
+      - tools/*/build/libs/
+    expire_in: 1 hour
+
+build-tools:
+  stage: build
+  image: openjdk:17-jdk
+  script:
+    - ./gradlew :tools:editor:assemble
+    - ./gradlew :tools:profiler:assemble
+    - ./gradlew :tools:docs:assemble
+  artifacts:
+    paths:
+      - tools/*/build/
+    expire_in: 1 hour
+
+build-web-tools:
+  stage: build
+  image: node:18
+  before_script:
+    - cd tools/editor/web
+    - npm ci
+  script:
+    - npm run build
+    - npm test
+  artifacts:
+    paths:
+      - tools/editor/web/dist/
+    expire_in: 1 hour
+
+# Test stage
+test-jvm:
+  stage: test
+  image: openjdk:17-jdk
+  script:
+    - ./gradlew jvmTest
+  artifacts:
+    reports:
+      junit: build/test-results/jvmTest/TEST-*.xml
+
+test-js:
+  stage: test
+  image: openjdk:17-jdk
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git curl wget gnupg
+    - curl -sL https://deb.nodesource.com/setup_18.x | bash -
+    - apt-get install -y nodejs
+    - chmod +x ./gradlew
+  script:
+    - ./gradlew jsTest
+  artifacts:
+    reports:
+      junit: build/test-results/jsTest/TEST-*.xml
+
+test-tools:
+  stage: test
+  image: openjdk:17-jdk
+  script:
+    - ./gradlew :tools:tests:unitTest
+    - ./gradlew :tools:tests:integrationTest
+  artifacts:
+    reports:
+      junit: tools/tests/build/test-results/*/TEST-*.xml
+
+# Visual tests require a display
+test-visual:
+  stage: test
+  image: openjdk:17-jdk
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq xvfb
+    - chmod +x ./gradlew
+  script:
+    - export DISPLAY=:99
+    - Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+    - ./gradlew :tools:tests:visualTest
+  artifacts:
+    paths:
+      - tools/tests/build/reports/visual-tests/
+    expire_in: 1 week
+
+# Performance tests
+test-performance:
+  stage: test
+  image: openjdk:17-jdk
+  script:
+    - ./gradlew :tools:tests:performanceTest
+  artifacts:
+    paths:
+      - tools/tests/build/reports/performance/
+    expire_in: 1 week
+
+# Quality stage
+code-coverage:
+  stage: quality
+  image: openjdk:17-jdk
+  script:
+    - ./gradlew koverXmlReport
+  coverage: '/Line Coverage: \d+\.\d+%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: build/reports/kover/report.xml
+
+code-quality:
+  stage: quality
+  image: openjdk:17-jdk
+  script:
+    - ./gradlew detekt
+  artifacts:
+    reports:
+      codequality: build/reports/detekt/detekt.json
+
+# Package stage
+package-desktop-tools:
+  stage: package
+  image: openjdk:17-jdk
+  only:
+    - main
+    - tags
+  script:
+    - ./gradlew :tools:editor:packageDistributionForCurrentOS
+  artifacts:
+    paths:
+      - tools/editor/build/compose/binaries/
+    expire_in: 1 month
+
+package-documentation:
+  stage: package
+  image: openjdk:17-jdk
+  script:
+    - ./gradlew dokkaHtml
+  artifacts:
+    paths:
+      - build/dokka/html/
+    expire_in: 1 month
+
+# Deploy stage
+deploy-maven:
+  stage: deploy
+  image: openjdk:17-jdk
+  only:
+    - tags
+  script:
+    - ./gradlew publishToMavenCentral
+  when: manual
+
+deploy-npm:
+  stage: deploy
+  image: node:18
+  only:
+    - tags
+  before_script:
+    - cd tools/editor/web
+    - npm ci
+  script:
+    - npm publish --access public
+  when: manual
+
+deploy-documentation:
+  stage: deploy
+  image: alpine:latest
+  dependencies:
+    - package-documentation
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - echo "Deploying documentation to CDN..."
+    # Add your documentation deployment script here
+  when: manual
+
+# Multi-platform test matrix
+.test-matrix: &test-matrix
+  stage: test
+  parallel:
+    matrix:
+      - PLATFORM: [linux, windows, macos]
+
+test-matrix:
+  <<: *test-matrix
+  image: openjdk:17-jdk
+  script:
+    - echo "Testing on $PLATFORM"
+    - ./gradlew check

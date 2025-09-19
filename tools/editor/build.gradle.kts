@@ -1,0 +1,99 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
+plugins {
+    kotlin("multiplatform")
+    alias(libs.plugins.compose)
+    kotlin("plugin.serialization")
+}
+
+kotlin {
+    jvm {
+        withJava()
+    }
+
+    js(IR) {
+        browser {
+            webpackTask {
+                mainOutputFileName = "scene-editor.js"
+            }
+        }
+        binaries.executable()
+    }
+
+    sourceSets {
+        commonMain {
+            dependencies {
+                implementation(project(":"))
+                implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.serialization.json)
+                implementation(compose.runtime)
+                implementation(compose.foundation)
+                implementation(compose.material3)
+                implementation(compose.ui)
+            }
+        }
+
+        commonTest {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(libs.kotlinx.coroutines.test)
+            }
+        }
+
+        jvmMain {
+            dependencies {
+                implementation(compose.desktop.currentOs)
+            }
+        }
+
+        jsMain {
+            dependencies {
+                implementation(npm("@webgpu/types", "0.1.40"))
+                implementation(libs.kotlinx.browser)
+            }
+        }
+    }
+}
+
+compose.desktop {
+    application {
+        mainClass = "io.kreekt.tools.editor.desktop.MainKt"
+
+        nativeDistributions {
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            packageName = "KreeKt Scene Editor"
+            packageVersion = "1.0.0"
+
+            windows {
+                menuGroup = "KreeKt Tools"
+                upgradeUuid = "a6f2b8c3-d4e5-4f6a-8b9c-1d2e3f4a5b6c"
+            }
+
+            macOS {
+                bundleID = "io.kreekt.tools.editor"
+            }
+
+            linux {
+                packageName = "kreekt-scene-editor"
+            }
+        }
+    }
+}
+
+tasks.register("runWeb") {
+    group = "tools"
+    description = "Run the web-based scene editor"
+    dependsOn("jsBrowserDevelopmentRun")
+}
+
+tasks.register("runDesktop") {
+    group = "tools"
+    description = "Run the desktop scene editor"
+    dependsOn("jvmRun")
+}
+
+tasks.register("packageDesktop") {
+    group = "tools"
+    description = "Package desktop scene editor"
+    dependsOn("packageDistributionForCurrentOS")
+}

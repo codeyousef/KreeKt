@@ -1,0 +1,171 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop, 'release/*' ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: windows
+          - os: macos-latest
+            platform: macos
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+        gradle-version: 8.5
+
+    - name: Cache Gradle packages
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Setup Node.js for web tools
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'tools/editor/web/package-lock.json'
+
+    - name: Install web dependencies
+      working-directory: tools/editor/web
+      run: npm ci
+
+    - name: Run unit tests
+      run: ./gradlew :tools:tests:unitTest
+
+    - name: Run integration tests
+      run: ./gradlew :tools:tests:integrationTest
+
+    - name: Run visual tests (Ubuntu only)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        # Setup virtual display for headless browser testing
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+        ./gradlew :tools:tests:visualTest
+
+    - name: Run performance tests
+      run: ./gradlew :tools:tests:performanceTest
+
+    - name: Generate coverage report
+      run: ./gradlew koverXmlReport
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./build/reports/kover/report.xml
+        flags: ${{ matrix.platform }}
+
+    - name: Build all platforms
+      run: ./gradlew assemble
+
+    - name: Build tools
+      run: |
+        ./gradlew :tools:editor:assemble
+        ./gradlew :tools:profiler:assemble
+        ./gradlew :tools:docs:assemble
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-artifacts-${{ matrix.platform }}
+        path: |
+          build/libs/
+          tools/*/build/libs/
+          tools/*/build/distributions/
+
+  web-tools-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'tools/editor/web/package-lock.json'
+
+    - name: Install dependencies
+      working-directory: tools/editor/web
+      run: npm ci
+
+    - name: Run web component tests
+      working-directory: tools/editor/web
+      run: npm test
+
+    - name: Build web tools
+      working-directory: tools/editor/web
+      run: npm run build
+
+    - name: Upload web tool artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: web-tools
+        path: tools/editor/web/dist/
+
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run security scan
+      uses: github/super-linter@v4
+      env:
+        DEFAULT_BRANCH: main
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VALIDATE_KOTLIN: true
+        VALIDATE_JAVASCRIPT_ES: true
+
+  documentation:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [test]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Generate documentation
+      run: ./gradlew dokkaHtml
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./build/dokka/html
