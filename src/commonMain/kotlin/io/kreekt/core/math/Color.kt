@@ -1,6 +1,8 @@
 package io.kreekt.core.math
 
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
+import kotlin.math.PI
 
 /**
  * Color representation supporting RGB and HSL color spaces.
@@ -110,7 +112,7 @@ data class Color(
      * Gets color as hex integer
      */
     fun getHex(): Int {
-        return ((r * 255).toInt() shl 16) or ((g * 255).toInt() shl 8) or (b * 255).toInt()
+        return (((r * 255)).toInt() shl 16) or (((g * 255)).toInt() shl 8) or ((b * 255)).toInt()
     }
 
     /**
@@ -154,8 +156,8 @@ data class Color(
         } else {
             val hue2rgb = { p: Float, q: Float, t: Float ->
                 var tt = t
-                if (tt < 0f) tt += 1f
-                if (tt > 1f) tt -= 1f
+                if (tt < 0f) tt = tt + 1f
+                if (tt > 1f) tt = tt - 1f
                 when {
                     tt < 1f / 6f -> p + (q - p) * 6f * tt
                     tt < 1f / 2f -> q
@@ -357,9 +359,9 @@ data class Color(
      * Adds another color to this color
      */
     fun add(color: Color): Color {
-        r += color.r
-        g += color.g
-        b += color.b
+        r = r + color.r
+        g = g + color.g
+        b = b + color.b
         return this
     }
 
@@ -367,9 +369,9 @@ data class Color(
      * Adds a scalar to each component
      */
     fun addScalar(scalar: Float): Color {
-        r += scalar
-        g += scalar
-        b += scalar
+        r = r + scalar
+        g = g + scalar
+        b = b + scalar
         return this
     }
 
@@ -377,9 +379,9 @@ data class Color(
      * Subtracts another color from this color
      */
     fun sub(color: Color): Color {
-        r -= color.r
-        g -= color.g
-        b -= color.b
+        r = r - color.r
+        g = g - color.g
+        b = b - color.b
         return this
     }
 
@@ -387,9 +389,9 @@ data class Color(
      * Multiplies this color by another color (component-wise)
      */
     fun multiply(color: Color): Color {
-        r *= color.r
-        g *= color.g
-        b *= color.b
+        r = r * color.r
+        g = g * color.g
+        b = b * color.b
         return this
     }
 
@@ -397,9 +399,9 @@ data class Color(
      * Multiplies this color by a scalar
      */
     fun multiplyScalar(scalar: Float): Color {
-        r *= scalar
-        g *= scalar
-        b *= scalar
+        r = r * scalar
+        g = g * scalar
+        b = b * scalar
         return this
     }
 
@@ -453,9 +455,9 @@ data class Color(
      * Converts to CSS rgb string
      */
     fun toRgbString(): String {
-        val rInt = (r * 255).toInt().coerceIn(0, 255)
-        val gInt = (g * 255).toInt().coerceIn(0, 255)
-        val bInt = (b * 255).toInt().coerceIn(0, 255)
+        val rInt = ((r * 255)).toInt().coerceIn(0, 255)
+        val gInt = ((g * 255)).toInt().coerceIn(0, 255)
+        val bInt = ((b * 255)).toInt().coerceIn(0, 255)
         return "rgb($rInt, $gInt, $bInt)"
     }
 
@@ -468,5 +470,35 @@ data class Color(
 
     override fun toString(): String {
         return "Color(r=$r, g=$g, b=$b)"
+    }
+
+    // Operator overloading for arithmetic
+    operator fun plus(other: Color): Color = Color(r + other.r, g + other.g, b + other.b)
+    operator fun plus(scalar: Float): Color = Color(r + scalar, g + scalar, b + scalar)
+    operator fun minus(other: Color): Color = Color(r - other.r, g - other.g, b - other.b)
+    operator fun minus(scalar: Float): Color = Color(r - scalar, g - scalar, b - scalar)
+    operator fun times(other: Color): Color = Color(r * other.r, g * other.g, b * other.b)
+    operator fun times(scalar: Float): Color = Color((r * scalar), (g * scalar), (b * scalar))
+    operator fun div(other: Color): Color = Color(r / other.r, g / other.g, b / other.b)
+    operator fun div(scalar: Float): Color = Color(r / scalar, g / scalar, b / scalar)
+    operator fun unaryMinus(): Color = Color(-r, -g, -b)
+
+    // Mutable operators
+    operator fun plusAssign(other: Color) {
+        r = r + other.r
+        g = g + other.g
+        b = b + other.b
+    }
+
+    operator fun minusAssign(other: Color) {
+        r = r - other.r
+        g = g - other.g
+        b = b - other.b
+    }
+
+    operator fun timesAssign(scalar: Float) {
+        r = r * scalar
+        g = g * scalar
+        b = b * scalar
     }
 }

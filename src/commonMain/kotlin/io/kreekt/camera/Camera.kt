@@ -1,8 +1,13 @@
 package io.kreekt.camera
 
 import io.kreekt.core.math.*
+import io.kreekt.core.platform.platformClone
 import io.kreekt.core.scene.Object3D
+import io.kreekt.core.platform.platformClone
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
+import kotlin.math.PI
+import io.kreekt.core.math.Box3
 
 /**
  * Abstract base class for all cameras.
@@ -22,6 +27,12 @@ abstract class Camera : Object3D() {
      * Inverse of the world matrix (view matrix)
      */
     val matrixWorldInverse: Matrix4 = Matrix4()
+
+    /**
+     * Alias for matrixWorldInverse
+     */
+    val viewMatrix: Matrix4
+        get() = matrixWorldInverse
 
     /**
      * Near clipping plane distance
@@ -93,14 +104,14 @@ abstract class Camera : Object3D() {
      */
     open fun getFocalLength(): Float {
         val vExtentSlope = tan(getEffectiveFOV() * PI.toFloat() / 360f)
-        return getFilmHeight() / (2f * vExtentSlope)
+        return getFilmHeight() / ((2f * vExtentSlope))
     }
 
     /**
      * Sets the focal length
      */
     open fun setFocalLength(focalLength: Float) {
-        val vExtentSlope = getFilmHeight() / (2f * focalLength)
+        val vExtentSlope = getFilmHeight() / ((2f * focalLength))
         setFieldOfView(atan(vExtentSlope) * 360f / PI.toFloat())
     }
 
@@ -242,10 +253,10 @@ object CameraUtils {
         val center = box.getCenter()
 
         val maxSize = maxOf(size.x, size.y, size.z)
-        val distance = getDistanceToFitObject(camera, maxSize * padding)
+        val distance = getDistanceToFitObject(camera, (maxSize * padding))
 
         camera.position.copy(center)
-        camera.position.z += distance
+        camera.position.z = camera.position.z + distance
         camera.lookAt(center)
         camera.updateMatrixWorld()
     }
@@ -370,11 +381,11 @@ class CameraAnimator {
     fun update(camera: Camera, deltaTime: Float) {
         if (!isAnimating) return
 
-        elapsed += deltaTime
+        elapsed = elapsed + deltaTime
         val t = (elapsed / duration).coerceIn(0f, 1f)
 
         // Smooth interpolation
-        val smoothT = t * t * (3f - 2f * t)
+        val smoothT = t * t * (3f - (2f * t))
 
         camera.position.copy(startPosition).lerp(endPosition, smoothT)
 

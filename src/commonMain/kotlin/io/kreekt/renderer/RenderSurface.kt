@@ -1,4 +1,5 @@
 package io.kreekt.renderer
+import kotlin.math.PI
 
 /**
  * Platform-agnostic render surface interface.
@@ -234,8 +235,8 @@ object SurfaceUtils {
         devicePixelRatio: Float,
         maxSize: Int = 4096
     ): Pair<Int, Int> {
-        val width = (viewportWidth * devicePixelRatio).toInt().coerceAtMost(maxSize)
-        val height = (viewportHeight * devicePixelRatio).toInt().coerceAtMost(maxSize)
+        val width = ((viewportWidth * devicePixelRatio)).toInt().coerceAtMost(maxSize)
+        val height = ((viewportHeight * devicePixelRatio)).toInt().coerceAtMost(maxSize)
         return Pair(width, height)
     }
 
@@ -263,7 +264,7 @@ object SurfaceUtils {
         bufferCount: Int = 2
     ): Long {
         val bytesPerPixel = getBytesPerPixel(format)
-        return width.toLong() * height.toLong() * bytesPerPixel * bufferCount
+        return width.toLong() * height.toLong() * (bytesPerPixel * bufferCount)
     }
 
     /**

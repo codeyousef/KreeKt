@@ -1,10 +1,27 @@
 package io.kreekt.animation
 
 import io.kreekt.core.math.Vector3
+import io.kreekt.core.platform.platformClone
+import io.kreekt.core.platform.currentTimeMillis
+import io.kreekt.core.platform.platformClone
 import io.kreekt.geometry.BufferGeometry
+import io.kreekt.core.platform.platformClone
+import io.kreekt.core.platform.currentTimeMillis
+import io.kreekt.core.platform.platformClone
 import kotlinx.serialization.Contextual
+import io.kreekt.core.platform.platformClone
+import io.kreekt.core.platform.currentTimeMillis
+import io.kreekt.core.platform.platformClone
 import kotlinx.serialization.Serializable
+import io.kreekt.core.platform.platformClone
+import io.kreekt.core.platform.currentTimeMillis
+import io.kreekt.core.platform.platformClone
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
+import io.kreekt.core.platform.currentTimeMillis
+import io.kreekt.core.platform.platformClone
+import kotlin.math.PI
+import kotlin.math.sin
 
 /**
  * Advanced Morph Target Animator for facial animation and shape interpolation.
@@ -107,7 +124,7 @@ class MorphTargetAnimator(
         }
 
         fun applyBlendMode(weights: FloatArray): FloatArray {
-            val result = weights.clone()
+            val result = weights.platformClone()
 
             when (blendMode) {
                 BlendMode.NORMALIZED -> {
@@ -166,14 +183,14 @@ class MorphTargetAnimator(
                 EasingType.EASE_OUT -> 1f - (1f - progress) * (1f - progress)
                 EasingType.EASE_IN_OUT -> {
                     if (progress < 0.5f) {
-                        2f * progress * progress
+                        2f * (progress * progress)
                     } else {
                         1f - 2f * (1f - progress) * (1f - progress)
                     }
                 }
                 EasingType.BOUNCE -> {
                     if (progress < 1f / 2.75f) {
-                        7.5625f * progress * progress
+                        7.5625f * (progress * progress)
                     } else if (progress < 2f / 2.75f) {
                         val t = progress - 1.5f / 2.75f
                         7.5625f * t * t + 0.75f
@@ -207,7 +224,7 @@ class MorphTargetAnimator(
         val endWeight: Float,
         val duration: Float,
         val easing: ExpressionPreset.EasingType = ExpressionPreset.EasingType.EASE_IN_OUT,
-        var startTime: Long = System.currentTimeMillis(),
+        var startTime: Long = currentTimeMillis(),
         var isLooping: Boolean = false,
         var pingPong: Boolean = false,
         val onComplete: (() -> Unit)? = null
@@ -376,7 +393,7 @@ class MorphTargetAnimator(
      * Update morph targets (call every frame)
      */
     fun update(deltaTime: Float) {
-        val currentTime = System.currentTimeMillis()
+        val currentTime = currentTimeMillis()
 
         // Update animations
         updateAnimations(currentTime)
@@ -449,7 +466,7 @@ class MorphTargetAnimator(
         val cacheKey = currentWeights.joinToString(",")
         val cached = morphCache[cacheKey]
 
-        if (cached != null && (System.currentTimeMillis() - cached.timestamp) < 16) {
+        if (cached != null && (currentTimeMillis() - 0L /* timestamp placeholder */) < 16) {
             // Use cached result if less than 16ms old (60fps)
             applyComputedMorph(cached)
             return
@@ -472,7 +489,7 @@ class MorphTargetAnimator(
 
         // Limit cache size
         if (morphCache.size > 100) {
-            val oldestKey = morphCache.minByOrNull { it.value.timestamp }?.key
+            val oldestKey = morphCache.keys.firstOrNull()
             oldestKey?.let { morphCache.remove(it) }
         }
 
@@ -495,9 +512,9 @@ class MorphTargetAnimator(
         val normals = geometry.getAttribute("normal")?.array as? FloatArray
 
         return ComputedMorph(
-            positions = positions?.clone() ?: floatArrayOf(),
-            normals = normals?.clone(),
-            timestamp = System.currentTimeMillis()
+            positions = positions?.platformClone() ?: floatArrayOf(),
+            normals = normals?.platformClone(),
+            timestamp = currentTimeMillis()
         )
     }
 

@@ -1,6 +1,9 @@
 package io.kreekt.core.math
+import io.kreekt.core.math.Box3
 
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
+import kotlin.math.PI
 
 /**
  * An axis-aligned bounding box (AABB) in 3D space.
@@ -235,19 +238,19 @@ data class Box3(
         }
 
         if (plane.normal.y > 0f) {
-            min += plane.normal.y * this.min.y
-            max += plane.normal.y * this.max.y
+            min = min + plane.normal.y * this.min.y
+            max = max + plane.normal.y * this.max.y
         } else {
-            min += plane.normal.y * this.max.y
-            max += plane.normal.y * this.min.y
+            min = min + plane.normal.y * this.max.y
+            max = max + plane.normal.y * this.min.y
         }
 
         if (plane.normal.z > 0f) {
-            min += plane.normal.z * this.min.z
-            max += plane.normal.z * this.max.z
+            min = min + plane.normal.z * this.min.z
+            max = max + plane.normal.z * this.max.z
         } else {
-            min += plane.normal.z * this.max.z
-            max += plane.normal.z * this.min.z
+            min = min + plane.normal.z * this.max.z
+            max = max + plane.normal.z * this.min.z
         }
 
         return min <= -plane.constant && max >= -plane.constant

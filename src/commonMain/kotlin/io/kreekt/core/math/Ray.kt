@@ -1,6 +1,9 @@
 package io.kreekt.core.math
 
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
+import kotlin.math.PI
+import io.kreekt.core.math.Box3
 
 /**
  * A ray represented by an origin point and a direction vector.
@@ -143,7 +146,7 @@ data class Ray(
         val b0 = diff.dot(direction)
         val b1 = -diff.dot(segDir)
         val c = diff.lengthSq()
-        val det = abs(1f - a01 * a01)
+        val det = abs(1f - (a01 * a01))
 
         var s0: Float
         var s1: Float
@@ -161,44 +164,44 @@ data class Ray(
                     if (s1 <= extDet) {
                         // Region 0
                         val invDet = 1f / det
-                        s0 *= invDet
-                        s1 *= invDet
-                        sqrDist = s0 * (s0 + a01 * s1 + 2f * b0) + s1 * (a01 * s0 + s1 + 2f * b1) + c
+                        s0 = s0 * invDet
+                        s1 = s1 * invDet
+                        sqrDist = s0 * (s0 + a01 * s1 + (2f * b0)) + s1 * (a01 * s0 + s1 + (2f * b1)) + c
                     } else {
                         // Region 1
                         s1 = segExtent
                         s0 = maxOf(0f, -(a01 * s1 + b0))
-                        sqrDist = -s0 * s0 + s1 * (s1 + 2f * b1) + c
+                        sqrDist = -s0 * s0 + s1 * (s1 + (2f * b1)) + c
                     }
                 } else {
                     // Region 5
                     s1 = -segExtent
                     s0 = maxOf(0f, -(a01 * s1 + b0))
-                    sqrDist = -s0 * s0 + s1 * (s1 + 2f * b1) + c
+                    sqrDist = -s0 * s0 + s1 * (s1 + (2f * b1)) + c
                 }
             } else {
                 if (s1 <= -extDet) {
                     // Region 4
                     s0 = maxOf(0f, -(-a01 * segExtent + b0))
                     s1 = if (s0 > 0f) -segExtent else minOf(maxOf(-segExtent, -b1), segExtent)
-                    sqrDist = -s0 * s0 + s1 * (s1 + 2f * b1) + c
+                    sqrDist = -s0 * s0 + s1 * (s1 + (2f * b1)) + c
                 } else if (s1 <= extDet) {
                     // Region 3
                     s0 = 0f
                     s1 = minOf(maxOf(-segExtent, -b1), segExtent)
-                    sqrDist = s1 * (s1 + 2f * b1) + c
+                    sqrDist = s1 * (s1 + (2f * b1)) + c
                 } else {
                     // Region 2
                     s0 = maxOf(0f, -(a01 * segExtent + b0))
                     s1 = if (s0 > 0f) segExtent else minOf(maxOf(-segExtent, -b1), segExtent)
-                    sqrDist = -s0 * s0 + s1 * (s1 + 2f * b1) + c
+                    sqrDist = -s0 * s0 + s1 * (s1 + (2f * b1)) + c
                 }
             }
         } else {
             // Ray and segment are parallel
             s1 = if (a01 > 0f) -segExtent else segExtent
             s0 = maxOf(0f, -(a01 * s1 + b0))
-            sqrDist = -s0 * s0 + s1 * (s1 + 2f * b1) + c
+            sqrDist = -s0 * s0 + s1 * (s1 + (2f * b1)) + c
         }
 
         val closestPointOnRay = Vector3().copy(direction).multiplyScalar(s0).add(origin)

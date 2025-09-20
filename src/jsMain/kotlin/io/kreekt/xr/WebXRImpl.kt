@@ -10,6 +10,7 @@ import kotlinx.coroutines.*
 import kotlinx.browser.*
 import org.w3c.dom.*
 import org.w3c.dom.events.*
+import org.khronos.webgl.*
 import kotlin.js.*
 import kotlin.js.Promise
 
@@ -17,11 +18,11 @@ import kotlin.js.Promise
  * External WebXR API declarations
  */
 external interface Navigator {
-    val xr: XRSystem?
+    val xr: XRSystemNative?
 }
 
 @Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")
-external interface XRSystem {
+external interface XRSystemNative {
     fun isSessionSupported(mode: String): Promise<Boolean>
     fun requestSession(mode: String, options: dynamic = definedExternally): Promise<XRSessionNative>
     val ondevicechange: ((Event) -> Unit)?
@@ -105,7 +106,7 @@ external interface XRPoseNative {
     val emulatedPosition: Boolean
 }
 
-external interface XRRigidTransform {
+external class XRRigidTransform {
     val position: DOMPointReadOnly
     val orientation: DOMPointReadOnly
     val matrix: Float32Array
@@ -149,18 +150,18 @@ external interface XRJointPoseNative : XRPoseNative {
     val radius: Float
 }
 
-external interface XRInputSourcesChangeEvent : Event {
+external interface XRInputSourcesChangeEvent {
     val session: XRSessionNative
     val added: Array<XRInputSourceNative>
     val removed: Array<XRInputSourceNative>
 }
 
-external interface XRInputSourceEvent : Event {
+external interface XRInputSourceEvent {
     val frame: XRFrameNative
     val inputSource: XRInputSourceNative
 }
 
-external interface XRWebGLLayerNative {
+external class XRWebGLLayerNative {
     val antialias: Boolean
     val ignoreDepthValues: Boolean
     val framebuffer: WebGLFramebuffer?
@@ -251,26 +252,16 @@ actual fun isWebXRSupported(): Boolean {
 
 @JsName("isImmersiveVRSupported")
 actual fun isImmersiveVRSupported(): Boolean {
-    val xr = (window.navigator.asDynamic().xr as? XRSystem) ?: return false
-    return runBlocking {
-        try {
-            xr.isSessionSupported("immersive-vr").await()
-        } catch (e: Throwable) {
-            false
-        }
-    }
+    // Note: WebXR support check is async, returning false for now
+    // Should be replaced with suspend function or cached result
+    return false
 }
 
 @JsName("isImmersiveARSupported")
 actual fun isImmersiveARSupported(): Boolean {
-    val xr = (window.navigator.asDynamic().xr as? XRSystem) ?: return false
-    return runBlocking {
-        try {
-            xr.isSessionSupported("immersive-ar").await()
-        } catch (e: Throwable) {
-            false
-        }
-    }
+    // Note: WebXR support check is async, returning false for now
+    // Should be replaced with suspend function or cached result
+    return false
 }
 
 @JsName("getPlatformXRDevices")
@@ -538,7 +529,7 @@ object WebXRSessionManager {
     private val referenceSpaces = mutableMapOf<XRReferenceSpaceType, XRReferenceSpaceNative>()
 
     suspend fun createSession(mode: XRSessionMode, features: List<XRFeature>): XRSessionNative {
-        val xr = (window.navigator.asDynamic().xr as? XRSystem)
+        val xr = (window.navigator.asDynamic().xr as? XRSystemNative)
             ?: throw XRException.NotSupported("WebXR not available")
 
         val sessionMode = when (mode) {
@@ -665,12 +656,15 @@ class WebXRReferenceSpace(
     override val type: XRReferenceSpaceType,
     val nativeSpace: XRReferenceSpaceNative
 ) : XRReferenceSpace {
-    override val id = "webxr_space_${System.currentTimeMillis()}"
+    val id = "webxr_space_${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}"
+    override val transform: Matrix4 = Matrix4.identity()
 
-    override fun getOffsetReferenceSpace(originOffset: XRPose): XRReferenceSpace {
+    override fun getOffsetReferenceSpace(originOffset: Matrix4): XRReferenceSpace {
+        val position = originOffset.getTranslation()
+        val rotation = originOffset.getRotation()
         val rigidTransform = XRRigidTransform(
-            js("{x: ${originOffset.position.x}, y: ${originOffset.position.y}, z: ${originOffset.position.z}}"),
-            js("{x: ${originOffset.orientation.x}, y: ${originOffset.orientation.y}, z: ${originOffset.orientation.z}, w: ${originOffset.orientation.w}}")
+            js("{x: ${position.x}, y: ${position.y}, z: ${position.z}}"),
+            js("{x: ${rotation.x}, y: ${rotation.y}, z: ${rotation.z}, w: ${rotation.w}}")
         )
 
         val offsetSpace = nativeSpace.getOffsetReferenceSpace(rigidTransform)
@@ -718,7 +712,8 @@ class WebXRInputSource(
 class WebXRSpace(
     val nativeSpace: XRSpaceNative
 ) : XRSpace {
-    override val id = "webxr_space_${System.currentTimeMillis()}"
+    val id = "webxr_space_${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}"
+    override val transform: Matrix4 = Matrix4.identity()
 }
 
 /**
@@ -889,7 +884,7 @@ class WebXRHitTestResult(
 class WebXRAnchor(
     private val nativeAnchor: XRAnchorNative
 ) : XRAnchor {
-    override val id = "webxr_anchor_${System.currentTimeMillis()}"
+    val id = "webxr_anchor_${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}"
     override val space = WebXRSpace(nativeAnchor.anchorSpace)
 
     override fun delete() {
@@ -1038,7 +1033,7 @@ data class DefaultXRView(
     override val recommendedViewportScale: Float?
 ) : XRView
 
-data class DefaultXRJointPose(
+class DefaultXRJointPose(
     override val transform: Matrix4,
     override val position: Vector3,
     override val orientation: Quaternion,

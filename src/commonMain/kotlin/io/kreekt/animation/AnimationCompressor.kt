@@ -2,6 +2,7 @@ package io.kreekt.animation
 
 import io.kreekt.core.math.Quaternion
 import io.kreekt.core.math.Vector3
+import io.kreekt.core.platform.currentTimeMillis
 import kotlinx.serialization.Serializable
 import kotlin.math.*
 
@@ -125,7 +126,7 @@ object AnimationCompressor {
             var distance = 0f
             for (i in 0 until minOf(value.size, other.value.size)) {
                 val diff = value[i] - other.value[i]
-                distance += diff * diff
+                distance += (diff * diff)
             }
             return sqrt(distance)
         }
@@ -171,7 +172,7 @@ object AnimationCompressor {
         tracks: List<AnimationTrack>,
         config: CompressionConfig = CompressionConfig()
     ): Pair<List<AnimationTrack>, CompressionResult> {
-        val startTime = System.currentTimeMillis()
+        val startTime = currentTimeMillis()
         val originalSize = tracks.sumOf { it.getSize() }
         val optimizations = mutableListOf<String>()
 
@@ -181,7 +182,7 @@ object AnimationCompressor {
 
         val compressedSize = compressedTracks.sumOf { it.getSize() }
         val compressionRatio = compressedSize.toFloat() / originalSize.toFloat()
-        val processingTime = System.currentTimeMillis() - startTime
+        val processingTime = currentTimeMillis() - startTime
 
         val result = CompressionResult(
             originalSize = originalSize,
@@ -542,7 +543,7 @@ object AnimationCompressor {
                 segmentKeyframes.last(),
                 keyframe.time
             )
-            totalError += keyframe.distanceTo(interpolated)
+            totalError = totalError + keyframe.distanceTo(interpolated)
         }
 
         return totalError / maxOf(1, segmentKeyframes.size - 2)
@@ -703,7 +704,7 @@ object AnimationCompressor {
                 val compressedValue = sampleTrackAtTime(compressed, time)
 
                 if (originalValue != null && compressedValue != null) {
-                    totalError += originalValue.distanceTo(compressedValue)
+                    totalError = totalError + originalValue.distanceTo(compressedValue)
                     comparisonCount++
                 }
             }

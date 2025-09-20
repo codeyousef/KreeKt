@@ -4,13 +4,14 @@ import io.kreekt.core.math.*
 import io.kreekt.core.scene.*
 import io.kreekt.camera.Camera
 import io.kreekt.camera.Viewport
+import io.kreekt.renderer.TextureFormat
+import kotlin.math.PI
 
 /**
  * Core renderer interface for all platform-specific implementations.
  * Compatible with Three.js WebGLRenderer API patterns.
  *
- * Provides a unified interface for rendering 3D scenes across
- * WebGPU, Vulkan, and other graphics APIs.
+ * Provides a unified interface for rendering 3D scenes (across * WebGPU), Vulkan, and other graphics APIs.
  */
 interface Renderer {
 
@@ -386,7 +387,7 @@ object RendererUtils {
      * Estimates memory usage for a render target
      */
     fun estimateRenderTargetMemory(width: Int, height: Int, hasDepth: Boolean, samples: Int = 1): Long {
-        val colorBuffer = width * height * 4L * samples // RGBA
+        val colorBuffer = width * height * 4L * samples // TextureFormat.RGBA8
         val depthBuffer = if (hasDepth) width * height * 4L * samples else 0L // 32-bit depth
         return colorBuffer + depthBuffer
     }

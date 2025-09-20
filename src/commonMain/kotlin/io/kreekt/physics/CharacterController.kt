@@ -5,10 +5,13 @@
 package io.kreekt.physics
 
 import io.kreekt.core.math.*
+import io.kreekt.core.Result
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.*
+import kotlin.math.PI
+import kotlin.math.cos
 
 /**
  * Comprehensive character controller implementation
@@ -18,8 +21,45 @@ class CharacterControllerImpl(
     override val id: String,
     initialShape: CollisionShape,
     initialStepHeight: Float = 0.35f,
-    initialTransform: Matrix4 = Matrix4.IDENTITY
-) : CollisionObjectImpl(id, initialShape, initialTransform), CharacterController {
+    initialTransform: Matrix4 = Matrix4.identity()
+) : CharacterController {
+
+    // CollisionObject implementation
+    override var transform: Matrix4 = initialTransform
+    override var collisionShape: CollisionShape = initialShape
+    override var collisionGroups: Int = 1
+    override var collisionMask: Int = -1
+    override var userData: Any? = null
+    override var contactProcessingThreshold: Float = 0.0f
+    override var collisionFlags: Int = 0
+    override var isTrigger: Boolean = false
+
+    // CollisionObject methods
+    override fun setCollisionShape(shape: CollisionShape): PhysicsResult<Unit> {
+        collisionShape = shape
+        return PhysicsOperationResult.Success(Unit)
+    }
+
+    override fun getCollisionShape(): CollisionShape = collisionShape
+
+    override fun setWorldTransform(transform: Matrix4) {
+        this.transform = transform
+    }
+
+    override fun getWorldTransform(): Matrix4 = transform
+
+    override fun translate(offset: Vector3) {
+        val position = transform.getPosition()
+        position.add(offset)
+        transform.setPosition(position)
+    }
+
+    override fun rotate(rotation: Quaternion) {
+        // TODO: Implement rotation when Matrix4 quaternion methods are available
+        // val currentRotation = transform.getRotation()
+        // currentRotation.multiply(rotation)
+        // transform.setRotationFromQuaternion(currentRotation)
+    }
 
     // Movement properties
     override var stepHeight: Float = initialStepHeight
@@ -93,18 +133,18 @@ class CharacterControllerImpl(
 
     // Character dimensions (assumes capsule shape)
     private val characterRadius: Float
-        get() = when (collisionShape) {
-            is CapsuleShape -> collisionShape.radius
-            is SphereShape -> collisionShape.radius
-            is BoxShape -> minOf(collisionShape.halfExtents.x, collisionShape.halfExtents.z)
+        get() = when (val shape = collisionShape) {
+            is CapsuleShape -> shape.radius
+            is SphereShape -> shape.radius
+            is BoxShape -> minOf(shape.halfExtents.x, shape.halfExtents.z)
             else -> 0.5f
         }
 
     private val characterHeight: Float
-        get() = when (collisionShape) {
-            is CapsuleShape -> collisionShape.height + collisionShape.radius * 2f
-            is SphereShape -> collisionShape.radius * 2f
-            is BoxShape -> collisionShape.halfExtents.y * 2f
+        get() = when (val shape = collisionShape) {
+            is CapsuleShape -> shape.height + shape.radius * 2f
+            is SphereShape -> shape.radius * 2f
+            is BoxShape -> shape.halfExtents.y * 2f
             else -> 1.8f
         }
 
@@ -123,7 +163,7 @@ class CharacterControllerImpl(
 
         // Apply directional jump if specified
         if (direction != Vector3.UNIT_Y && direction.length() > 0.001f) {
-            val horizontalDirection = direction.normalized()
+            val horizontalDirection = direction.copy().normalize()
             val horizontalSpeed = jumpSpeed * 0.5f // Reduced horizontal component
             velocityForTimeInterval = horizontalDirection * horizontalSpeed
         }
@@ -169,7 +209,7 @@ class CharacterControllerImpl(
         // Handle gravity and vertical movement
         if (_gravityEnabled) {
             if (!_onGround.value || _verticalVelocity > 0f) {
-                _verticalVelocity += gravity * deltaTime
+                _verticalVelocity = _verticalVelocity + gravity * deltaTime
 
                 // Terminal velocity
                 if (_verticalVelocity < -fallSpeed) {
@@ -186,30 +226,30 @@ class CharacterControllerImpl(
 
         // Add walk direction (horizontal movement)
         if (walkDirection.length() > 0.001f) {
-            val horizontalMovement = Vector3(walkDirection.x, 0f, walkDirection.z).normalized()
+            val horizontalMovement = Vector3(walkDirection.x, 0f, walkDirection.z).normalize()
             val movementSpeed = walkDirection.length()
 
             if (_onGround.value) {
-                movement = horizontalMovement * movementSpeed * deltaTime
+                movement = horizontalMovement * (movementSpeed * deltaTime)
             } else {
                 // Reduced air control
-                movement = horizontalMovement * movementSpeed * deltaTime * airControl
+                movement = horizontalMovement * movementSpeed * (deltaTime * airControl)
             }
         }
 
         // Add velocity for time interval (external forces, pushes, etc.)
         if (velocityForTimeInterval.length() > 0.001f) {
-            movement += velocityForTimeInterval * deltaTime
+            movement = movement + velocityForTimeInterval * deltaTime
             // Gradually reduce external velocity
             velocityForTimeInterval = velocityForTimeInterval * 0.95f
         }
 
         // Add vertical movement
-        movement.y += _verticalVelocity * deltaTime
+        movement.y = movement.y + _verticalVelocity * deltaTime
 
         // Add platform velocity
         if (_currentPlatform != null && _onGround.value) {
-            movement += _platformVelocity * deltaTime
+            movement = movement + (_platformVelocity * deltaTime)
         }
 
         // Perform movement with collision detection
@@ -258,7 +298,7 @@ class CharacterControllerImpl(
         val movementDistance = movement.length()
         if (movementDistance < 0.001f) return startPosition
 
-        val movementDirection = movement.normalized()
+        val movementDirection = movement.normalize()
         var currentPosition = startPosition
 
         // Slide along surfaces
@@ -279,8 +319,8 @@ class CharacterControllerImpl(
                 // Move to hit point minus skin width
                 val safeDistance = sweepResult.distance - skinWidth
                 if (safeDistance > 0.001f) {
-                    currentPosition += movementDirection * safeDistance
-                    remainingDistance -= safeDistance
+                    currentPosition = currentPosition + movementDirection * safeDistance
+                    remainingDistance = remainingDistance - safeDistance
                 } else {
                     remainingDistance = 0f
                 }
@@ -289,7 +329,7 @@ class CharacterControllerImpl(
                 val slideDirection = calculateSlideDirection(movementDirection, sweepResult.normal)
 
                 if (slideDirection.length() > 0.001f) {
-                    movementDirection.set(slideDirection.normalized())
+                    movementDirection.set(slideDirection.normalize())
                 } else {
                     break // Cannot slide further
                 }
@@ -346,7 +386,7 @@ class CharacterControllerImpl(
 
     private fun performSweepTest(world: PhysicsWorld, from: Vector3, to: Vector3): SweepResult {
         // Simplified sweep test - in a real implementation, this would use the physics world's sweep functionality
-        val direction = (to - from).normalized()
+        val direction = (to - from).normalize()
         val distance = (to - from).length()
 
         // Perform raycast from character center
@@ -383,7 +423,7 @@ class CharacterControllerImpl(
         if (slopeAngle > maxSlopeAngle) {
             // Too steep - slide down the slope
             val downSlope = Vector3.UNIT_Y - surfaceNormal * Vector3.UNIT_Y.dot(surfaceNormal)
-            return downSlope.normalized()
+            return downSlope.normalize()
         }
 
         return projectedMovement
@@ -464,7 +504,7 @@ class CharacterControllerImpl(
     private fun updateTimers(deltaTime: Float) {
         // Update jump timeout (coyote time)
         if (_jumpTimeout > 0f) {
-            _jumpTimeout -= deltaTime
+            _jumpTimeout = _jumpTimeout - deltaTime
             if (_jumpTimeout <= 0f) {
                 _jumpTimeout = 0f
                 if (!_onGround.value) {
@@ -581,9 +621,9 @@ class CharacterControllerImpl(
         val sweepResult = performSweepTest(world, currentPosition, targetPosition)
 
         return if (sweepResult.hasHit) {
-            val direction = (targetPosition - currentPosition).normalized()
+            val direction = (targetPosition - currentPosition).normalize()
             val safeDistance = maxOf(0f, sweepResult.distance - skinWidth)
-            currentPosition + direction * safeDistance
+            currentPosition + (direction * safeDistance)
         } else {
             targetPosition
         }
@@ -638,7 +678,7 @@ object CharacterControllerFactory {
         radius: Float = 0.3f,
         position: Vector3 = Vector3.ZERO
     ): CharacterController {
-        val capsuleShape = CapsuleShapeImpl(radius, height - radius * 2f)
+        val capsuleShape = CapsuleShapeImpl(radius, height - (radius * 2f))
         val transform = Matrix4.fromTranslation(position)
 
         return CharacterControllerImpl(id, capsuleShape, height * 0.2f, transform).apply {
@@ -662,7 +702,7 @@ object CharacterControllerFactory {
         radius: Float = 0.2f,
         position: Vector3 = Vector3.ZERO
     ): CharacterController {
-        val capsuleShape = CapsuleShapeImpl(radius, height - radius * 2f)
+        val capsuleShape = CapsuleShapeImpl(radius, height - (radius * 2f))
         val transform = Matrix4.fromTranslation(position)
 
         return CharacterControllerImpl(id, capsuleShape, height * 0.15f, transform).apply {

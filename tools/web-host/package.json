@@ -1,0 +1,33 @@
+{
+  "name": "kreekt-web-tools",
+  "version": "1.0.0",
+  "description": "Web hosting configuration for KreeKt development tools",
+  "private": true,
+  "scripts": {
+    "build": "webpack --mode=production",
+    "dev": "webpack serve --mode=development",
+    "start": "node server.js",
+    "deploy": "npm run build && npm run deploy:static",
+    "deploy:static": "rsync -av dist/ /var/www/kreekt-tools/",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "compression": "^1.7.4",
+    "serve-static": "^1.15.0",
+    "ws": "^8.13.0"
+  },
+  "devDependencies": {
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "html-webpack-plugin": "^5.5.3",
+    "copy-webpack-plugin": "^11.0.0",
+    "jest": "^29.6.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

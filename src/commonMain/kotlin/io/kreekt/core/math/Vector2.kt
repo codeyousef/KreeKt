@@ -30,38 +30,38 @@ data class Vector2(
 
     // Arithmetic operations
     fun add(other: Vector2): Vector2 {
-        x += other.x
-        y += other.y
+        x = x + other.x
+        y = y + other.y
         return this
     }
 
     fun add(scalar: Float): Vector2 {
-        x += scalar
-        y += scalar
+        x = x + scalar
+        y = y + scalar
         return this
     }
 
     fun subtract(other: Vector2): Vector2 {
-        x -= other.x
-        y -= other.y
+        x = x - other.x
+        y = y - other.y
         return this
     }
 
     fun subtract(scalar: Float): Vector2 {
-        x -= scalar
-        y -= scalar
+        x = x - scalar
+        y = y - scalar
         return this
     }
 
     fun multiply(other: Vector2): Vector2 {
-        x *= other.x
-        y *= other.y
+        x = x * other.x
+        y = y * other.y
         return this
     }
 
     fun multiply(scalar: Float): Vector2 {
-        x *= scalar
-        y *= scalar
+        x = x * scalar
+        y = y * scalar
         return this
     }
 
@@ -82,7 +82,7 @@ data class Vector2(
 
     fun cross(other: Vector2): Float = x * other.y - y * other.x
 
-    fun length(): Float = sqrt(x * x + y * y)
+    fun length(): Float = sqrt(x * x + (y * y))
     fun lengthSquared(): Float = x * x + y * y
 
     fun normalize(): Vector2 {
@@ -94,7 +94,7 @@ data class Vector2(
     fun distanceSquared(other: Vector2): Float {
         val dx = x - other.x
         val dy = y - other.y
-        return dx * dx + dy * dy
+        return dx * dx + (dy * dy)
     }
 
     fun angle(): Float = atan2(y, x)
@@ -110,6 +110,37 @@ data class Vector2(
         x = -x
         y = -y
         return this
+    }
+
+    // Operator overloading for arithmetic
+    operator fun plus(other: Vector2): Vector2 = Vector2(x + other.x, y + other.y)
+    operator fun plus(scalar: Float): Vector2 = Vector2(x + scalar, y + scalar)
+    operator fun minus(other: Vector2): Vector2 = Vector2(x - other.x, y - other.y)
+    operator fun minus(scalar: Float): Vector2 = Vector2(x - scalar, y - scalar)
+    operator fun times(other: Vector2): Vector2 = Vector2(x * other.x, y * other.y)
+    operator fun times(scalar: Float): Vector2 = Vector2((x * scalar), (y * scalar))
+    operator fun div(other: Vector2): Vector2 = Vector2(x / other.x, y / other.y)
+    operator fun div(scalar: Float): Vector2 = Vector2(x / scalar, y / scalar)
+    operator fun unaryMinus(): Vector2 = Vector2(-x, -y)
+
+    // Extension property for normalized vector
+    val normalized: Vector2
+        get() = clone().normalize()
+
+    // Mutable operators
+    operator fun plusAssign(other: Vector2) {
+        x = x + other.x
+        y = y + other.y
+    }
+
+    operator fun minusAssign(other: Vector2) {
+        x = x - other.x
+        y = y - other.y
+    }
+
+    operator fun timesAssign(scalar: Float) {
+        x = x * scalar
+        y = y * scalar
     }
 
     fun floor(): Vector2 {

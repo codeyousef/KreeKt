@@ -1,11 +1,15 @@
 package io.kreekt.optimization
 
 import io.kreekt.core.math.*
+import io.kreekt.core.platform.currentTimeMillis
 import io.kreekt.camera.Camera
-import io.kreekt.mesh.Mesh
+import io.kreekt.core.scene.Mesh
 import io.kreekt.renderer.Renderer
 import kotlinx.coroutines.*
 import kotlin.math.*
+
+// Type alias for compatibility
+typealias BoundingBox = Box3
 
 /**
  * Frustum plane for culling calculations
@@ -46,38 +50,38 @@ class Frustum(
 
         // Left plane
         planes[PLANE_LEFT] = FrustumPlane(
-            Vector3(m[3] + m[0], m[7] + m[4], m[11] + m[8]).normalize(),
-            m[15] + m[12]
+            normal = Vector3(m[3] + m[0], m[7] + m[4], m[11] + m[8]).normalized,
+            distance = m[15] + m[12]
         )
 
         // Right plane
         planes[PLANE_RIGHT] = FrustumPlane(
-            Vector3(m[3] - m[0], m[7] - m[4], m[11] - m[8]).normalize(),
-            m[15] - m[12]
+            normal = Vector3(m[3] - m[0], m[7] - m[4], m[11] - m[8]).normalized,
+            distance = m[15] - m[12]
         )
 
         // Top plane
         planes[PLANE_TOP] = FrustumPlane(
-            Vector3(m[3] - m[1], m[7] - m[5], m[11] - m[9]).normalize(),
-            m[15] - m[13]
+            normal = Vector3(m[3] - m[1], m[7] - m[5], m[11] - m[9]).normalized,
+            distance = m[15] - m[13]
         )
 
         // Bottom plane
         planes[PLANE_BOTTOM] = FrustumPlane(
-            Vector3(m[3] + m[1], m[7] + m[5], m[11] + m[9]).normalize(),
-            m[15] + m[13]
+            normal = Vector3(m[3] + m[1], m[7] + m[5], m[11] + m[9]).normalized,
+            distance = m[15] + m[13]
         )
 
         // Near plane
         planes[PLANE_NEAR] = FrustumPlane(
-            Vector3(m[3] + m[2], m[7] + m[6], m[11] + m[10]).normalize(),
-            m[15] + m[14]
+            normal = Vector3(m[3] + m[2], m[7] + m[6], m[11] + m[10]).normalized,
+            distance = m[15] + m[14]
         )
 
         // Far plane
         planes[PLANE_FAR] = FrustumPlane(
-            Vector3(m[3] - m[2], m[7] - m[6], m[11] - m[10]).normalize(),
-            m[15] - m[14]
+            normal = Vector3(m[3] - m[2], m[7] - m[6], m[11] - m[10]).normalized,
+            distance = m[15] - m[14]
         )
     }
 
@@ -244,7 +248,7 @@ class HierarchicalZBuffer(
     private val buffers = Array(levels) { level ->
         val levelWidth = width shr level
         val levelHeight = height shr level
-        FloatArray(levelWidth * levelHeight) { Float.MAX_VALUE }
+        FloatArray((levelWidth * levelHeight)) { Float.MAX_VALUE }
     }
 
     /**
@@ -408,7 +412,7 @@ class CullingSystem(
         statistics.frameStart()
 
         // Update frustum from camera
-        val viewProjection = camera.projectionMatrix * camera.viewMatrix
+        val viewProjection = camera.projectionMatrix.clone().multiply(camera.viewMatrix)
         frustum.setFromMatrix(viewProjection)
 
         // Frustum culling via octree
@@ -461,10 +465,11 @@ class CullingSystem(
 
         // Project bounding sphere to screen
         val angularSize = 2f * atan(sphere.radius / distance)
-        val screenHeight = renderer.height.toFloat()
-        val fov = camera.fov * (PI / 180f).toFloat()
+        val screenHeight = 1080f // Default screen height, should be passed from renderer
+        val fov = (camera as? io.kreekt.camera.PerspectiveCamera)?.fov ?: 50f
+        val fovRad = fov * (PI / 180f).toFloat()
 
-        return (angularSize / fov) * screenHeight
+        return (angularSize / fovRad) * screenHeight
     }
 
     /**
@@ -504,11 +509,11 @@ class CullingStatistics {
 
     fun frameStart() {
         frameCount++
-        cullTime = System.currentTimeMillis()
+        cullTime = currentTimeMillis()
     }
 
     fun frameEnd() {
-        cullTime = System.currentTimeMillis() - cullTime
+        cullTime = currentTimeMillis() - cullTime
     }
 
     fun reset() {

@@ -1,6 +1,9 @@
 package io.kreekt.core.math
 
 import kotlin.math.*
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Euler angle rotation orders
@@ -248,9 +251,9 @@ data class Euler(
 fun Matrix4.makeRotationFromQuaternion(q: Quaternion): Matrix4 {
     val x = q.x; val y = q.y; val z = q.z; val w = q.w
     val x2 = x + x; val y2 = y + y; val z2 = z + z
-    val xx = x * x2; val xy = x * y2; val xz = x * z2
-    val yy = y * y2; val yz = y * z2; val zz = z * z2
-    val wx = w * x2; val wy = w * y2; val wz = w * z2
+    val xx = (x * x2); val xy = (x * y2); val xz = x * z2
+    val yy = (y * y2); val yz = (y * z2); val zz = z * z2
+    val wx = (w * x2); val wy = (w * y2); val wz = w * z2
 
     elements[0] = 1f - (yy + zz)
     elements[1] = xy + wz
@@ -287,7 +290,7 @@ fun Matrix4.makeRotationFromEuler(euler: Euler): Matrix4 {
 
     when (euler.order) {
         EulerOrder.XYZ -> {
-            val ae = a * e; val af = a * f; val be = b * e; val bf = b * f
+            val ae = (a * e); val af = (a * f); val be = (b * e); val bf = b * f
 
             elements[0] = c * e
             elements[4] = -c * f
@@ -299,11 +302,11 @@ fun Matrix4.makeRotationFromEuler(euler: Euler): Matrix4 {
 
             elements[2] = bf - ae * d
             elements[6] = be + af * d
-            elements[10] = a * c
+            elements[10] = (a * c)
         }
 
         EulerOrder.YXZ -> {
-            val ce = c * e; val cf = c * f; val de = d * e; val df = d * f
+            val ce = (c * e); val cf = (c * f); val de = (d * e); val df = d * f
 
             elements[0] = ce + df * b
             elements[4] = de * b - cf
@@ -315,11 +318,11 @@ fun Matrix4.makeRotationFromEuler(euler: Euler): Matrix4 {
 
             elements[2] = cf * b - de
             elements[6] = df + ce * b
-            elements[10] = a * c
+            elements[10] = (a * c)
         }
 
         EulerOrder.ZXY -> {
-            val ce = c * e; val cf = c * f; val de = d * e; val df = d * f
+            val ce = (c * e); val cf = (c * f); val de = (d * e); val df = d * f
 
             elements[0] = ce - df * b
             elements[4] = -a * f
@@ -331,11 +334,11 @@ fun Matrix4.makeRotationFromEuler(euler: Euler): Matrix4 {
 
             elements[2] = -a * d
             elements[6] = b
-            elements[10] = a * c
+            elements[10] = (a * c)
         }
 
         EulerOrder.ZYX -> {
-            val ae = a * e; val af = a * f; val be = b * e; val bf = b * f
+            val ae = (a * e); val af = (a * f); val be = (b * e); val bf = b * f
 
             elements[0] = c * e
             elements[4] = be * d - af
@@ -347,11 +350,11 @@ fun Matrix4.makeRotationFromEuler(euler: Euler): Matrix4 {
 
             elements[2] = -d
             elements[6] = b * c
-            elements[10] = a * c
+            elements[10] = (a * c)
         }
 
         EulerOrder.YZX -> {
-            val ac = a * c; val ad = a * d; val bc = b * c; val bd = b * d
+            val ac = (a * c); val ad = (a * d); val bc = (b * c); val bd = b * d
 
             elements[0] = c * e
             elements[4] = bd - ac * f
@@ -363,11 +366,11 @@ fun Matrix4.makeRotationFromEuler(euler: Euler): Matrix4 {
 
             elements[2] = -d * e
             elements[6] = ad * f + bc
-            elements[10] = ac - bd * f
+            elements[10] = ac - (bd * f)
         }
 
         EulerOrder.XZY -> {
-            val ac = a * c; val ad = a * d; val bc = b * c; val bd = b * d
+            val ac = (a * c); val ad = (a * d); val bc = (b * c); val bd = b * d
 
             elements[0] = c * e
             elements[4] = -f

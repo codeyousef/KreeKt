@@ -1,10 +1,14 @@
 package io.kreekt.performance
+import io.kreekt.renderer.Texture
 
 import kotlinx.coroutines.*
+import io.kreekt.core.platform.currentTimeMillis
 import kotlinx.coroutines.flow.*
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.time.*
+import kotlinx.coroutines.Dispatchers
+import kotlin.math.PI
 
 /**
  * Adaptive rendering system with hardware capability detection
@@ -91,7 +95,7 @@ class AdaptiveRenderer {
         var score = 0
 
         // CPU scoring
-        score += when {
+        score = score + when {
             hardware.cpuCores >= 8 && hardware.cpuFrequency >= 2.5 -> 30
             hardware.cpuCores >= 4 && hardware.cpuFrequency >= 2.0 -> 20
             hardware.cpuCores >= 2 -> 10
@@ -99,7 +103,7 @@ class AdaptiveRenderer {
         }
 
         // Memory scoring
-        score += when {
+        score = score + when {
             hardware.totalMemory >= 16_000_000_000L -> 20  // 16GB+
             hardware.totalMemory >= 8_000_000_000L -> 15   // 8GB+
             hardware.totalMemory >= 4_000_000_000L -> 10   // 4GB+
@@ -107,7 +111,7 @@ class AdaptiveRenderer {
         }
 
         // GPU scoring
-        score += when {
+        score = score + when {
             gpu.computeUnits >= 32 && gpu.vramSize >= 8_000_000_000L -> 50
             gpu.computeUnits >= 16 && gpu.vramSize >= 4_000_000_000L -> 35
             gpu.computeUnits >= 8 && gpu.vramSize >= 2_000_000_000L -> 20
@@ -345,7 +349,6 @@ class AdaptiveRenderer {
             QualityTier.STANDARD -> QualityTier.MOBILE
             QualityTier.MOBILE -> QualityTier.MOBILE // Can't go lower
         }
-
         if (newTier != currentTier) {
             currentTier = newTier
             qualityTierFlow.value = newTier
@@ -356,14 +359,13 @@ class AdaptiveRenderer {
                 fromTier = currentTier,
                 toTier = newTier,
                 reason = reason,
-                timestamp = System.currentTimeMillis()
+                timestamp = currentTimeMillis()
             ))
         } else {
             // Already at lowest, try emergency measures
             applyEmergencyMeasures()
         }
     }
-
     /**
      * Consider upgrading quality if stable
      */
@@ -395,12 +397,11 @@ class AdaptiveRenderer {
                     fromTier = currentTier,
                     toTier = newTier,
                     reason = AdaptationReason.PERFORMANCE_HEADROOM,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = currentTimeMillis()
                 ))
             }
         }
     }
-
     /**
      * Fine-tune dynamic settings without changing tier
      */
@@ -439,16 +440,14 @@ class AdaptiveRenderer {
                 )
             }
         }
-
         adaptationEventsFlow.emit(AdaptationEvent(
             type = AdaptationType.FINE_TUNE,
             fromTier = currentTier,
             toTier = currentTier,
             reason = AdaptationReason.OPTIMIZATION,
-            timestamp = System.currentTimeMillis()
+            timestamp = currentTimeMillis()
         ))
     }
-
     /**
      * Optimize current settings for stable performance
      */
@@ -473,7 +472,6 @@ class AdaptiveRenderer {
             )
         }
     }
-
     /**
      * Apply emergency measures when at lowest tier
      */
@@ -495,10 +493,9 @@ class AdaptiveRenderer {
             fromTier = currentTier,
             toTier = currentTier,
             reason = AdaptationReason.CRITICAL_PERFORMANCE,
-            timestamp = System.currentTimeMillis()
+            timestamp = currentTimeMillis()
         ))
     }
-
     /**
      * Test quality upgrade temporarily
      */
@@ -519,7 +516,6 @@ class AdaptiveRenderer {
 
         return testFps >= targetFrameRate * 0.95
     }
-
     /**
      * Detect performance issues
      */
@@ -530,7 +526,7 @@ class AdaptiveRenderer {
             issues.add(PerformanceIssue.SEVERE_FPS_DROP)
         }
 
-        if (metrics.frameTime > targetFrameTime * 2) {
+        if (metrics.frameTime > (targetFrameTime * 2)) {
             issues.add(PerformanceIssue.FRAME_SPIKE)
         }
 
@@ -552,12 +548,11 @@ class AdaptiveRenderer {
                 fromTier = currentTier,
                 toTier = currentTier,
                 reason = AdaptationReason.PERFORMANCE_ISSUE,
-                timestamp = System.currentTimeMillis(),
+                timestamp = currentTimeMillis(),
                 details = issue.toString()
             ))
         }
     }
-
     /**
      * Get current quality settings
      */
@@ -570,7 +565,6 @@ class AdaptiveRenderer {
         targetFrameRate = fps
         targetFrameTime = 1000.0 / fps
     }
-
     /**
      * Override quality tier manually
      */
@@ -584,10 +578,9 @@ class AdaptiveRenderer {
             fromTier = currentTier,
             toTier = tier,
             reason = AdaptationReason.USER_PREFERENCE,
-            timestamp = System.currentTimeMillis()
+            timestamp = currentTimeMillis()
         ))
     }
-
     /**
      * Enable/disable automatic adaptation
      */
@@ -599,7 +592,6 @@ class AdaptiveRenderer {
             adaptationJob = null
         }
     }
-
     /**
      * Shutdown adaptive renderer
      */
@@ -607,7 +599,6 @@ class AdaptiveRenderer {
         monitoringJob?.cancel()
         adaptationJob?.cancel()
     }
-
     // Helper functions
     private fun canUpgrade(): Boolean = currentTier != QualityTier.ULTRA
     private fun canDowngrade(): Boolean = currentTier != QualityTier.MOBILE
@@ -627,13 +618,11 @@ class AdaptiveRenderer {
         if (values.size < 2) return 0f
         return (values.last() - values.first()) / values.size
     }
-
     private inline fun <reified T : Enum<T>> downgradeEnum(value: T): T {
         val values = enumValues<T>()
         val currentIndex = values.indexOf(value)
         return if (currentIndex > 0) values[currentIndex - 1] else value
     }
-
     private fun determineAvailableFeatures(
         hardware: HardwareInfo,
         gpu: GPUCapabilities
@@ -680,7 +669,7 @@ class AdaptiveRenderer {
  */
 class HardwareDetector {
     fun detect(): HardwareInfo {
-        return expect { detectHardware() }
+        return detectHardware()
     }
 }
 
@@ -689,11 +678,11 @@ class HardwareDetector {
  */
 class GPUProfiler {
     fun profile(): GPUCapabilities {
-        return expect { profileGPU() }
+        return profileGPU()
     }
 
     fun getVRAMUsage(): Float {
-        return expect { getCurrentVRAMUsage() }
+        return getCurrentVRAMUsage()
     }
 }
 
@@ -715,19 +704,19 @@ class PerformanceMonitor {
     }
 
     fun getCPUTime(): Float {
-        return expect { measureCPUTime() }
+        return measureCPUTime()
     }
 
     fun getGPUTime(): Float {
-        return expect { measureGPUTime() }
+        return measureGPUTime()
     }
 
     fun getDrawCalls(): Int {
-        return expect { countDrawCalls() }
+        return countDrawCalls()
     }
 
     fun getTriangleCount(): Int {
-        return expect { countTriangles() }
+        return countTriangles()
     }
 
     fun recordFrame(deltaTime: Float) {
@@ -743,11 +732,11 @@ class PerformanceMonitor {
  */
 class ThermalMonitor {
     fun getCurrentTemperature(): Float {
-        return expect { getSystemTemperature() }
+        return getSystemTemperature()
     }
 
     fun getPowerUsage(): Float {
-        return expect { getSystemPowerUsage() }
+        return getSystemPowerUsage()
     }
 }
 
@@ -756,11 +745,11 @@ class ThermalMonitor {
  */
 class MemoryMonitor {
     fun getCurrentUsage(): Float {
-        return expect { getMemoryUsage() }
+        return getMemoryUsage()
     }
 
     fun getAvailableMemory(): Long {
-        return expect { getAvailableSystemMemory() }
+        return getAvailableSystemMemory()
     }
 }
 
@@ -831,18 +820,7 @@ data class Resolution(
     val height: Int
 )
 
-data class PerformanceMetrics(
-    val fps: Float,
-    val frameTime: Float,
-    val cpuTime: Float,
-    val gpuTime: Float,
-    val drawCalls: Int,
-    val triangles: Int,
-    val memoryUsage: Float,
-    val vramUsage: Float,
-    val temperature: Float,
-    val powerUsage: Float
-)
+// PerformanceMetrics is defined in QualityTier.kt
 
 data class AdaptationEvent(
     val type: AdaptationType,
@@ -853,10 +831,7 @@ data class AdaptationEvent(
     val details: String? = null
 )
 
-// Enums
-enum class QualityTier {
-    MOBILE, STANDARD, HIGH, ULTRA
-}
+// QualityTier enum is defined in QualityTier.kt
 
 enum class Platform {
     MOBILE, WEB, DESKTOP, CONSOLE

@@ -1,516 +1,360 @@
+/**
+ * Memory Profiler for tracking and analyzing memory usage
+ * Provides comprehensive memory monitoring and optimization tools
+ */
 package io.kreekt.profiling
 
-import io.kreekt.renderer.Renderer
+import io.kreekt.core.platform.currentTimeMillis
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlin.collections.mutableMapOf
-import kotlin.system.getTimeNanos
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlin.math.*
 
 /**
- * Memory allocation tracking
+ * Memory allocation type
  */
-data class AllocationInfo(
-    val type: String,
-    val size: Long,
-    val timestamp: Long,
-    val stackTrace: List<String> = emptyList()
-)
-
-/**
- * Memory category for classification
- */
-enum class MemoryCategory {
+enum class MemoryAllocationType {
+    VERTEX_BUFFER,
+    INDEX_BUFFER,
+    UNIFORM_BUFFER,
     TEXTURE,
-    BUFFER,
     RENDER_TARGET,
     SHADER,
-    GEOMETRY,
     MATERIAL,
-    SYSTEM,
-    POOL,
+    GEOMETRY,
+    SCENE_OBJECT,
     OTHER
 }
 
 /**
- * GPU memory tracking entry
+ * Memory allocation record
  */
-data class GPUMemoryEntry(
+data class MemoryAllocation(
     val id: String,
-    val category: MemoryCategory,
+    val type: MemoryAllocationType,
     val size: Long,
-    val description: String,
-    val timestamp: Long = getTimeNanos()
+    val timestamp: Long,
+    val stackTrace: String = "",
+    val tag: String = "",
+    val metadata: Map<String, Any> = emptyMap()
 )
 
 /**
- * Memory usage snapshot
+ * Memory snapshot at a point in time
  */
 data class MemorySnapshot(
     val timestamp: Long,
-    val systemMemory: SystemMemoryInfo,
-    val gpuMemory: GPUMemoryInfo,
-    val allocations: Map<String, AllocationInfo>
-)
-
-/**
- * System memory information
- */
-data class SystemMemoryInfo(
-    val heapUsed: Long,
-    val heapMax: Long,
-    val nonHeapUsed: Long,
     val totalAllocated: Long,
-    val objectCount: Map<String, Int>
+    val currentUsage: Long,
+    val allocationsCount: Int,
+    val averageAllocationSize: Long,
+    val largestAllocation: Long,
+    val typeBreakdown: Map<MemoryAllocationType, Long>
 )
 
 /**
- * GPU memory information
+ * Memory leak detection result
  */
-data class GPUMemoryInfo(
-    val totalUsed: Long,
-    val textureMemory: Long,
-    val bufferMemory: Long,
-    val renderTargetMemory: Long,
-    val breakdown: Map<MemoryCategory, Long>
+data class MemoryLeak(
+    val allocation: MemoryAllocation,
+    val age: Long,
+    val suspiciousActivity: List<String>
 )
 
 /**
- * Memory leak detection info
+ * Memory profiling configuration
  */
-data class PotentialLeak(
-    val type: String,
-    val count: Int,
-    val totalSize: Long,
-    val growthRate: Float,
-    val samples: List<AllocationInfo>
+data class MemoryProfilerConfig(
+    val enableTracking: Boolean = true,
+    val enableStackTraces: Boolean = false,
+    val maxAllocations: Int = 10000,
+    val snapshotInterval: Long = 5000L,
+    val leakDetectionThreshold: Long = 60000L,
+    val enableLeakDetection: Boolean = true
 )
 
 /**
- * Memory profiler for tracking allocations and usage
+ * Memory profiler implementation
  */
-class MemoryProfiler(
-    private val renderer: Renderer,
-    private val trackAllocations: Boolean = true,
-    private val detectLeaks: Boolean = true
-) {
-    private val gpuAllocations = mutableMapOf<String, GPUMemoryEntry>()
-    private val systemAllocations = mutableMapOf<String, AllocationInfo>()
-    private val snapshots = mutableListOf<MemorySnapshot>()
-    private val leakDetector = MemoryLeakDetector()
-    private val statistics = MemoryStatistics()
+class MemoryProfiler(private val config: MemoryProfilerConfig = MemoryProfilerConfig()) {
 
-    private val monitoringScope = CoroutineScope(Dispatchers.Default)
-    private var monitoringJob: Job? = null
+    private val mutex = Mutex()
+    private val _allocations = mutableMapOf<String, MemoryAllocation>()
+    private val _snapshots = mutableListOf<MemorySnapshot>()
 
-    private val _memoryPressure = MutableStateFlow(0f)
-    val memoryPressure: StateFlow<Float> = _memoryPressure
-
-    private val _memoryWarnings = MutableSharedFlow<MemoryWarning>()
-    val memoryWarnings: SharedFlow<MemoryWarning> = _memoryWarnings
+    private var _totalAllocated = 0L
+    private var _totalDeallocated = 0L
+    private var _peakUsage = 0L
+    private var profilingJob: Job? = null
 
     /**
-     * Track GPU memory allocation
+     * Start memory profiling
      */
-    fun trackGPUAllocation(
-        id: String,
-        category: MemoryCategory,
-        size: Long,
-        description: String = ""
-    ) {
-        gpuAllocations[id] = GPUMemoryEntry(id, category, size, description)
-        statistics.recordGPUAllocation(category, size)
+    fun startProfiling(scope: CoroutineScope = GlobalScope) {
+        if (profilingJob?.isActive == true) return
 
-        checkMemoryPressure()
-    }
-
-    /**
-     * Track GPU memory deallocation
-     */
-    fun trackGPUDeallocation(id: String) {
-        gpuAllocations.remove(id)?.let { entry ->
-            statistics.recordGPUDeallocation(entry.category, entry.size)
-        }
-    }
-
-    /**
-     * Track system memory allocation
-     */
-    fun trackSystemAllocation(
-        id: String,
-        type: String,
-        size: Long,
-        captureStackTrace: Boolean = false
-    ) {
-        if (!trackAllocations) return
-
-        val stackTrace = if (captureStackTrace) {
-            Thread.currentThread().stackTrace
-                .drop(2) // Skip this method and caller
-                .take(10)
-                .map { "${it.className}.${it.methodName}:${it.lineNumber}" }
-        } else emptyList()
-
-        systemAllocations[id] = AllocationInfo(type, size, getTimeNanos(), stackTrace)
-        statistics.recordSystemAllocation(type, size)
-
-        if (detectLeaks) {
-            leakDetector.recordAllocation(type, size, stackTrace)
-        }
-    }
-
-    /**
-     * Track system memory deallocation
-     */
-    fun trackSystemDeallocation(id: String) {
-        systemAllocations.remove(id)?.let { info ->
-            statistics.recordSystemDeallocation(info.type, info.size)
-
-            if (detectLeaks) {
-                leakDetector.recordDeallocation(info.type, info.size)
+        profilingJob = scope.launch {
+            while (isActive) {
+                createSnapshot()
+                if (config.enableLeakDetection) {
+                    detectLeaks()
+                }
+                delay(config.snapshotInterval)
             }
         }
     }
 
     /**
-     * Take memory snapshot
+     * Stop memory profiling
      */
-    fun takeSnapshot(): MemorySnapshot {
-        val runtime = Runtime.getRuntime()
+    fun stopProfiling() {
+        profilingJob?.cancel()
+        profilingJob = null
+    }
 
-        val systemMemory = SystemMemoryInfo(
-            heapUsed = runtime.totalMemory() - runtime.freeMemory(),
-            heapMax = runtime.maxMemory(),
-            nonHeapUsed = 0, // Platform-specific
-            totalAllocated = systemAllocations.values.sumOf { it.size },
-            objectCount = systemAllocations.values
-                .groupBy { it.type }
-                .mapValues { it.value.size }
+    /**
+     * Record a memory allocation
+     */
+    suspend fun recordAllocation(
+        id: String,
+        type: MemoryAllocationType,
+        size: Long,
+        tag: String = "",
+        metadata: Map<String, Any> = emptyMap()
+    ) {
+        if (!config.enableTracking) return
+
+        val stackTrace = if (config.enableStackTraces) {
+            captureStackTrace()
+        } else {
+            ""
+        }
+
+        val allocation = MemoryAllocation(
+            id = id,
+            type = type,
+            size = size,
+            timestamp = currentTimeMillis(),
+            stackTrace = stackTrace,
+            tag = tag,
+            metadata = metadata
         )
 
-        val gpuMemoryByCategory = gpuAllocations.values
-            .groupBy { it.category }
-            .mapValues { entry -> entry.value.sumOf { it.size } }
+        mutex.withLock {
+            _allocations[id] = allocation
+            _totalAllocated += size
+            _peakUsage = max(_peakUsage, getCurrentUsage())
 
-        val gpuMemory = GPUMemoryInfo(
-            totalUsed = gpuAllocations.values.sumOf { it.size },
-            textureMemory = gpuMemoryByCategory[MemoryCategory.TEXTURE] ?: 0,
-            bufferMemory = gpuMemoryByCategory[MemoryCategory.BUFFER] ?: 0,
-            renderTargetMemory = gpuMemoryByCategory[MemoryCategory.RENDER_TARGET] ?: 0,
-            breakdown = gpuMemoryByCategory
-        )
+            // Limit number of tracked allocations
+            if (_allocations.size > config.maxAllocations) {
+                val oldestEntry = _allocations.values.minByOrNull { it.timestamp }
+                oldestEntry?.let {
+                    _allocations.remove(it.id)
+                }
+            }
+        }
+    }
+
+    /**
+     * Record memory deallocation
+     */
+    suspend fun recordDeallocation(id: String) {
+        mutex.withLock {
+            _allocations[id]?.let { allocation ->
+                _allocations.remove(id)
+                _totalDeallocated += allocation.size
+            }
+        }
+    }
+
+    /**
+     * Create memory snapshot
+     */
+    private suspend fun createSnapshot() {
+        val currentTime = currentTimeMillis()
+        val currentAllocations = mutex.withLock { _allocations.values.toList() }
+
+        val currentUsage = currentAllocations.sumOf { it.size }
+        val averageSize = if (currentAllocations.isNotEmpty()) {
+            currentUsage / currentAllocations.size
+        } else {
+            0L
+        }
+
+        val largestAllocation = currentAllocations.maxOfOrNull { it.size } ?: 0L
+
+        val typeBreakdown = currentAllocations.groupBy { it.type }
+            .mapValues { (_, allocations) -> allocations.sumOf { it.size } }
 
         val snapshot = MemorySnapshot(
-            timestamp = getTimeNanos(),
-            systemMemory = systemMemory,
-            gpuMemory = gpuMemory,
-            allocations = systemAllocations.toMap()
+            timestamp = currentTime,
+            totalAllocated = _totalAllocated,
+            currentUsage = currentUsage,
+            allocationsCount = currentAllocations.size,
+            averageAllocationSize = averageSize,
+            largestAllocation = largestAllocation,
+            typeBreakdown = typeBreakdown
         )
 
-        snapshots.add(snapshot)
+        mutex.withLock {
+            _snapshots.add(snapshot)
 
-        // Keep snapshot history limited
-        if (snapshots.size > 100) {
-            snapshots.removeAt(0)
-        }
-
-        return snapshot
-    }
-
-    /**
-     * Start memory monitoring
-     */
-    fun startMonitoring(intervalMs: Long = 1000) {
-        stopMonitoring()
-
-        monitoringJob = monitoringScope.launch {
-            while (isActive) {
-                updateMemoryMetrics()
-                checkForLeaks()
-                delay(intervalMs)
+            // Keep limited history
+            if (_snapshots.size > 100) {
+                _snapshots.removeAt(0)
             }
         }
     }
 
     /**
-     * Stop memory monitoring
+     * Detect potential memory leaks
      */
-    fun stopMonitoring() {
-        monitoringJob?.cancel()
-        monitoringJob = null
-    }
+    private suspend fun detectLeaks() {
+        val currentTime = currentTimeMillis()
 
-    /**
-     * Update memory metrics
-     */
-    private suspend fun updateMemoryMetrics() {
-        val runtime = Runtime.getRuntime()
-        val heapUsed = runtime.totalMemory() - runtime.freeMemory()
-        val heapMax = runtime.maxMemory()
-
-        _memoryPressure.value = heapUsed.toFloat() / heapMax
-
-        // Check thresholds
-        when {
-            _memoryPressure.value > 0.95f -> {
-                _memoryWarnings.emit(MemoryWarning.Critical(
-                    "Critical memory pressure: ${(_memoryPressure.value * 100).toInt()}%"
-                ))
-                triggerMemoryCleanup()
+        mutex.withLock {
+            val suspiciousAllocations = _allocations.values.filter { allocation ->
+                currentTime - allocation.timestamp > config.leakDetectionThreshold
             }
-            _memoryPressure.value > 0.8f -> {
-                _memoryWarnings.emit(MemoryWarning.High(
-                    "High memory pressure: ${(_memoryPressure.value * 100).toInt()}%"
-                ))
+
+            suspiciousAllocations.forEach { allocation ->
+                val age = currentTime - allocation.timestamp
+                val leak = MemoryLeak(
+                    allocation = allocation,
+                    age = age,
+                    suspiciousActivity = listOf("Long-lived allocation: ${age}ms")
+                )
+                // In a real implementation, you'd emit this to a leak reporting system
+                println("Potential memory leak detected: ${leak}")
             }
         }
     }
 
     /**
-     * Check for memory leaks
+     * Get memory snapshots
      */
-    private suspend fun checkForLeaks() {
-        if (!detectLeaks) return
+    suspend fun getSnapshots(): List<MemorySnapshot> {
+        return mutex.withLock { _snapshots.toList() }
+    }
 
-        val leaks = leakDetector.detectLeaks()
-
-        leaks.forEach { leak ->
-            _memoryWarnings.emit(MemoryWarning.PotentialLeak(
-                "Potential leak detected: ${leak.type} (${leak.count} instances, ${leak.totalSize} bytes)"
-            ))
+    /**
+     * Get memory usage summary
+     */
+    suspend fun getUsageSummary(): Map<String, Any> {
+        return mutex.withLock {
+            mapOf(
+                "currentAllocations" to _allocations.size,
+                "totalAllocated" to _totalAllocated,
+                "totalDeallocated" to _totalDeallocated,
+                "currentUsage" to getCurrentUsage(),
+                "peakUsage" to _peakUsage
+            )
         }
     }
 
     /**
-     * Check memory pressure
+     * Get current allocations
      */
-    private fun checkMemoryPressure() {
-        val totalGPU = gpuAllocations.values.sumOf { it.size }
-        val totalSystem = systemAllocations.values.sumOf { it.size }
+    suspend fun getCurrentAllocations(): List<MemoryAllocation> {
+        return mutex.withLock { _allocations.values.toList() }
+    }
 
-        // Platform-specific GPU memory limits
-        val gpuLimit = getGPUMemoryLimit()
+    /**
+     * Get allocations by type
+     */
+    suspend fun getAllocationsByType(type: MemoryAllocationType): List<MemoryAllocation> {
+        return mutex.withLock {
+            _allocations.values.filter { it.type == type }
+        }
+    }
 
-        if (totalGPU > gpuLimit * 0.9f) {
-            monitoringScope.launch {
-                _memoryWarnings.emit(MemoryWarning.GPUMemory(
-                    "GPU memory near limit: ${totalGPU / 1024 / 1024}MB / ${gpuLimit / 1024 / 1024}MB"
-                ))
+    /**
+     * Get allocations by tag
+     */
+    suspend fun getAllocationsByTag(tag: String): List<MemoryAllocation> {
+        return mutex.withLock {
+            _allocations.values.filter { it.tag == tag }
+        }
+    }
+
+    /**
+     * Clear all tracking data
+     */
+    suspend fun clear() {
+        mutex.withLock {
+            _allocations.clear()
+            _snapshots.clear()
+            _totalAllocated = 0L
+            _totalDeallocated = 0L
+            _peakUsage = 0L
+        }
+    }
+
+    /**
+     * Get current memory usage
+     */
+    private fun getCurrentUsage(): Long {
+        return _allocations.values.sumOf { it.size }
+    }
+
+    /**
+     * Capture stack trace - simplified version
+     */
+    private fun captureStackTrace(): String {
+        // This is a simplified implementation that works across platforms
+        return "Stack trace capture not fully implemented in multiplatform context"
+    }
+
+    /**
+     * Create allocation analytics
+     */
+    suspend fun createAnalytics(): MemoryAnalytics {
+        val allocations = mutex.withLock { _allocations.values.toList() }
+        val snapshots = mutex.withLock { _snapshots.toList() }
+
+        return MemoryAnalytics(
+            currentAllocations = allocations,
+            snapshots = snapshots,
+            totalBytesAllocated = _totalAllocated,
+            totalBytesDeallocated = _totalDeallocated,
+            peakUsage = _peakUsage,
+            averageAllocationSize = if (allocations.isNotEmpty()) {
+                allocations.sumOf { it.size } / allocations.size
+            } else {
+                0L
             }
-        }
-    }
-
-    /**
-     * Trigger automatic memory cleanup
-     */
-    private fun triggerMemoryCleanup() {
-        // Force garbage collection (use sparingly)
-        System.gc()
-
-        // Clear caches and pools
-        statistics.recordCleanup()
-    }
-
-    /**
-     * Get platform-specific GPU memory limit
-     */
-    private fun getGPUMemoryLimit(): Long {
-        // Platform-specific implementation
-        return 2L * 1024 * 1024 * 1024 // Default 2GB
-    }
-
-    /**
-     * Get memory statistics
-     */
-    fun getStatistics(): MemoryStatistics = statistics
-
-    /**
-     * Get detailed memory report
-     */
-    fun generateReport(): MemoryReport {
-        val currentSnapshot = takeSnapshot()
-
-        return MemoryReport(
-            timestamp = currentSnapshot.timestamp,
-            systemMemory = currentSnapshot.systemMemory,
-            gpuMemory = currentSnapshot.gpuMemory,
-            topAllocations = getTopAllocations(10),
-            memoryTrend = calculateMemoryTrend(),
-            potentialLeaks = if (detectLeaks) leakDetector.detectLeaks() else emptyList()
         )
     }
-
-    /**
-     * Get top memory allocations
-     */
-    private fun getTopAllocations(count: Int): List<AllocationInfo> {
-        return systemAllocations.values
-            .sortedByDescending { it.size }
-            .take(count)
-    }
-
-    /**
-     * Calculate memory trend
-     */
-    private fun calculateMemoryTrend(): MemoryTrend {
-        if (snapshots.size < 2) {
-            return MemoryTrend.STABLE
-        }
-
-        val recent = snapshots.takeLast(10)
-        val firstTotal = recent.first().let { it.systemMemory.heapUsed + it.gpuMemory.totalUsed }
-        val lastTotal = recent.last().let { it.systemMemory.heapUsed + it.gpuMemory.totalUsed }
-
-        val change = (lastTotal - firstTotal).toFloat() / firstTotal
-
-        return when {
-            change > 0.1f -> MemoryTrend.INCREASING
-            change < -0.1f -> MemoryTrend.DECREASING
-            else -> MemoryTrend.STABLE
-        }
-    }
-
-    /**
-     * Clear profiler data
-     */
-    fun clear() {
-        gpuAllocations.clear()
-        systemAllocations.clear()
-        snapshots.clear()
-        leakDetector.clear()
-        statistics.reset()
-    }
 }
 
 /**
- * Memory leak detector
+ * Memory analytics report
  */
-class MemoryLeakDetector {
-    private val allocationHistory = mutableMapOf<String, MutableList<AllocationInfo>>()
-    private val allocationCounts = mutableMapOf<String, Int>()
+data class MemoryAnalytics(
+    val currentAllocations: List<MemoryAllocation>,
+    val snapshots: List<MemorySnapshot>,
+    val totalBytesAllocated: Long,
+    val totalBytesDeallocated: Long,
+    val peakUsage: Long,
+    val averageAllocationSize: Long
+) {
 
-    fun recordAllocation(type: String, size: Long, stackTrace: List<String>) {
-        allocationHistory.getOrPut(type) { mutableListOf() }
-            .add(AllocationInfo(type, size, getTimeNanos(), stackTrace))
-
-        allocationCounts[type] = allocationCounts.getOrDefault(type, 0) + 1
-
-        // Keep history limited
-        allocationHistory[type]?.let { history ->
-            if (history.size > 100) {
-                history.removeAt(0)
-            }
-        }
+    fun getTypeBreakdown(): Map<MemoryAllocationType, Long> {
+        return currentAllocations.groupBy { it.type }
+            .mapValues { (_, allocations) -> allocations.sumOf { it.size } }
     }
 
-    fun recordDeallocation(type: String, size: Long) {
-        allocationCounts[type] = (allocationCounts[type] ?: 0) - 1
+    fun getUsageTrend(): List<Pair<Long, Long>> {
+        return snapshots.map { it.timestamp to it.currentUsage }
     }
 
-    fun detectLeaks(): List<PotentialLeak> {
-        val leaks = mutableListOf<PotentialLeak>()
+    fun getAllocationRate(): Double {
+        if (snapshots.size < 2) return 0.0
 
-        allocationHistory.forEach { (type, history) ->
-            if (history.size < 10) return@forEach
+        val timeDiff = snapshots.last().timestamp - snapshots.first().timestamp
+        val allocationDiff = snapshots.last().allocationsCount - snapshots.first().allocationsCount
 
-            // Check for continuous growth
-            val recent = history.takeLast(10)
-            val growthRate = calculateGrowthRate(recent)
-
-            if (growthRate > 0.1f && allocationCounts[type] ?: 0 > 100) {
-                leaks.add(PotentialLeak(
-                    type = type,
-                    count = allocationCounts[type] ?: 0,
-                    totalSize = recent.sumOf { it.size },
-                    growthRate = growthRate,
-                    samples = recent.take(3)
-                ))
-            }
-        }
-
-        return leaks
-    }
-
-    private fun calculateGrowthRate(allocations: List<AllocationInfo>): Float {
-        if (allocations.size < 2) return 0f
-
-        val first = allocations.first().timestamp
-        val last = allocations.last().timestamp
-        val duration = (last - first) / 1_000_000_000f // Convert to seconds
-
-        return allocations.size / duration
-    }
-
-    fun clear() {
-        allocationHistory.clear()
-        allocationCounts.clear()
+        return if (timeDiff > 0) allocationDiff.toDouble() / (timeDiff / 1000.0) else 0.0
     }
 }
-
-/**
- * Memory statistics
- */
-class MemoryStatistics {
-    private val gpuAllocations = mutableMapOf<MemoryCategory, Long>()
-    private val systemAllocations = mutableMapOf<String, Long>()
-    private var cleanupCount = 0
-
-    fun recordGPUAllocation(category: MemoryCategory, size: Long) {
-        gpuAllocations[category] = gpuAllocations.getOrDefault(category, 0L) + size
-    }
-
-    fun recordGPUDeallocation(category: MemoryCategory, size: Long) {
-        gpuAllocations[category] = (gpuAllocations[category] ?: 0L) - size
-    }
-
-    fun recordSystemAllocation(type: String, size: Long) {
-        systemAllocations[type] = systemAllocations.getOrDefault(type, 0L) + size
-    }
-
-    fun recordSystemDeallocation(type: String, size: Long) {
-        systemAllocations[type] = (systemAllocations[type] ?: 0L) - size
-    }
-
-    fun recordCleanup() {
-        cleanupCount++
-    }
-
-    fun reset() {
-        gpuAllocations.clear()
-        systemAllocations.clear()
-        cleanupCount = 0
-    }
-
-    fun getTotalGPUMemory(): Long = gpuAllocations.values.sum()
-    fun getTotalSystemMemory(): Long = systemAllocations.values.sum()
-}
-
-/**
- * Memory warning types
- */
-sealed class MemoryWarning(val message: String) {
-    class High(message: String) : MemoryWarning(message)
-    class Critical(message: String) : MemoryWarning(message)
-    class GPUMemory(message: String) : MemoryWarning(message)
-    class PotentialLeak(message: String) : MemoryWarning(message)
-}
-
-/**
- * Memory trend indicator
- */
-enum class MemoryTrend {
-    INCREASING,
-    STABLE,
-    DECREASING
-}
-
-/**
- * Comprehensive memory report
- */
-data class MemoryReport(
-    val timestamp: Long,
-    val systemMemory: SystemMemoryInfo,
-    val gpuMemory: GPUMemoryInfo,
-    val topAllocations: List<AllocationInfo>,
-    val memoryTrend: MemoryTrend,
-    val potentialLeaks: List<PotentialLeak>
-)

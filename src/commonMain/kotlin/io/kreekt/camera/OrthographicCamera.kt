@@ -1,8 +1,10 @@
 package io.kreekt.camera
+import io.kreekt.core.math.Box3
 
 import io.kreekt.core.math.*
 import io.kreekt.core.scene.Object3D
 import kotlin.math.*
+import kotlin.math.PI
 
 /**
  * Orthographic camera with parallel projection.
@@ -68,8 +70,8 @@ class OrthographicCamera(
      * Updates the projection matrix based on current parameters
      */
     override fun updateProjectionMatrix() {
-        val dx = (right - left) / (2f * zoom)
-        val dy = (top - bottom) / (2f * zoom)
+        val dx = (right - left) / ((2f * zoom))
+        val dy = (top - bottom) / ((2f * zoom))
         val cx = (right + left) / 2f
         val cy = (top + bottom) / 2f
 
@@ -83,9 +85,9 @@ class OrthographicCamera(
             val scaleW = (this.right - this.left) / view.fullWidth
             val scaleH = (this.top - this.bottom) / view.fullHeight
 
-            left += scaleW * view.offsetX
+            left = left + scaleW * view.offsetX
             right = left + scaleW * view.width
-            top -= scaleH * view.offsetY
+            top = top - scaleH * view.offsetY
             bottom = top - scaleH * view.height
         }
 
@@ -219,7 +221,7 @@ class OrthographicCamera(
 
         // Position camera to look at the center
         position.copy(center)
-        position.z += maxOf(size.z / 2f + 1f, 1f)
+        position.z = position.z + maxOf(size.z / 2f + 1f, 1f)
     }
 
     /**
@@ -230,7 +232,7 @@ class OrthographicCamera(
         setViewSize(size, size)
 
         position.copy(center)
-        position.z += radius + 1f
+        position.z = position.z + radius + 1f
     }
 
     /**
@@ -426,10 +428,10 @@ fun OrthographicCamera.setFromViewport(width: Int, height: Int, pixelsPerUnit: F
  * Pans the camera by a given offset
  */
 fun OrthographicCamera.pan(deltaX: Float, deltaY: Float) {
-    left += deltaX
-    right += deltaX
-    top += deltaY
-    bottom += deltaY
+    left = left + deltaX
+    right = right + deltaX
+    top = top + deltaY
+    bottom = bottom + deltaY
     updateProjectionMatrix()
 }
 

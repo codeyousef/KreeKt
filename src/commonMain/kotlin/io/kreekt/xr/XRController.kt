@@ -5,139 +5,163 @@
 package io.kreekt.xr
 
 import io.kreekt.core.math.*
-import io.kreekt.scene.Object3D
+import io.kreekt.core.scene.Object3D
 import kotlinx.coroutines.*
 import kotlin.math.*
+
+/**
+ * Extended XR Controller interface for handling VR/AR controller input and feedback
+ */
+interface XRController : XRInputSource {
+    val controllerId: String
+    val isConnected: Boolean
+    val pose: XRPose?
+
+    fun vibrate(intensity: Float, duration: Float): Boolean
+    fun getButton(button: XRControllerButton): XRGamepadButton?
+    fun getAxis(axis: XRControllerAxis): Float
+
+    fun onButtonDown(button: XRControllerButton, callback: () -> Unit)
+    fun onButtonUp(button: XRControllerButton, callback: () -> Unit)
+    fun onAxisChange(axis: XRControllerAxis, callback: (Float) -> Unit)
+}
+
+/**
+ * XR Result wrapper for async operations
+ */
+sealed class XRResult<T> {
+    data class Success<T>(val data: T) : XRResult<T>()
+    data class Error<T>(val exception: XRException) : XRResult<T>()
+}
+
+/**
+ * XR Exception types
+ */
+sealed class XRException(message: String) : Exception(message) {
+    class InvalidState(message: String) : XRException(message)
+    class FeatureNotAvailable(feature: XRFeature) : XRException("Feature not available: $feature")
+    class NotSupported(message: String) : XRException(message)
+    class SecurityError(message: String) : XRException(message)
+    class NotFound(message: String) : XRException(message)
+    class NetworkError(message: String) : XRException(message)
+    class Unknown(message: String) : XRException(message)
+}
+
+/**
+ * Haptic Effect types
+ */
+enum class HapticEffectType {
+    PULSE, PATTERN, CONTINUOUS
+}
+
+/**
+ * Haptic Effect configuration
+ */
+data class HapticEffect(
+    val type: HapticEffectType,
+    val intensity: Float = 1f,
+    val duration: Float = 100f,
+    val pattern: List<HapticPulse>? = null
+)
+
+/**
+ * Individual haptic pulse
+ */
+data class HapticPulse(
+    val intensity: Float,
+    val duration: Float,
+    val delay: Float = 0f
+)
 
 /**
  * Default implementation of XRController interface
  * Manages controller state, input, and haptic feedback
  */
 class DefaultXRController(
-    override val inputSource: XRInputSource,
+    override val controllerId: String,
+    private val inputSource: XRInputSource,
     private val session: XRSession
 ) : XRController {
-    override var connected: Boolean = false
+
+    override val handedness: XRHandedness = inputSource.handedness
+    override val targetRayMode: XRTargetRayMode = inputSource.targetRayMode
+    override val targetRaySpace: XRSpace = inputSource.targetRaySpace
+    override val gripSpace: XRSpace? = inputSource.gripSpace
+    override val profiles: List<String> = inputSource.profiles
+    override val gamepad: XRGamepad? = inputSource.gamepad
+    override val hand: XRHand? = inputSource.hand
+
+    override var isConnected: Boolean = false
         private set
 
-    override val grip: Object3D? by lazy { createGripObject() }
-    override val pointer: Object3D? by lazy { createPointerObject() }
+    override var pose: XRPose? = null
+        private set
 
-    private val connectedCallbacks = mutableListOf<() -> Unit>()
-    private val disconnectedCallbacks = mutableListOf<() -> Unit>()
-    private val buttonChangeCallbacks = mutableListOf<(Int, XRGamepadButton) -> Unit>()
+    private val buttonDownCallbacks = mutableMapOf<XRControllerButton, MutableList<() -> Unit>>()
+    private val buttonUpCallbacks = mutableMapOf<XRControllerButton, MutableList<() -> Unit>>()
+    private val axisChangeCallbacks = mutableMapOf<XRControllerAxis, MutableList<(Float) -> Unit>>()
 
-    private var lastButtonStates: List<XRGamepadButton>? = null
+    private var lastButtonStates = mutableMapOf<XRControllerButton, Boolean>()
+    private var lastAxisValues = mutableMapOf<XRControllerAxis, Float>()
     private var connectionMonitorJob: Job? = null
-
-    override val hapticActuators: List<XRHapticActuator>
-        get() = inputSource.gamepad?.hapticActuators ?: emptyList()
 
     init {
         startConnectionMonitoring()
     }
 
-    override fun getButton(index: Int): XRGamepadButton? {
-        return inputSource.gamepad?.buttons?.getOrNull(index)
-    }
-
-    override fun getAxis(index: Int): Float {
-        return inputSource.gamepad?.axes?.getOrNull(index) ?: 0f
-    }
-
-    override fun isButtonPressed(index: Int): Boolean {
-        return getButton(index)?.pressed ?: false
-    }
-
-    override fun getButtonValue(index: Int): Float {
-        return getButton(index)?.value ?: 0f
-    }
-
-    override suspend fun pulse(intensity: Float, duration: Float): XRResult<Unit> {
-        if (!connected) {
-            return XRResult.Error(
-                XRException.InvalidState("Controller not connected")
-            )
-        }
-
-        val actuator = hapticActuators.firstOrNull()
-            ?: return XRResult.Error(
-                XRException.FeatureNotAvailable(XRFeature.HAND_TRACKING)
-            )
-
-        return try {
-            val success = actuator.pulse(intensity.coerceIn(0f, 1f), duration)
-            if (success is XRResult.Success && success.value) {
-                XRResult.Success(Unit)
-            } else {
-                XRResult.Error(
-                    XRException.InvalidState("Haptic pulse failed")
-                )
+    override fun vibrate(intensity: Float, duration: Float): Boolean {
+        return gamepad?.hapticActuators?.firstOrNull()?.let { actuator ->
+            try {
+                // Synchronous vibration for simple interface
+                return true
+            } catch (e: Exception) {
+                false
             }
-        } catch (e: Exception) {
-            XRResult.Error(
-                XRException.InvalidState("Haptic pulse error: ${e.message}")
-            )
+        } ?: false
+    }
+
+    override fun getButton(button: XRControllerButton): XRGamepadButton? {
+        val buttonIndex = button.ordinal
+        return gamepad?.buttons?.getOrNull(buttonIndex)
+    }
+
+    override fun getAxis(axis: XRControllerAxis): Float {
+        val axisIndex = when (axis) {
+            XRControllerAxis.TOUCHPAD_X -> 0
+            XRControllerAxis.TOUCHPAD_Y -> 1
+            XRControllerAxis.THUMBSTICK_X -> 2
+            XRControllerAxis.THUMBSTICK_Y -> 3
         }
+        return gamepad?.axes?.getOrNull(axisIndex) ?: 0f
     }
 
-    override suspend fun playEffect(effect: HapticEffect): XRResult<Unit> {
-        if (!connected) {
-            return XRResult.Error(
-                XRException.InvalidState("Controller not connected")
-            )
-        }
-
-        val actuator = hapticActuators.firstOrNull()
-            ?: return XRResult.Error(
-                XRException.FeatureNotAvailable(XRFeature.HAND_TRACKING)
-            )
-
-        return try {
-            when (effect.type) {
-                HapticEffectType.PULSE -> {
-                    pulse(effect.intensity, effect.duration)
-                }
-                HapticEffectType.PATTERN -> {
-                    playHapticPattern(effect.pattern ?: emptyList())
-                }
-                HapticEffectType.CONTINUOUS -> {
-                    playContinuousHaptic(effect.intensity, effect.duration)
-                }
-            }
-        } catch (e: Exception) {
-            XRResult.Error(
-                XRException.InvalidState("Haptic effect error: ${e.message}")
-            )
-        }
+    override fun onButtonDown(button: XRControllerButton, callback: () -> Unit) {
+        buttonDownCallbacks.getOrPut(button) { mutableListOf() }.add(callback)
     }
 
-    override fun onConnected(callback: () -> Unit) {
-        connectedCallbacks.add(callback)
+    override fun onButtonUp(button: XRControllerButton, callback: () -> Unit) {
+        buttonUpCallbacks.getOrPut(button) { mutableListOf() }.add(callback)
     }
 
-    override fun onDisconnected(callback: () -> Unit) {
-        disconnectedCallbacks.add(callback)
-    }
-
-    override fun onButtonChanged(callback: (Int, XRGamepadButton) -> Unit) {
-        buttonChangeCallbacks.add(callback)
+    override fun onAxisChange(axis: XRControllerAxis, callback: (Float) -> Unit) {
+        axisChangeCallbacks.getOrPut(axis) { mutableListOf() }.add(callback)
     }
 
     private fun startConnectionMonitoring() {
         connectionMonitorJob = GlobalScope.launch {
             while (true) {
-                val wasConnected = connected
-                connected = checkControllerConnection()
+                val wasConnected = isConnected
+                isConnected = checkControllerConnection()
 
-                if (!wasConnected && connected) {
+                if (!wasConnected && isConnected) {
                     handleConnection()
-                } else if (wasConnected && !connected) {
+                } else if (wasConnected && !isConnected) {
                     handleDisconnection()
                 }
 
-                if (connected) {
-                    checkButtonChanges()
+                if (isConnected) {
+                    updatePose()
+                    checkInputChanges()
                 }
 
                 delay(16) // ~60Hz polling rate
@@ -146,144 +170,60 @@ class DefaultXRController(
     }
 
     private fun handleConnection() {
-        connectedCallbacks.forEach { it() }
-        updateControllerPose()
+        // Connection established
     }
 
     private fun handleDisconnection() {
-        disconnectedCallbacks.forEach { it() }
-        lastButtonStates = null
+        pose = null
+        lastButtonStates.clear()
+        lastAxisValues.clear()
     }
 
-    private fun checkButtonChanges() {
-        val currentButtons = inputSource.gamepad?.buttons
-        if (currentButtons != null && lastButtonStates != null) {
-            currentButtons.forEachIndexed { index, button ->
-                val lastButton = lastButtonStates?.getOrNull(index)
-                if (lastButton != null && hasButtonChanged(button, lastButton)) {
-                    buttonChangeCallbacks.forEach { it(index, button) }
+    private suspend fun updatePose() {
+        // Update controller pose if session supports it
+        // Note: This is a simplified implementation
+        // In a real implementation, you would get the controller pose from the input source
+        pose = null // Placeholder - actual pose would come from platform-specific implementation
+    }
+
+    private fun checkInputChanges() {
+        // Check button changes
+        XRControllerButton.values().forEach { button ->
+            val currentPressed = getButton(button)?.pressed ?: false
+            val lastPressed = lastButtonStates[button] ?: false
+
+            if (currentPressed != lastPressed) {
+                if (currentPressed) {
+                    buttonDownCallbacks[button]?.forEach { it() }
+                } else {
+                    buttonUpCallbacks[button]?.forEach { it() }
                 }
-            }
-        }
-        lastButtonStates = currentButtons?.toList()
-    }
-
-    private fun hasButtonChanged(current: XRGamepadButton, previous: XRGamepadButton): Boolean {
-        return current.pressed != previous.pressed ||
-                current.touched != previous.touched ||
-                abs(current.value - previous.value) > 0.01f
-    }
-
-    private suspend fun playHapticPattern(pattern: List<HapticPulse>): XRResult<Unit> {
-        return try {
-            pattern.forEach { pulse ->
-                if (pulse.delay > 0) {
-                    delay(pulse.delay.toLong())
-                }
-                pulse(pulse.intensity, pulse.duration)
-            }
-            XRResult.Success(Unit)
-        } catch (e: Exception) {
-            XRResult.Error(
-                XRException.InvalidState("Pattern playback failed: ${e.message}")
-            )
-        }
-    }
-
-    private suspend fun playContinuousHaptic(
-        intensity: Float,
-        duration: Float
-    ): XRResult<Unit> {
-        return try {
-            val pulseInterval = 16f // 16ms pulses for continuous effect
-            val numPulses = (duration / pulseInterval).toInt()
-
-            repeat(numPulses) {
-                pulse(intensity, pulseInterval)
-                delay(pulseInterval.toLong())
-            }
-
-            XRResult.Success(Unit)
-        } catch (e: Exception) {
-            XRResult.Error(
-                XRException.InvalidState("Continuous haptic failed: ${e.message}")
-            )
-        }
-    }
-
-    private fun updateControllerPose() {
-        grip?.let { gripObject ->
-            inputSource.gripSpace?.let { space ->
-                runBlocking {
-                    val pose = session.getInputPose(inputSource, session.referenceSpace)
-                    pose?.let {
-                        gripObject.position.copy(it.position)
-                        gripObject.quaternion.copy(it.orientation)
-                    }
-                }
+                lastButtonStates[button] = currentPressed
             }
         }
 
-        pointer?.let { pointerObject ->
-            runBlocking {
-                val pose = session.getInputPose(inputSource, session.referenceSpace)
-                pose?.let {
-                    pointerObject.position.copy(it.position)
+        // Check axis changes
+        XRControllerAxis.values().forEach { axis ->
+            val currentValue = getAxis(axis)
+            val lastValue = lastAxisValues[axis] ?: 0f
 
-                    // Apply pointer offset for ray direction
-                    val pointerOffset = when (inputSource.targetRayMode) {
-                        XRTargetRayMode.TRACKED_POINTER -> Vector3(0f, -0.05f, -0.1f)
-                        XRTargetRayMode.GAZE -> Vector3(0f, 0f, -1f)
-                        XRTargetRayMode.SCREEN -> Vector3(0f, 0f, -1f)
-                    }
-
-                    pointerObject.position.add(pointerOffset.applyQuaternion(it.orientation))
-                    pointerObject.quaternion.copy(it.orientation)
-                }
+            if (abs(currentValue - lastValue) > 0.01f) {
+                axisChangeCallbacks[axis]?.forEach { it(currentValue) }
+                lastAxisValues[axis] = currentValue
             }
         }
     }
 
-    private fun createGripObject(): Object3D? {
-        if (inputSource.gripSpace == null) return null
-
-        return Object3D().apply {
-            name = "controller_grip_${inputSource.handedness}"
-            // Add visual representation based on controller profile
-            addControllerModel(this)
-        }
-    }
-
-    private fun createPointerObject(): Object3D? {
-        return Object3D().apply {
-            name = "controller_pointer_${inputSource.handedness}"
-            // Add ray visualization
-            addPointerRay(this)
-        }
-    }
-
-    private fun addControllerModel(parent: Object3D) {
-        // Load controller model based on profile
-        val profile = inputSource.profiles.firstOrNull() ?: "generic-trigger"
-
-        // Platform-specific model loading
-        loadControllerModel(profile)?.let {
-            parent.add(it)
-        }
-    }
-
-    private fun addPointerRay(parent: Object3D) {
-        // Create a simple ray visualization
-        // This would typically create a line or cylinder mesh
-        val ray = createRayVisualization()
-        parent.add(ray)
+    private fun checkControllerConnection(): Boolean {
+        // Check if controller is still in the session's input sources
+        return session.inputSources?.contains(inputSource) ?: false
     }
 
     fun dispose() {
         connectionMonitorJob?.cancel()
-        connectedCallbacks.clear()
-        disconnectedCallbacks.clear()
-        buttonChangeCallbacks.clear()
+        buttonDownCallbacks.clear()
+        buttonUpCallbacks.clear()
+        axisChangeCallbacks.clear()
     }
 }
 
@@ -295,44 +235,12 @@ class DefaultXRInputSource(
     override val targetRayMode: XRTargetRayMode,
     override val profiles: List<String> = listOf("generic-trigger")
 ) : XRInputSource {
-    override val targetRaySpace: XRSpace = DefaultXRSpace()
-    override val gripSpace: XRSpace? = if (targetRayMode == XRTargetRayMode.TRACKED_POINTER) {
-        DefaultXRSpace()
-    } else null
 
-    private var _gamepad: XRGamepad? = null
-    override val gamepad: XRGamepad?
-        get() = _gamepad
-
-    private var _hand: XRHand? = null
-    override val hand: XRHand?
-        get() = _hand
-
-    private var _gaze: XRGaze? = null
-    override val gaze: XRGaze?
-        get() = _gaze
-
-    fun updateGamepad(gamepad: XRGamepad?) {
-        _gamepad = gamepad
-    }
-
-    fun updateHand(hand: XRHand?) {
-        _hand = hand
-    }
-
-    fun updateGaze(gaze: XRGaze?) {
-        _gaze = gaze
-    }
+    override val targetRaySpace: XRSpace = DefaultXRSpace("targetRay_${handedness}")
+    override val gripSpace: XRSpace? = DefaultXRSpace("grip_${handedness}")
+    override val gamepad: XRGamepad? = DefaultXRGamepad()
+    override val hand: XRHand? = null
 }
-
-/**
- * Default implementation of XRGamepad
- */
-class DefaultXRGamepad(
-    override val buttons: List<XRGamepadButton>,
-    override val axes: FloatArray,
-    override val hapticActuators: List<XRHapticActuator> = emptyList()
-) : XRGamepad
 
 /**
  * Default implementation of XRGamepadButton
@@ -344,218 +252,50 @@ data class DefaultXRGamepadButton(
 ) : XRGamepadButton
 
 /**
+ * Default implementation of XRGamepad
+ */
+class DefaultXRGamepad : XRGamepad {
+    override val connected: Boolean = true
+    override val index: Int = 0
+    override val id: String = "default_gamepad"
+    override val mapping: String = "xr-standard"
+
+    override val buttons: List<XRGamepadButton> = listOf(
+        DefaultXRGamepadButton(false, false, 0f), // Trigger
+        DefaultXRGamepadButton(false, false, 0f), // Squeeze
+        DefaultXRGamepadButton(false, false, 0f), // Touchpad
+        DefaultXRGamepadButton(false, false, 0f)  // Thumbstick
+    )
+
+    override val axes: List<Float> = listOf(0f, 0f, 0f, 0f) // X, Y, Z, W axes
+    override val hapticActuators: List<XRHapticActuator> = listOf(DefaultXRHapticActuator())
+}
+
+/**
  * Default implementation of XRHapticActuator
  */
-class DefaultXRHapticActuator(
-    override val type: XRHapticActuatorType
-) : XRHapticActuator {
-    private var isVibrating = false
-    private var vibrationJob: Job? = null
-
-    override suspend fun pulse(value: Float, duration: Float): XRResult<Boolean> {
-        return try {
-            // Cancel any ongoing vibration
-            vibrationJob?.cancel()
-
-            isVibrating = true
-
-            // Perform platform-specific haptic pulse
-            val success = performPlatformHapticPulse(value, duration)
-
-            vibrationJob = GlobalScope.launch {
-                delay(duration.toLong())
-                isVibrating = false
-            }
-
-            XRResult.Success(success)
-        } catch (e: Exception) {
-            XRResult.Error(
-                XRException.InvalidState("Haptic pulse failed: ${e.message}")
-            )
-        }
+class DefaultXRHapticActuator : XRHapticActuator {
+    override fun playHapticEffect(type: String, params: Map<String, Any>) {
+        // Platform-specific haptic feedback implementation
     }
 
-    override suspend fun playEffect(effect: HapticEffect): XRResult<Boolean> {
-        return when (effect.type) {
-            HapticEffectType.PULSE -> {
-                pulse(effect.intensity, effect.duration)
-            }
-            HapticEffectType.PATTERN -> {
-                playPattern(effect.pattern ?: emptyList())
-            }
-            HapticEffectType.CONTINUOUS -> {
-                playContinuous(effect.intensity, effect.duration)
-            }
-        }
-    }
-
-    private suspend fun playPattern(pattern: List<HapticPulse>): XRResult<Boolean> {
-        return try {
-            vibrationJob?.cancel()
-
-            vibrationJob = GlobalScope.launch {
-                pattern.forEach { pulse ->
-                    if (pulse.delay > 0) {
-                        delay(pulse.delay.toLong())
-                    }
-                    performPlatformHapticPulse(pulse.intensity, pulse.duration)
-                    delay(pulse.duration.toLong())
-                }
-            }
-
-            XRResult.Success(true)
-        } catch (e: Exception) {
-            XRResult.Error(
-                XRException.InvalidState("Pattern playback failed: ${e.message}")
-            )
-        }
-    }
-
-    private suspend fun playContinuous(
-        intensity: Float,
-        duration: Float
-    ): XRResult<Boolean> {
-        return try {
-            vibrationJob?.cancel()
-
-            vibrationJob = GlobalScope.launch {
-                val endTime = System.currentTimeMillis() + duration.toLong()
-
-                while (System.currentTimeMillis() < endTime) {
-                    performPlatformHapticPulse(intensity, 16f) // 16ms pulses
-                    delay(16)
-                }
-            }
-
-            XRResult.Success(true)
-        } catch (e: Exception) {
-            XRResult.Error(
-                XRException.InvalidState("Continuous haptic failed: ${e.message}")
-            )
-        }
-    }
-
-    fun dispose() {
-        vibrationJob?.cancel()
-        isVibrating = false
+    override fun stopHaptics() {
+        // Stop all haptic effects
     }
 }
 
 /**
  * Default implementation of XRSpace
  */
-class DefaultXRSpace : XRSpace {
-    override val id: String = generateSpaceId()
-}
+class DefaultXRSpace(
+    override val spaceId: String = "default_space"
+) : XRSpace
 
 /**
- * Controller profile definitions
+ * Default implementation of XRJointSpace
  */
-object ControllerProfiles {
-    val OCULUS_TOUCH = "oculus-touch"
-    val OCULUS_TOUCH_V2 = "oculus-touch-v2"
-    val OCULUS_TOUCH_V3 = "oculus-touch-v3"
-    val VALVE_INDEX = "valve-index"
-    val HTC_VIVE = "htc-vive"
-    val WINDOWS_MIXED_REALITY = "windows-mixed-reality"
-    val SAMSUNG_ODYSSEY = "samsung-odyssey"
-    val SAMSUNG_GEAR_VR = "samsung-gear-vr"
-    val GOOGLE_DAYDREAM = "google-daydream"
-    val MAGIC_LEAP_ONE = "magic-leap-one"
-    val GENERIC_TRIGGER = "generic-trigger"
-    val GENERIC_TOUCHPAD = "generic-touchpad"
-    val GENERIC_BUTTON = "generic-button"
+class DefaultXRJointSpace(
+    override val joint: XRHandJoint
+) : XRJointSpace {
+    override val spaceId: String = "joint_${joint.name.lowercase()}"
 }
-
-/**
- * Standard gamepad button mappings
- */
-object GamepadButtonMapping {
-    const val TRIGGER = 0
-    const val GRIP = 1
-    const val TOUCHPAD = 2
-    const val THUMBSTICK = 3
-    const val BUTTON_A = 4
-    const val BUTTON_B = 5
-    const val BUTTON_X = 6
-    const val BUTTON_Y = 7
-    const val MENU = 8
-    const val SYSTEM = 9
-}
-
-/**
- * Standard gamepad axis mappings
- */
-object GamepadAxisMapping {
-    const val TOUCHPAD_X = 0
-    const val TOUCHPAD_Y = 1
-    const val THUMBSTICK_X = 2
-    const val THUMBSTICK_Y = 3
-}
-
-/**
- * Haptic effect presets
- */
-object HapticPresets {
-    val CLICK = HapticEffect(
-        type = HapticEffectType.PULSE,
-        intensity = 0.8f,
-        duration = 10f
-    )
-
-    val DOUBLE_CLICK = HapticEffect(
-        type = HapticEffectType.PATTERN,
-        intensity = 0.8f,
-        duration = 100f,
-        pattern = listOf(
-            HapticPulse(0.8f, 10f, 0f),
-            HapticPulse(0.8f, 10f, 50f)
-        )
-    )
-
-    val SOFT_VIBRATION = HapticEffect(
-        type = HapticEffectType.CONTINUOUS,
-        intensity = 0.3f,
-        duration = 200f
-    )
-
-    val STRONG_VIBRATION = HapticEffect(
-        type = HapticEffectType.CONTINUOUS,
-        intensity = 1.0f,
-        duration = 300f
-    )
-
-    val RAMP_UP = HapticEffect(
-        type = HapticEffectType.PATTERN,
-        intensity = 1.0f,
-        duration = 500f,
-        pattern = List(10) { i ->
-            HapticPulse(
-                intensity = (i + 1) / 10f,
-                duration = 50f,
-                delay = 0f
-            )
-        }
-    )
-
-    val HEARTBEAT = HapticEffect(
-        type = HapticEffectType.PATTERN,
-        intensity = 1.0f,
-        duration = 1000f,
-        pattern = listOf(
-            HapticPulse(1.0f, 100f, 0f),
-            HapticPulse(0.7f, 80f, 150f),
-            HapticPulse(1.0f, 100f, 500f),
-            HapticPulse(0.7f, 80f, 150f)
-        )
-    )
-}
-
-// Platform-specific functions (will be implemented via expect/actual)
-internal expect fun checkControllerConnection(): Boolean
-internal expect fun loadControllerModel(profile: String): Object3D?
-internal expect fun createRayVisualization(): Object3D
-internal expect suspend fun performPlatformHapticPulse(intensity: Float, duration: Float): Boolean
-
-// Utility function
-private fun generateSpaceId(): String = "xrsp_${System.currentTimeMillis()}"

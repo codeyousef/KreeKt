@@ -1,10 +1,15 @@
 package io.kreekt.animation
 
 import io.kreekt.core.math.Matrix4
+import io.kreekt.core.platform.platformClone
 import io.kreekt.core.math.Quaternion
+import io.kreekt.core.platform.platformClone
 import io.kreekt.core.math.Vector3
+import io.kreekt.core.platform.platformClone
 import kotlinx.serialization.Contextual
+import io.kreekt.core.platform.platformClone
 import kotlinx.serialization.Serializable
+import io.kreekt.core.platform.platformClone
 
 /**
  * Enhanced Skeleton class with IK chain support and bone constraints.
@@ -183,7 +188,7 @@ class Skeleton(
             for (i in 0 until bones.size - 1) {
                 val bone1 = bones[i]
                 val bone2 = bones[i + 1]
-                length += bone1.getWorldPosition().distanceTo(bone2.getWorldPosition())
+                length = length + bone1.getWorldPosition().distanceTo(bone2.getWorldPosition())
             }
             return length
         }

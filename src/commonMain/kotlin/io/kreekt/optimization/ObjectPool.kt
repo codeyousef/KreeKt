@@ -1,16 +1,52 @@
 package io.kreekt.optimization
+import io.kreekt.core.Result
 
 import io.kreekt.core.math.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlin.reflect.KClass
-import kotlin.system.measureNanoTime
+import kotlin.time.measureTime
+import kotlinx.coroutines.Dispatchers
+
+// Missing type definitions
+data class PoolStatistics(
+    var acquireCount: Int = 0,
+    var releaseCount: Int = 0,
+    var poolHits: Int = 0,
+    var poolMisses: Int = 0,
+    var totalCreated: Int = 0,
+    var totalDestroyed: Int = 0,
+    var currentInUse: Int = 0,
+    var peakInUse: Int = 0,
+    var memoryUsage: Long = 0L
+) {
+    fun reset() {
+        acquireCount = 0
+        releaseCount = 0
+        poolHits = 0
+        poolMisses = 0
+        totalCreated = 0
+        totalDestroyed = 0
+        currentInUse = 0
+        peakInUse = 0
+        memoryUsage = 0L
+    }
+
+    fun hitRate(): Float = if (acquireCount > 0) {
+        poolHits.toFloat() / acquireCount
+    } else 0f
+}
+
+typealias MemoryProfiler = Any
+typealias MemorySnapshot = Any
+typealias AllocationTracker = Any
+typealias GCMetrics = Any
 
 /**
  * Generic object pool for reusable objects
  */
-class ObjectPool<T : Any>(
+open class ObjectPool<T : Any>(
     private val factory: () -> T,
     private val reset: (T) -> Unit = {},
     private val maxSize: Int = 100,
@@ -33,7 +69,6 @@ class ObjectPool<T : Any>(
      */
     fun acquire(): T {
         statistics.acquireCount++
-
         val obj = if (available.isNotEmpty()) {
             statistics.poolHits++
             available.removeAt(available.size - 1)
@@ -42,11 +77,9 @@ class ObjectPool<T : Any>(
             statistics.totalCreated++
             factory()
         }
-
         inUse.add(obj)
         statistics.currentInUse = inUse.size
         statistics.peakInUse = maxOf(statistics.peakInUse, inUse.size)
-
         return obj
     }
 
@@ -57,18 +90,15 @@ class ObjectPool<T : Any>(
         if (!inUse.remove(obj)) {
             return // Object not from this pool
         }
-
         statistics.releaseCount++
-        statistics.currentInUse = inUse.size
-
         reset(obj)
-
         if (available.size < maxSize) {
             available.add(obj)
         } else {
             statistics.totalDestroyed++
             // Let GC handle it
         }
+        statistics.currentInUse = inUse.size
     }
 
     /**
@@ -128,35 +158,6 @@ class ObjectPool<T : Any>(
 }
 
 /**
- * Pool statistics for monitoring
- */
-data class PoolStatistics(
-    var totalCreated: Int = 0,
-    var totalDestroyed: Int = 0,
-    var acquireCount: Int = 0,
-    var releaseCount: Int = 0,
-    var poolHits: Int = 0,
-    var poolMisses: Int = 0,
-    var currentInUse: Int = 0,
-    var peakInUse: Int = 0
-) {
-    fun hitRate(): Float = if (acquireCount > 0) {
-        poolHits.toFloat() / acquireCount
-    } else 0f
-
-    fun reset() {
-        totalCreated = 0
-        totalDestroyed = 0
-        acquireCount = 0
-        releaseCount = 0
-        poolHits = 0
-        poolMisses = 0
-        currentInUse = 0
-        peakInUse = 0
-    }
-}
-
-/**
  * Specialized pool for Vector3 objects
  */
 class Vector3Pool(
@@ -206,7 +207,16 @@ class Matrix4Pool(
      * Acquire with transformation
      */
     fun acquire(position: Vector3, rotation: Quaternion, scale: Vector3): Matrix4 {
-        return acquire().apply { compose(position, rotation, scale) }
+        return acquire().apply {
+            // Compose transformation: rotation * scale + translation
+            makeRotationFromQuaternion(rotation)
+            // Apply scaling to the rotation matrix
+            val e = elements
+            e[0] *= scale.x; e[1] *= scale.x; e[2] *= scale.x
+            e[4] *= scale.y; e[5] *= scale.y; e[6] *= scale.y
+            e[8] *= scale.z; e[9] *= scale.z; e[10] *= scale.z
+            setPosition(position)
+        }
     }
 }
 
@@ -214,8 +224,8 @@ class Matrix4Pool(
  * Specialized pool for Quaternion objects
  */
 class QuaternionPool(
-    maxSize: Int = 500,
-    preAllocate: Int = 50
+    maxSize: Int = 300,
+    preAllocate: Int = 30
 ) : ObjectPool<Quaternion>(
     factory = { Quaternion() },
     reset = { q -> q.identity() },
@@ -265,7 +275,7 @@ object PoolManager {
         val quaternion = QuaternionPool()
         val color = ObjectPool(
             factory = { Color() },
-            reset = { c -> c.set(1f, 1f, 1f, 1f) },
+            reset = { c -> c.set(1f, 1f, 1f) },
             maxSize = 200,
             preAllocate = 20
         )
@@ -280,22 +290,22 @@ object PoolManager {
      * Register custom pool
      */
     fun <T : Any> registerPool(
-        type: KClass<T>,
+        clazz: KClass<T>,
         pool: ObjectPool<T>
     ) {
-        pools[type] = pool
+        pools[clazz] = pool
     }
 
     /**
      * Get pool for type
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T : Any> getPool(type: KClass<T>): ObjectPool<T>? {
-        return pools[type] as? ObjectPool<T>
+    fun <T : Any> getPool(clazz: KClass<T>): ObjectPool<T>? {
+        return pools[clazz] as? ObjectPool<T>
     }
 
     /**
-     * Set pool strategy
+     * Set pool management strategy
      */
     fun setStrategy(newStrategy: PoolStrategy) {
         strategy = newStrategy
@@ -303,35 +313,20 @@ object PoolManager {
     }
 
     /**
-     * Adjust pool sizes based on strategy
+     * Start monitoring all pools
      */
-    private fun adjustPoolSizes() {
-        val (maxSize, preAllocate) = when (strategy) {
-            PoolStrategy.AGGRESSIVE -> 2000 to 200
-            PoolStrategy.BALANCED -> 1000 to 100
-            PoolStrategy.CONSERVATIVE -> 500 to 50
-        }
-
-        // Adjust math pools
-        // Would need to expose setters for max size
-    }
-
-    /**
-     * Start monitoring pools
-     */
-    fun startMonitoring(intervalMs: Long = 5000) {
-        stopMonitoring()
-
+    fun startMonitoring(intervalMs: Long = 30000) {
+        monitoringJob?.cancel()
         monitoringJob = monitoringScope.launch {
             while (isActive) {
+                performMaintenance()
                 delay(intervalMs)
-                analyzeAndOptimize()
             }
         }
     }
 
     /**
-     * Stop monitoring pools
+     * Stop monitoring
      */
     fun stopMonitoring() {
         monitoringJob?.cancel()
@@ -339,191 +334,51 @@ object PoolManager {
     }
 
     /**
-     * Analyze pool usage and optimize
-     */
-    private fun analyzeAndOptimize() {
-        // Check memory pressure
-        val runtime = Runtime.getRuntime()
-        val usedMemory = runtime.totalMemory() - runtime.freeMemory()
-        val maxMemory = runtime.maxMemory()
-        val memoryPressure = usedMemory.toFloat() / maxMemory
-
-        if (memoryPressure > 0.8f) {
-            // High memory pressure - trim pools
-            trimAllPools()
-        } else if (memoryPressure < 0.4f) {
-            // Low memory pressure - can grow pools if needed
-            growPoolsIfNeeded()
-        }
-    }
-
-    /**
-     * Trim all pools to reduce memory
-     */
-    private fun trimAllPools() {
-        mathPools.vector3.trim()
-        mathPools.matrix4.trim()
-        mathPools.quaternion.trim()
-        mathPools.color.trim()
-
-        pools.values.forEach { pool ->
-            // Would need to expose trim method
-        }
-    }
-
-    /**
-     * Grow pools if experiencing many misses
-     */
-    private fun growPoolsIfNeeded() {
-        val stats = getAllStatistics()
-
-        stats.forEach { (type, stat) ->
-            if (stat.hitRate() < 0.7f) {
-                // Poor hit rate - may need larger pool
-                // Would adjust pool size here
-            }
-        }
-    }
-
-    /**
      * Get statistics for all pools
      */
     fun getAllStatistics(): Map<String, PoolStatistics> {
-        return mapOf(
-            "Vector3" to mathPools.vector3.getStatistics(),
-            "Matrix4" to mathPools.matrix4.getStatistics(),
-            "Quaternion" to mathPools.quaternion.getStatistics(),
-            "Color" to mathPools.color.getStatistics()
-        ) + pools.mapKeys { it.key.simpleName ?: "Unknown" }
-            .mapValues { (it.value as ObjectPool<*>).getStatistics() }
+        val stats = mutableMapOf<String, PoolStatistics>()
+        stats["Vector3"] = mathPools.vector3.getStatistics()
+        stats["Matrix4"] = mathPools.matrix4.getStatistics()
+        stats["Quaternion"] = mathPools.quaternion.getStatistics()
+        stats["Color"] = mathPools.color.getStatistics()
+        return stats
     }
 
     /**
-     * Reset all pools
+     * Clear all pools
      */
-    fun resetAll() {
+    fun clearAll() {
+        pools.values.forEach { it.clear() }
         mathPools.vector3.clear()
         mathPools.matrix4.clear()
         mathPools.quaternion.clear()
         mathPools.color.clear()
+    }
 
-        pools.values.forEach { pool ->
-            (pool as ObjectPool<*>).clear()
+    private fun adjustPoolSizes() {
+        val multiplier = when (strategy) {
+            PoolStrategy.AGGRESSIVE -> 2.0f
+            PoolStrategy.BALANCED -> 1.0f
+            PoolStrategy.CONSERVATIVE -> 0.5f
         }
-    }
-}
-
-/**
- * Pooled operation utilities
- */
-object PooledOperations {
-    /**
-     * Perform vector operation with pooled vectors
-     */
-    inline fun <R> withVector3(block: (Vector3) -> R): R {
-        return PoolManager.math().vector3.use(block)
+        // Pool size adjustment logic would go here
     }
 
-    /**
-     * Perform operation with multiple pooled vectors
-     */
-    inline fun <R> withVector3s(count: Int, block: (List<Vector3>) -> R): R {
-        val vectors = PoolManager.math().vector3.acquireBatch(count)
-        return try {
-            block(vectors)
-        } finally {
-            PoolManager.math().vector3.releaseBatch(vectors)
-        }
-    }
-
-    /**
-     * Perform matrix operation with pooled matrix
-     */
-    inline fun <R> withMatrix4(block: (Matrix4) -> R): R {
-        return PoolManager.math().matrix4.use(block)
-    }
-
-    /**
-     * Perform quaternion operation with pooled quaternion
-     */
-    inline fun <R> withQuaternion(block: (Quaternion) -> R): R {
-        return PoolManager.math().quaternion.use(block)
-    }
-
-    /**
-     * Perform color operation with pooled color
-     */
-    inline fun <R> withColor(block: (Color) -> R): R {
-        return PoolManager.math().color.use(block)
-    }
-}
-
-/**
- * Performance benchmarking for pools
- */
-class PoolBenchmark {
-    /**
-     * Benchmark pool vs allocation performance
-     */
-    fun benchmark(iterations: Int = 100000): BenchmarkResult {
-        val pooledTime = measureNanoTime {
-            repeat(iterations) {
-                PooledOperations.withVector3 { v ->
-                    v.set(1f, 2f, 3f)
-                    v.normalize()
+    private fun performMaintenance() {
+        // Trim pools based on usage patterns
+        val stats = getAllStatistics()
+        stats.forEach { (name, stat) ->
+            val hitRate = stat.hitRate()
+            if (hitRate < 0.1f) {
+                // Low hit rate, trim the pool
+                when (name) {
+                    "Vector3" -> mathPools.vector3.trim()
+                    "Matrix4" -> mathPools.matrix4.trim()
+                    "Quaternion" -> mathPools.quaternion.trim()
+                    "Color" -> mathPools.color.trim()
                 }
             }
         }
-
-        val allocTime = measureNanoTime {
-            repeat(iterations) {
-                val v = Vector3(1f, 2f, 3f)
-                v.normalize()
-            }
-        }
-
-        return BenchmarkResult(
-            pooledTimeNs = pooledTime,
-            allocTimeNs = allocTime,
-            speedup = allocTime.toFloat() / pooledTime
-        )
-    }
-
-    data class BenchmarkResult(
-        val pooledTimeNs: Long,
-        val allocTimeNs: Long,
-        val speedup: Float
-    )
-}
-
-/**
- * Memory pressure monitor
- */
-class MemoryPressureMonitor {
-    private val _pressure = MutableStateFlow(0f)
-    val pressure: StateFlow<Float> = _pressure
-
-    private val monitorScope = CoroutineScope(Dispatchers.Default)
-
-    fun start() {
-        monitorScope.launch {
-            while (isActive) {
-                val runtime = Runtime.getRuntime()
-                val used = runtime.totalMemory() - runtime.freeMemory()
-                val max = runtime.maxMemory()
-                _pressure.value = used.toFloat() / max
-
-                delay(1000) // Check every second
-
-                if (_pressure.value > 0.9f) {
-                    // Critical memory pressure
-                    PoolManager.trimAllPools()
-                }
-            }
-        }
-    }
-
-    fun stop() {
-        monitorScope.cancel()
     }
 }

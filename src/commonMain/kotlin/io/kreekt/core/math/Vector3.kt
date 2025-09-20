@@ -33,44 +33,44 @@ data class Vector3(
 
     // Arithmetic operations
     fun add(other: Vector3): Vector3 {
-        x += other.x
-        y += other.y
-        z += other.z
+        x = x + other.x
+        y = y + other.y
+        z = z + other.z
         return this
     }
 
     fun add(scalar: Float): Vector3 {
-        x += scalar
-        y += scalar
-        z += scalar
+        x = x + scalar
+        y = y + scalar
+        z = z + scalar
         return this
     }
 
     fun subtract(other: Vector3): Vector3 {
-        x -= other.x
-        y -= other.y
-        z -= other.z
+        x = x - other.x
+        y = y - other.y
+        z = z - other.z
         return this
     }
 
     fun subtract(scalar: Float): Vector3 {
-        x -= scalar
-        y -= scalar
-        z -= scalar
+        x = x - scalar
+        y = y - scalar
+        z = z - scalar
         return this
     }
 
     fun multiply(other: Vector3): Vector3 {
-        x *= other.x
-        y *= other.y
-        z *= other.z
+        x = x * other.x
+        y = y * other.y
+        z = z * other.z
         return this
     }
 
     fun multiply(scalar: Float): Vector3 {
-        x *= scalar
-        y *= scalar
-        z *= scalar
+        x = x * scalar
+        y = y * scalar
+        z = z * scalar
         return this
     }
 
@@ -98,7 +98,14 @@ data class Vector3(
         return set(cx, cy, cz)
     }
 
-    fun length(): Float = sqrt(x * x + y * y + z * z)
+    fun crossVectors(a: Vector3, b: Vector3): Vector3 {
+        val cx = a.y * b.z - a.z * b.y
+        val cy = a.z * b.x - a.x * b.z
+        val cz = a.x * b.y - a.y * b.x
+        return set(cx, cy, cz)
+    }
+
+    fun length(): Float = sqrt(x * x + y * y + (z * z))
     fun lengthSquared(): Float = x * x + y * y + z * z
 
     fun normalize(): Vector3 {
@@ -111,7 +118,7 @@ data class Vector3(
         val dx = x - other.x
         val dy = y - other.y
         val dz = z - other.z
-        return dx * dx + dy * dy + dz * dz
+        return dx * dx + dy * dy + (dz * dz)
     }
 
     // Three.js compatibility aliases
@@ -165,6 +172,45 @@ data class Vector3(
         y = -y
         z = -z
         return this
+    }
+
+    // Operator overloading for arithmetic
+    operator fun plus(other: Vector3): Vector3 = Vector3(x + other.x, y + other.y, z + other.z)
+    operator fun plus(scalar: Float): Vector3 = Vector3(x + scalar, y + scalar, z + scalar)
+    operator fun minus(other: Vector3): Vector3 = Vector3(x - other.x, y - other.y, z - other.z)
+    operator fun minus(scalar: Float): Vector3 = Vector3(x - scalar, y - scalar, z - scalar)
+    operator fun times(other: Vector3): Vector3 = Vector3(x * other.x, y * other.y, z * other.z)
+    operator fun times(scalar: Float): Vector3 = Vector3((x * scalar), (y * scalar), (z * scalar))
+    operator fun div(other: Vector3): Vector3 = Vector3(x / other.x, y / other.y, z / other.z)
+    operator fun div(scalar: Float): Vector3 = Vector3(x / scalar, y / scalar, z / scalar)
+    operator fun unaryMinus(): Vector3 = Vector3(-x, -y, -z)
+
+    // Extension property for normalized vector
+    val normalized: Vector3
+        get() = clone().normalize()
+
+    /**
+     * Returns a new normalized vector (doesn't modify this vector)
+     */
+    fun normalized(): Vector3 = clone().normalize()
+
+    // Mutable operators
+    operator fun plusAssign(other: Vector3) {
+        x = x + other.x
+        y = y + other.y
+        z = z + other.z
+    }
+
+    operator fun minusAssign(other: Vector3) {
+        x = x - other.x
+        y = y - other.y
+        z = z - other.z
+    }
+
+    operator fun timesAssign(scalar: Float) {
+        x = x * scalar
+        y = y * scalar
+        z = z * scalar
     }
 
     fun floor(): Vector3 {
@@ -245,6 +291,26 @@ data class Vector3(
 
     fun isZero(): Boolean = x == 0f && y == 0f && z == 0f
 
+    fun maxComponent(): Float = maxOf(maxOf(abs(x), abs(y)), abs(z))
+
+    fun minComponent(): Float = minOf(minOf(abs(x), abs(y)), abs(z))
+
+    fun componentAt(index: Int): Float = when(index) {
+        0 -> x
+        1 -> y
+        2 -> z
+        else -> throw IndexOutOfBoundsException("Vector3 component index must be 0, 1, or 2")
+    }
+
+    fun coerceLength(minLength: Float, maxLength: Float): Vector3 {
+        val currentLength = length()
+        return when {
+            currentLength < minLength && currentLength > 0.001f -> this * (minLength / currentLength)
+            currentLength > maxLength -> this * (maxLength / currentLength)
+            else -> this.clone()
+        }
+    }
+
     override fun toString(): String = "Vector3($x, $y, $z)"
 
     companion object {
@@ -261,3 +327,8 @@ data class Vector3(
         val BACK = Vector3(0f, 0f, 1f)
     }
 }
+
+// Operator extensions for Vector3
+operator fun Float.times(v: Vector3): Vector3 = v * this
+operator fun Double.times(v: Vector3): Vector3 = v * this.toFloat()
+operator fun Int.times(v: Vector3): Vector3 = v * this.toFloat()

@@ -5,8 +5,19 @@
 package io.kreekt.xr
 
 import io.kreekt.core.math.*
+import io.kreekt.core.platform.platformClone
+import io.kreekt.core.platform.currentTimeMillis
+import io.kreekt.core.platform.platformClone
 import kotlinx.coroutines.*
+import io.kreekt.core.platform.platformClone
+import io.kreekt.core.platform.currentTimeMillis
+import io.kreekt.core.platform.platformClone
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
+import io.kreekt.core.platform.currentTimeMillis
+import io.kreekt.core.platform.platformClone
+import kotlin.math.PI
+import kotlin.math.cos
 
 /**
  * Default implementation of XRHand interface
@@ -15,8 +26,9 @@ import kotlin.math.*
 class DefaultXRHand(
     private val handedness: XRHandedness
 ) : XRHand {
-    override val joints: MutableMap<XRHandJoint, XRJointSpace> = mutableMapOf()
-    override var size: Float = 0.18f // Average hand size in meters
+    private val _joints: MutableMap<XRHandJoint, XRJointSpace> = mutableMapOf()
+    override val joints: Map<XRHandJoint, XRJointSpace> get() = _joints
+    var size: Float = 0.18f // Average hand size in meters
 
     private var _isTracked = false
     private val jointPoses = mutableMapOf<XRHandJoint, XRJointPose>()
@@ -27,24 +39,32 @@ class DefaultXRHand(
         initializeJoints()
     }
 
-    override fun getJoint(joint: XRHandJoint): XRJointSpace? {
-        return joints[joint]
+    fun getJoint(joint: XRHandJoint): XRJointSpace? {
+        return _joints[joint]
     }
 
-    override fun getJointPose(
+    fun getJointPose(
         joint: XRHandJoint,
         frame: XRFrame,
         referenceSpace: XRSpace
     ): XRJointPose? {
         if (!isTracked()) return null
 
-        return frame.getJointPose(
-            joints[joint] ?: return null,
-            referenceSpace
-        )
+        // Get the joint space and create a basic pose
+        val jointSpace = _joints[joint] ?: return null
+        return frame.getPose(jointSpace, referenceSpace)?.let { pose ->
+            // Convert XRPose to XRJointPose
+            object : XRJointPose {
+                override val transform: Matrix4 = pose.transform
+                override val emulatedPosition: Boolean = pose.emulatedPosition
+                override val linearVelocity: Vector3? = pose.linearVelocity
+                override val angularVelocity: Vector3? = pose.angularVelocity
+                override val radius: Float = 0.01f // Default joint radius
+            }
+        }
     }
 
-    override fun isTracked(): Boolean = _isTracked
+    fun isTracked(): Boolean = _isTracked
 
     fun updateTracking(tracked: Boolean) {
         _isTracked = tracked
@@ -56,7 +76,7 @@ class DefaultXRHand(
         // Update hand size based on wrist to middle finger tip distance
         if (joint == XRHandJoint.MIDDLE_FINGER_TIP) {
             jointPoses[XRHandJoint.WRIST]?.let { wristPose ->
-                val distance = wristPose.position.distanceTo(pose.position)
+                val distance = wristPose.transform.getTranslation().distanceTo(pose.transform.getTranslation())
                 size = distance * 1.1f // Approximate full hand size
             }
         }
@@ -81,7 +101,7 @@ class DefaultXRHand(
 
     private fun initializeJoints() {
         XRHandJoint.values().forEach { joint ->
-            joints[joint] = DefaultXRJointSpace(joint)
+            _joints[joint] = DefaultXRJointSpace(joint)
         }
     }
 
@@ -92,10 +112,13 @@ class DefaultXRHand(
         val joints = getFingerJoints(finger)
         if (joints.size < 4) return 0f
 
-        val metacarpal = jointPoses[joints[0]]?.position ?: return 0f
-        val proximal = jointPoses[joints[1]]?.position ?: return 0f
-        val intermediate = jointPoses[joints[2]]?.position ?: return 0f
-        val distal = jointPoses[joints[3]]?.position ?: return 0f
+        val jointsList = _joints.keys.toList()
+        if (jointsList.size < 4) return 0f
+
+        val metacarpal = jointPoses[jointsList[0]]?.transform?.getTranslation() ?: return 0f
+        val proximal = jointPoses[jointsList[1]]?.transform?.getTranslation() ?: return 0f
+        val intermediate = jointPoses[jointsList[2]]?.transform?.getTranslation() ?: return 0f
+        val distal = jointPoses[jointsList[3]]?.transform?.getTranslation() ?: return 0f
 
         // Calculate angles between segments
         val angle1 = calculateJointAngle(metacarpal, proximal, intermediate)
@@ -109,8 +132,8 @@ class DefaultXRHand(
      * Get the pinch strength between thumb and a finger (0 = no pinch, 1 = full pinch)
      */
     fun getPinchStrength(finger: Finger = Finger.INDEX): Float {
-        val thumbTip = jointPoses[XRHandJoint.THUMB_TIP]?.position ?: return 0f
-        val fingerTip = jointPoses[getFingerTipJoint(finger)]?.position ?: return 0f
+        val thumbTip = jointPoses[XRHandJoint.THUMB_TIP]?.transform?.getTranslation() ?: return 0f
+        val fingerTip = jointPoses[getFingerTipJoint(finger)]?.transform?.getTranslation() ?: return 0f
 
         val distance = thumbTip.distanceTo(fingerTip)
         val normalizedDistance = (distance / size).coerceIn(0f, 1f)
@@ -199,7 +222,7 @@ class DefaultXRGaze : XRGaze {
 
         // Calculate gaze direction from pose orientation
         val direction = Vector3(0f, 0f, -1f)
-        direction.applyQuaternion(pose.orientation)
+        direction.applyQuaternion(pose.transform.getRotation())
 
         return direction
     }
@@ -228,7 +251,7 @@ class DefaultXRGaze : XRGaze {
         val pose = getEyePose(frame, referenceSpace) ?: return null
 
         // Calculate point where eyes converge
-        return pose.position.clone().add(
+        return pose.transform.getTranslation().clone().add(
             direction.multiplyScalar(convergenceDistance)
         )
     }
@@ -257,13 +280,13 @@ class DefaultXRGaze : XRGaze {
 class DefaultXRJointSpace(
     override val jointName: XRHandJoint
 ) : XRJointSpace {
-    override val id: String = "xrjs_${jointName}_${System.currentTimeMillis()}"
+    override val id: String = "xrjs_${jointName}_${currentTimeMillis()}"
 }
 
 /**
  * Default implementation of XRJointPose
  */
-data class DefaultXRJointPose(
+class DefaultXRJointPose(
     override val transform: Matrix4,
     override val position: Vector3,
     override val orientation: Quaternion,
@@ -322,8 +345,8 @@ class HandGestureDetector(
         val ringCurl = hand.getFingerCurl(Finger.RING)
         val pinkyCurl = hand.getFingerCurl(Finger.PINKY)
 
-        val thumbTip = hand.getJointPose(XRHandJoint.THUMB_TIP)?.position
-        val wrist = hand.getJointPose(XRHandJoint.WRIST)?.position
+        val thumbTip = hand.getJointPose(XRHandJoint.THUMB_TIP)?.transform.getTranslation()
+        val wrist = hand.getJointPose(XRHandJoint.WRIST)?.transform.getTranslation()
 
         if (thumbTip == null || wrist == null) return false
 
@@ -341,8 +364,8 @@ class HandGestureDetector(
         val ringCurl = hand.getFingerCurl(Finger.RING)
         val pinkyCurl = hand.getFingerCurl(Finger.PINKY)
 
-        val thumbTip = hand.getJointPose(XRHandJoint.THUMB_TIP)?.position
-        val wrist = hand.getJointPose(XRHandJoint.WRIST)?.position
+        val thumbTip = hand.getJointPose(XRHandJoint.THUMB_TIP)?.transform.getTranslation()
+        val wrist = hand.getJointPose(XRHandJoint.WRIST)?.transform.getTranslation()
 
         if (thumbTip == null || wrist == null) return false
 
@@ -404,7 +427,7 @@ class HandGestureDetector(
 
         // Check for oscillating hand movement
         val wristPositions = gestureHistory.mapNotNull {
-            hand.getJointPose(XRHandJoint.WRIST)?.position
+            hand.getJointPose(XRHandJoint.WRIST)?.transform.getTranslation()
         }
 
         if (wristPositions.size < 20) return false
@@ -430,7 +453,7 @@ class HandGestureDetector(
         if (gestureHistory.size < 10) return false
 
         val recentPositions = gestureHistory.takeLast(10).mapNotNull {
-            hand.getJointPose(XRHandJoint.WRIST)?.position
+            hand.getJointPose(XRHandJoint.WRIST)?.transform.getTranslation()
         }
 
         if (recentPositions.size < 10) return false

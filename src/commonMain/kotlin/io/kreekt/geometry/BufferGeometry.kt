@@ -3,8 +3,11 @@
  * Extends the basic geometry system with morph targets, instancing, and LOD support
  */
 package io.kreekt.geometry
+import io.kreekt.core.math.Box3
 
 import io.kreekt.core.math.*
+import io.kreekt.core.platform.platformClone
+import io.kreekt.core.platform.currentTimeMillis
 import kotlinx.collections.immutable.*
 import kotlinx.serialization.Serializable
 
@@ -12,7 +15,7 @@ import kotlinx.serialization.Serializable
  * Advanced buffer geometry with morph targets and instancing support
  * Compatible with Three.js BufferGeometry patterns
  */
-class BufferGeometry {
+open class BufferGeometry {
     // Core attributes
     private val _attributes = mutableMapOf<String, BufferAttribute>()
     private var _index: BufferAttribute? = null
@@ -39,7 +42,7 @@ class BufferGeometry {
     private var _activeLodLevel: Int = 0
 
     // Metadata and state
-    var uuid: String = generateUUID()
+    var uuid: String = "geometry-${currentTimeMillis()}-${(kotlin.random.Random.nextDouble() * 1000000).toInt()}"
         private set
     var name: String = ""
 
@@ -77,6 +80,8 @@ class BufferGeometry {
 
     fun getIndex(): BufferAttribute? = _index
 
+    val index: BufferAttribute? get() = _index
+
     /**
      * Morph target management
      */
@@ -93,6 +98,13 @@ class BufferGeometry {
     }
 
     val morphAttributes: Map<String, Array<BufferAttribute>> get() = _morphAttributes.toMap()
+
+    /**
+     * Morph targets for backward compatibility
+     * Returns the position morph attributes if they exist
+     */
+    val morphTargets: Array<BufferAttribute>?
+        get() = _morphAttributes["position"]
 
     /**
      * Instancing support
@@ -337,11 +349,6 @@ class BufferGeometry {
         _boundingBoxNeedsUpdate = true
         _boundingSphereNeedsUpdate = true
     }
-
-    private fun generateUUID(): String {
-        // Simple UUID generation - in real implementation would use platform-specific UUID
-        return "geometry-${System.currentTimeMillis()}-${(Math.random() * 1000000).toInt()}"
-    }
 }
 
 /**
@@ -376,12 +383,12 @@ class BufferAttribute(
 
     val count: Int get() = array.size / itemSize
 
-    fun getX(index: Int): Float = array[index * itemSize]
+    fun getX(index: Int): Float = array[(index * itemSize)]
     fun getY(index: Int): Float = array[index * itemSize + 1]
     fun getZ(index: Int): Float = array[index * itemSize + 2]
     fun getW(index: Int): Float = array[index * itemSize + 3]
 
-    fun setX(index: Int, value: Float) { array[index * itemSize] = value }
+    fun setX(index: Int, value: Float) { array[(index * itemSize)] = value }
     fun setY(index: Int, value: Float) { array[index * itemSize + 1] = value }
     fun setZ(index: Int, value: Float) { array[index * itemSize + 2] = value }
     fun setW(index: Int, value: Float) { array[index * itemSize + 3] = value }

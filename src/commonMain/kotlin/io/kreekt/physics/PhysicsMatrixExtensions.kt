@@ -6,6 +6,9 @@ package io.kreekt.physics
 
 import io.kreekt.core.math.*
 import kotlin.math.*
+import kotlin.math.cos
+import kotlin.math.sin
+import io.kreekt.core.math.Box3
 
 /**
  * Matrix4 extensions for physics
@@ -149,9 +152,11 @@ fun Matrix4.getRotation(): Quaternion {
  */
 val Matrix3.Companion.IDENTITY: Matrix3
     get() = Matrix3(
-        1f, 0f, 0f,
-        0f, 1f, 0f,
-        0f, 0f, 1f
+        floatArrayOf(
+            1f, 0f, 0f,
+            0f, 1f, 0f,
+            0f, 0f, 1f
+        )
     )
 
 /**
@@ -159,9 +164,11 @@ val Matrix3.Companion.IDENTITY: Matrix3
  */
 val Matrix3.Companion.ZERO: Matrix3
     get() = Matrix3(
-        0f, 0f, 0f,
-        0f, 0f, 0f,
-        0f, 0f, 0f
+        floatArrayOf(
+            0f, 0f, 0f,
+            0f, 0f, 0f,
+            0f, 0f, 0f
+        )
     )
 
 /**
@@ -176,17 +183,19 @@ fun Matrix3.inverse(): Matrix3 {
     val invDet = 1f / det
 
     return Matrix3(
-        (m11 * m22 - m12 * m21) * invDet,
-        (m02 * m21 - m01 * m22) * invDet,
-        (m01 * m12 - m02 * m11) * invDet,
+        floatArrayOf(
+            (m11 * m22 - (m12 * m21)) * invDet,
+            (m12 * m20 - (m10 * m22)) * invDet,
+            (m10 * m21 - (m11 * m20)) * invDet,
 
-        (m12 * m20 - m10 * m22) * invDet,
-        (m00 * m22 - m02 * m20) * invDet,
-        (m02 * m10 - m00 * m12) * invDet,
+            (m02 * m21 - (m01 * m22)) * invDet,
+            (m00 * m22 - (m02 * m20)) * invDet,
+            (m01 * m20 - (m00 * m21)) * invDet,
 
-        (m10 * m21 - m11 * m20) * invDet,
-        (m01 * m20 - m00 * m21) * invDet,
-        (m00 * m11 - m01 * m10) * invDet
+            (m01 * m12 - (m02 * m11)) * invDet,
+            (m02 * m10 - (m00 * m12)) * invDet,
+            (m00 * m11 - (m01 * m10)) * invDet
+        )
     )
 }
 
@@ -194,9 +203,9 @@ fun Matrix3.inverse(): Matrix3 {
  * Matrix3 determinant calculation
  */
 fun Matrix3.determinant(): Float {
-    return m00 * (m11 * m22 - m12 * m21) -
-           m01 * (m10 * m22 - m12 * m20) +
-           m02 * (m10 * m21 - m11 * m20)
+    return m00 * (m11 * m22 - (m12 * m21)) -
+           m01 * (m10 * m22 - (m12 * m20)) +
+           m02 * (m10 * m21 - (m11 * m20))
 }
 
 /**
@@ -204,9 +213,11 @@ fun Matrix3.determinant(): Float {
  */
 fun Matrix3.transpose(): Matrix3 {
     return Matrix3(
-        m00, m10, m20,
-        m01, m11, m21,
-        m02, m12, m22
+        floatArrayOf(
+            m00, m10, m20,
+            m01, m11, m21,
+            m02, m12, m22
+        )
     )
 }
 
@@ -226,9 +237,11 @@ operator fun Matrix3.times(vector: Vector3): Vector3 {
  */
 operator fun Matrix3.plus(other: Matrix3): Matrix3 {
     return Matrix3(
-        m00 + other.m00, m01 + other.m01, m02 + other.m02,
-        m10 + other.m10, m11 + other.m11, m12 + other.m12,
-        m20 + other.m20, m21 + other.m21, m22 + other.m22
+        floatArrayOf(
+            m00 + other.m00, m10 + other.m10, m20 + other.m20,
+            m01 + other.m01, m11 + other.m11, m21 + other.m21,
+            m02 + other.m02, m12 + other.m12, m22 + other.m22
+        )
     )
 }
 
@@ -237,19 +250,22 @@ operator fun Matrix3.plus(other: Matrix3): Matrix3 {
  */
 operator fun Matrix3.times(other: Matrix3): Matrix3 {
     return Matrix3(
-        m00 * other.m00 + m01 * other.m10 + m02 * other.m20,
-        m00 * other.m01 + m01 * other.m11 + m02 * other.m21,
-        m00 * other.m02 + m01 * other.m12 + m02 * other.m22,
+        floatArrayOf(
+            m00 * other.m00 + m01 * other.m10 + m02 * other.m20,
+            m10 * other.m00 + m11 * other.m10 + m12 * other.m20,
+            m20 * other.m00 + m21 * other.m10 + m22 * other.m20,
 
-        m10 * other.m00 + m11 * other.m10 + m12 * other.m20,
-        m10 * other.m01 + m11 * other.m11 + m12 * other.m21,
-        m10 * other.m02 + m11 * other.m12 + m12 * other.m22,
+            m00 * other.m01 + m01 * other.m11 + m02 * other.m21,
+            m10 * other.m01 + m11 * other.m11 + m12 * other.m21,
+            m20 * other.m01 + m21 * other.m11 + m22 * other.m21,
 
-        m20 * other.m00 + m21 * other.m10 + m22 * other.m20,
-        m20 * other.m01 + m21 * other.m11 + m22 * other.m21,
-        m20 * other.m02 + m21 * other.m12 + m22 * other.m22
+            m00 * other.m02 + m01 * other.m12 + m02 * other.m22,
+            m10 * other.m02 + m11 * other.m12 + m12 * other.m22,
+            m20 * other.m02 + m21 * other.m12 + m22 * other.m22
+        )
     )
 }
+
 
 /**
  * Quaternion extensions for physics
@@ -281,7 +297,7 @@ fun Quaternion.Companion.fromAxisAngle(axis: Vector3, angle: Float): Quaternion 
  * Normalize a quaternion
  */
 fun Quaternion.normalized(): Quaternion {
-    val length = sqrt(x * x + y * y + z * z + w * w)
+    val length = sqrt(x * x + y * y + z * z + (w * w))
     return if (length > 0.001f) {
         Quaternion(x / length, y / length, z / length, w / length)
     } else {
@@ -327,15 +343,6 @@ fun Vector3.set(other: Vector3): Vector3 {
     return this
 }
 
-/**
- * Get vector component by index
- */
-fun Vector3.componentAt(index: Int): Float = when (index) {
-    0 -> x
-    1 -> y
-    2 -> z
-    else -> throw IndexOutOfBoundsException("Vector3 component index must be 0, 1, or 2")
-}
 
 /**
  * Set vector component by index
@@ -349,27 +356,12 @@ fun Vector3.setComponent(index: Int, value: Float) {
     }
 }
 
-/**
- * Find the maximum component value
- */
-fun Vector3.maxComponent(): Float = maxOf(x, maxOf(y, z))
 
 /**
  * Find the minimum component value
  */
 fun Vector3.minComponent(): Float = minOf(x, minOf(y, z))
 
-/**
- * Constrain vector length to a range
- */
-fun Vector3.coerceLength(minLength: Float, maxLength: Float): Vector3 {
-    val currentLength = length()
-    return when {
-        currentLength < minLength -> if (currentLength > 0f) normalized() * minLength else Vector3.ZERO
-        currentLength > maxLength -> normalized() * maxLength
-        else -> this
-    }
-}
 
 /**
  * Check if vector is nearly zero

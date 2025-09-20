@@ -1,6 +1,10 @@
 package io.kreekt.core.math
 
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * A quaternion representing rotation in 3D space.
@@ -17,6 +21,9 @@ data class Quaternion(
 ) {
 
     companion object {
+        val IDENTITY: Quaternion
+            get() = Quaternion(0f, 0f, 0f, 1f)
+
         /**
          * Creates an identity quaternion (no rotation)
          */
@@ -123,37 +130,37 @@ data class Quaternion(
                 this.x = s1 * c2 * c3 + c1 * s2 * s3
                 this.y = c1 * s2 * c3 - s1 * c2 * s3
                 this.z = c1 * c2 * s3 + s1 * s2 * c3
-                this.w = c1 * c2 * c3 - s1 * s2 * s3
+                this.w = c1 * c2 * c3 - s1 * (s2 * s3)
             }
             EulerOrder.YXZ -> {
                 this.x = s1 * c2 * c3 + c1 * s2 * s3
                 this.y = c1 * s2 * c3 - s1 * c2 * s3
                 this.z = c1 * c2 * s3 - s1 * s2 * c3
-                this.w = c1 * c2 * c3 + s1 * s2 * s3
+                this.w = c1 * c2 * c3 + s1 * (s2 * s3)
             }
             EulerOrder.ZXY -> {
                 this.x = s1 * c2 * c3 - c1 * s2 * s3
                 this.y = c1 * s2 * c3 + s1 * c2 * s3
                 this.z = c1 * c2 * s3 + s1 * s2 * c3
-                this.w = c1 * c2 * c3 - s1 * s2 * s3
+                this.w = c1 * c2 * c3 - s1 * (s2 * s3)
             }
             EulerOrder.ZYX -> {
                 this.x = s1 * c2 * c3 - c1 * s2 * s3
                 this.y = c1 * s2 * c3 + s1 * c2 * s3
                 this.z = c1 * c2 * s3 - s1 * s2 * c3
-                this.w = c1 * c2 * c3 + s1 * s2 * s3
+                this.w = c1 * c2 * c3 + s1 * (s2 * s3)
             }
             EulerOrder.YZX -> {
                 this.x = s1 * c2 * c3 + c1 * s2 * s3
                 this.y = c1 * s2 * c3 + s1 * c2 * s3
                 this.z = c1 * c2 * s3 - s1 * s2 * c3
-                this.w = c1 * c2 * c3 - s1 * s2 * s3
+                this.w = c1 * c2 * c3 - s1 * (s2 * s3)
             }
             EulerOrder.XZY -> {
                 this.x = s1 * c2 * c3 - c1 * s2 * s3
                 this.y = c1 * s2 * c3 - s1 * c2 * s3
                 this.z = c1 * c2 * s3 + s1 * s2 * c3
-                this.w = c1 * c2 * c3 + s1 * s2 * s3
+                this.w = c1 * c2 * c3 + s1 * (s2 * s3)
             }
         }
 
@@ -261,7 +268,7 @@ data class Quaternion(
      * Calculates the squared length of this quaternion
      */
     fun lengthSq(): Float {
-        return x * x + y * y + z * z + w * w
+        return x * x + y * y + z * z + (w * w)
     }
 
     /**
@@ -283,13 +290,18 @@ data class Quaternion(
             w = 1f
         } else {
             l = 1f / l
-            x *= l
-            y *= l
-            z *= l
-            w *= l
+            x = x * l
+            y = y * l
+            z = z * l
+            w = w * l
         }
         return this
     }
+
+    /**
+     * Returns a new normalized quaternion (doesn't modify this quaternion)
+     */
+    fun normalized(): Quaternion = this.clone().normalize()
 
     /**
      * Multiplies this quaternion by another quaternion
@@ -375,7 +387,7 @@ data class Quaternion(
         val sinHalfTheta = sqrt(sqrSinHalfTheta)
         val halfTheta = atan2(sinHalfTheta, cosHalfTheta)
         val ratioA = sin((1f - t) * halfTheta) / sinHalfTheta
-        val ratioB = sin(t * halfTheta) / sinHalfTheta
+        val ratioB = sin((t * halfTheta)) / sinHalfTheta
 
         this.w = w * ratioA + qw * ratioB
         this.x = x * ratioA + qx * ratioB
@@ -440,7 +452,7 @@ data class Quaternion(
         }
 
         val halfTheta = acos(cosHalfTheta)
-        val sinHalfTheta = sqrt(1f - cosHalfTheta * cosHalfTheta)
+        val sinHalfTheta = sqrt(1f - (cosHalfTheta * cosHalfTheta))
 
         if (abs(sinHalfTheta) < 0.001f) {
             dst[dstOffset + 0] = 0.5f * (x0 + x1)
@@ -451,12 +463,12 @@ data class Quaternion(
         }
 
         val ratioA = sin((1f - t) * halfTheta) / sinHalfTheta
-        val ratioB = sin(t * halfTheta) / sinHalfTheta
+        val ratioB = sin((t * halfTheta)) / sinHalfTheta
 
         dst[dstOffset + 0] = x0 * ratioA + x1 * ratioB
         dst[dstOffset + 1] = y0 * ratioA + y1 * ratioB
         dst[dstOffset + 2] = z0 * ratioA + z1 * ratioB
-        dst[dstOffset + 3] = w0 * ratioA + w1 * ratioB
+        dst[dstOffset + 3] = w0 * ratioA + (w1 * ratioB)
     }
 
     /**
@@ -487,7 +499,62 @@ data class Quaternion(
         return this
     }
 
+    /**
+     * Returns a new inverted quaternion (doesn't modify this quaternion)
+     */
+    fun inverse(): Quaternion = clone().invert()
+
+    /**
+     * Convert quaternion to Euler angles (in radians)
+     */
+    fun toEulerAngles(): Vector3 {
+        val test = x*y + z*w
+        if (test > 0.499f) { // singularity at north pole
+            return Vector3(
+                2f * atan2(x, w),
+                PI.toFloat() / 2f,
+                0f
+            )
+        }
+        if (test < -0.499f) { // singularity at south pole
+            return Vector3(
+                -2f * atan2(x, w),
+                -PI.toFloat() / 2f,
+                0f
+            )
+        }
+        val sqx = x*x
+        val sqy = y*y
+        val sqz = z*z
+        return Vector3(
+            atan2(2f*y*w - 2f*x*z, 1f - 2f*sqy - 2f*sqz),
+            asin(2f*test),
+            atan2(2f*x*w - 2f*y*z, 1f - 2f*sqx - 2f*sqz)
+        )
+    }
+
+    /**
+     * Convert quaternion to axis-angle representation
+     * Returns Pair(axis, angle)
+     */
+    fun toAxisAngle(): Pair<Vector3, Float> {
+        val angle = 2f * acos(w.coerceIn(-1f, 1f))
+        val s = sqrt(1f - w*w)
+        return if (s < 0.001f) {
+            // If s is close to zero, direction doesn't matter
+            Pair(Vector3.UNIT_X, angle)
+        } else {
+            Pair(Vector3(x/s, y/s, z/s), angle)
+        }
+    }
+
+    /**
+     * Multiplication operator for quaternions
+     */
+    operator fun times(other: Quaternion): Quaternion = clone().multiply(other)
+
     override fun toString(): String {
         return "Quaternion(x=$x, y=$y, z=$z, w=$w)"
     }
+
 }

@@ -5,6 +5,7 @@
 package io.kreekt.physics
 
 import io.kreekt.core.math.*
+import io.kreekt.core.math.Box3
 
 /**
  * Physics world management interface
@@ -149,7 +150,7 @@ interface RigidBody : CollisionObject {
      * Transformation
      */
     fun setTransform(position: Vector3, rotation: Quaternion)
-    fun getWorldTransform(): Matrix4
+    override fun getWorldTransform(): Matrix4
     fun getCenterOfMassTransform(): Matrix4
 }
 

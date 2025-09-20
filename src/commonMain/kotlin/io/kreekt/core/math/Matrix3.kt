@@ -1,6 +1,9 @@
 package io.kreekt.core.math
 
 import kotlin.math.*
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * A 3x3 matrix stored in column-major order.
@@ -18,8 +21,23 @@ data class Matrix3(
         0f, 0f, 1f   // column 2
     )
 ) {
+    // Matrix element accessors (row-column notation)
+    val m00: Float get() = elements[0]
+    val m10: Float get() = elements[1]
+    val m20: Float get() = elements[2]
+
+    val m01: Float get() = elements[3]
+    val m11: Float get() = elements[4]
+    val m21: Float get() = elements[5]
+
+    val m02: Float get() = elements[6]
+    val m12: Float get() = elements[7]
+    val m22: Float get() = elements[8]
 
     companion object {
+        val IDENTITY: Matrix3
+            get() = Matrix3()
+
         /**
          * Creates an identity matrix
          */
@@ -30,6 +48,28 @@ data class Matrix3(
          */
         fun scale(x: Float, y: Float): Matrix3 =
             Matrix3().makeScale(x, y)
+
+        /**
+         * Creates a diagonal matrix from a vector
+         */
+        fun diagonal(vector: Vector3): Matrix3 = Matrix3(
+            floatArrayOf(
+                vector.x, 0f, 0f,
+                0f, vector.y, 0f,
+                0f, 0f, vector.z
+            )
+        )
+
+        /**
+         * Creates a zero matrix
+         */
+        fun zero(): Matrix3 = Matrix3(
+            floatArrayOf(
+                0f, 0f, 0f,
+                0f, 0f, 0f,
+                0f, 0f, 0f
+            )
+        )
 
         /**
          * Creates a rotation matrix
@@ -49,6 +89,41 @@ data class Matrix3(
         fun normalMatrix(matrix: Matrix4): Matrix3 {
             val result = Matrix3()
             return result.getNormalMatrix(matrix)
+        }
+
+        fun fromQuaternion(q: Quaternion): Matrix3 {
+            val matrix = Matrix3()
+            val x = q.x
+            val y = q.y
+            val z = q.z
+            val w = q.w
+
+            val x2 = x + x
+            val y2 = y + y
+            val z2 = z + z
+            val xx = x * x2
+            val xy = x * y2
+            val xz = x * z2
+            val yy = y * y2
+            val yz = y * z2
+            val zz = z * z2
+            val wx = w * x2
+            val wy = w * y2
+            val wz = w * z2
+
+            matrix.elements[0] = 1f - (yy + zz)
+            matrix.elements[3] = xy - wz
+            matrix.elements[6] = xz + wy
+
+            matrix.elements[1] = xy + wz
+            matrix.elements[4] = 1f - (xx + zz)
+            matrix.elements[7] = yz - wx
+
+            matrix.elements[2] = xz - wy
+            matrix.elements[5] = yz + wx
+            matrix.elements[8] = 1f - (xx + yy)
+
+            return matrix
         }
     }
 
@@ -200,16 +275,6 @@ data class Matrix3(
         return this
     }
 
-    /**
-     * Calculates the determinant of this matrix
-     */
-    fun determinant(): Float {
-        val a = elements[0]; val b = elements[1]; val c = elements[2]
-        val d = elements[3]; val e = elements[4]; val f = elements[5]
-        val g = elements[6]; val h = elements[7]; val i = elements[8]
-
-        return a * e * i - a * f * h - b * d * i + b * f * g + c * d * h - c * e * g
-    }
 
     /**
      * Inverts this matrix
@@ -230,16 +295,16 @@ data class Matrix3(
         val detInv = 1f / det
 
         elements[0] = t11 * detInv
-        elements[1] = (n31 * n23 - n33 * n21) * detInv
-        elements[2] = (n32 * n21 - n31 * n22) * detInv
+        elements[1] = (n31 * n23 - (n33 * n21)) * detInv
+        elements[2] = (n32 * n21 - (n31 * n22)) * detInv
 
         elements[3] = t12 * detInv
-        elements[4] = (n33 * n11 - n31 * n13) * detInv
-        elements[5] = (n31 * n12 - n32 * n11) * detInv
+        elements[4] = (n33 * n11 - (n31 * n13)) * detInv
+        elements[5] = (n31 * n12 - (n32 * n11)) * detInv
 
         elements[6] = t13 * detInv
-        elements[7] = (n21 * n13 - n23 * n11) * detInv
-        elements[8] = (n22 * n11 - n21 * n12) * detInv
+        elements[7] = (n21 * n13 - (n23 * n11)) * detInv
+        elements[8] = (n22 * n11 - (n21 * n12)) * detInv
 
         return this
     }
@@ -282,8 +347,8 @@ data class Matrix3(
         val s = sin(rotation)
 
         set(
-            sx * c, sx * s, -sx * (c * cx + s * cy) + cx + tx,
-            -sy * s, sy * c, -sy * (-s * cx + c * cy) + cy + ty,
+            (sx * c), (sx * s), -sx * (c * cx + (s * cy)) + cx + tx,
+            -(sy * s), (sy * c), -sy * (-s * cx + (c * cy)) + cy + ty,
             0f, 0f, 1f
         )
 
@@ -315,6 +380,21 @@ data class Matrix3(
         return this
     }
 
+    /**
+     * Returns a new inverted matrix (doesn't modify this matrix)
+     */
+    fun inverse(): Matrix3 = clone().invert()
+
+    /**
+     * Calculates the determinant of this matrix
+     */
+    fun determinant(): Float {
+        val m = elements
+        return m[0] * (m[4] * m[8] - m[7] * m[5]) -
+               m[3] * (m[1] * m[8] - m[7] * m[2]) +
+               m[6] * (m[1] * m[5] - m[4] * m[2])
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Matrix3) return false
@@ -325,6 +405,21 @@ data class Matrix3(
         return elements.contentHashCode()
     }
 
+    /**
+     * Multiply Matrix3 by Vector3
+     */
+    operator fun times(vector: Vector3): Vector3 {
+        val x = elements[0] * vector.x + elements[3] * vector.y + elements[6] * vector.z
+        val y = elements[1] * vector.x + elements[4] * vector.y + elements[7] * vector.z
+        val z = elements[2] * vector.x + elements[5] * vector.y + elements[8] * vector.z
+        return Vector3(x, y, z)
+    }
+
+    /**
+     * Multiply Matrix3 by Matrix3
+     */
+    operator fun times(other: Matrix3): Matrix3 = clone().multiply(other)
+
     override fun toString(): String {
         return "Matrix3(\n" +
                "  ${elements[0]}, ${elements[3]}, ${elements[6]}\n" +
@@ -332,4 +427,5 @@ data class Matrix3(
                "  ${elements[2]}, ${elements[5]}, ${elements[8]}\n" +
                ")"
     }
+
 }

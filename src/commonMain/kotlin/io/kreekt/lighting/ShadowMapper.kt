@@ -5,19 +5,26 @@
 package io.kreekt.lighting
 
 import io.kreekt.core.math.*
-import io.kreekt.renderer.*
 import io.kreekt.core.scene.Scene
+import io.kreekt.core.scene.Object3D
+import io.kreekt.core.scene.Material
+import io.kreekt.renderer.*
 import io.kreekt.camera.Camera
 import io.kreekt.camera.PerspectiveCamera
 import io.kreekt.camera.OrthographicCamera
 import kotlin.math.*
+import io.kreekt.renderer.TextureFilter
+import io.kreekt.renderer.TextureFormat
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * High-quality shadow mapping implementation with multiple techniques
  */
 class ShadowMapperImpl : ShadowMapper {
 
-    private var shadowFilter: ShadowFilter = ShadowFilter.PCF_3X3
+    private var shadowFilter: ShadowFilter = ShadowFilter.PCF
     private var shadowBias: Float = 0.0005f
     private var shadowRadius: Float = 1.0f
     private var shadowNormalBias: Float = 0.01f
@@ -31,27 +38,59 @@ class ShadowMapperImpl : ShadowMapper {
     private var cascadedShadowMapPool: MutableList<CascadedShadowMapImpl> = mutableListOf()
     private var cubeShadowMapPool: MutableList<CubeShadowMapImpl> = mutableListOf()
 
-    override suspend fun generateShadowMap(light: Light, scene: Scene): ShadowResult<ShadowMap> {
+    override suspend fun renderShadowMap(light: Light, scene: Scene, camera: Camera, objects: List<Object3D>): ShadowResult<Texture> {
+        return try {
+            when (light) {
+                is DirectionalLight -> {
+                    val result = generateDirectionalShadowMap(light, scene)
+                    when (result) {
+                        is ShadowResult.Success -> ShadowResult.Success(result.data.texture)
+                        is ShadowResult.Error -> result
+                    }
+                }
+                is SpotLight -> {
+                    val result = generateSpotShadowMap(light, scene)
+                    when (result) {
+                        is ShadowResult.Success -> ShadowResult.Success(result.data.texture)
+                        is ShadowResult.Error -> result
+                    }
+                }
+                else -> ShadowResult.Error(UnsupportedShadowType("Unsupported light type for shadow mapping"))
+            }
+        } catch (e: Exception) {
+            ShadowResult.Error(ShadowMapGenerationFailed("Failed to render shadow map: ${e.message}"))
+        }
+    }
+
+    override fun getShadowMatrix(light: Light, camera: Camera): Matrix4 {
+        // Implementation for shadow matrix calculation
+        return Matrix4() // Placeholder
+    }
+
+    override fun updateShadowUniforms(light: Light, material: Material) {
+        // Implementation for updating shadow uniforms
+        // Placeholder
+    }
+
+    suspend fun generateShadowMap(light: Light, scene: Scene): ShadowResult<ShadowMap> {
         return try {
             when (light) {
                 is DirectionalLight -> generateDirectionalShadowMap(light, scene)
                 is SpotLight -> generateSpotShadowMap(light, scene)
-                else -> ShadowResult.Error(ShadowException.UnsupportedShadowType(ShadowType.BASIC))
+                else -> ShadowResult.Error(UnsupportedShadowType("Unsupported light type"))
             }
         } catch (e: Exception) {
-            ShadowResult.Error(ShadowException.ShadowMapGenerationFailed("Failed to generate shadow map", e))
+            ShadowResult.Error(ShadowMapGenerationFailed("Failed to generate shadow map: ${e.message}"))
         }
     }
 
-    override suspend fun generateCascadedShadowMap(
+    suspend fun generateCascadedShadowMap(
         light: DirectionalLight,
         scene: Scene,
+        camera: Camera,
         cascadeCount: Int
     ): ShadowResult<CascadedShadowMap> {
         return try {
-            val camera = scene.activeCamera ?: return ShadowResult.Error(
-                ShadowException.ShadowMapGenerationFailed("No active camera in scene")
-            )
 
             val cascades = calculateCascadeSplits(camera, cascadeCount)
             val shadowMaps = mutableListOf<ShadowCascade>()
@@ -65,7 +104,7 @@ class ShadowMapperImpl : ShadowMapper {
                 cascades = shadowMaps,
                 splitDistances = cascades,
                 texture = createCascadedTexture(shadowMaps),
-                lightSpaceMatrix = Matrix4.IDENTITY,
+                lightSpaceMatrix = Matrix4.identity(),
                 near = camera.near,
                 far = camera.far,
                 bias = shadowBias
@@ -73,11 +112,11 @@ class ShadowMapperImpl : ShadowMapper {
 
             ShadowResult.Success(cascadedMap)
         } catch (e: Exception) {
-            ShadowResult.Error(ShadowException.ShadowMapGenerationFailed("Failed to generate cascaded shadow map", e))
+            ShadowResult.Error(ShadowMapGenerationFailed("Failed to generate cascaded shadow map: ${e.message}"))
         }
     }
 
-    override suspend fun generateOmnidirectionalShadowMap(
+    suspend fun generateOmnidirectionalShadowMap(
         light: PointLight,
         scene: Scene
     ): ShadowResult<CubeShadowMap> {
@@ -107,6 +146,9 @@ class ShadowMapperImpl : ShadowMapper {
                 Vector3(0f, -1f, 0f)   // Negative Z
             )
 
+            // TODO: Get light position from transform
+            val lightPos = light.position
+
             for (face in 0 until 6) {
                 val camera = PerspectiveCamera(
                     fov = 90f,
@@ -115,8 +157,8 @@ class ShadowMapperImpl : ShadowMapper {
                     far = far
                 )
 
-                camera.position = light.position
-                camera.lookAt(light.position + cubeDirections[face], cubeUps[face])
+                camera.position.copy(lightPos)
+                camera.lookAt(lightPos + cubeDirections[face])
                 camera.updateMatrixWorld()
 
                 // Render depth from this face
@@ -125,42 +167,42 @@ class ShadowMapperImpl : ShadowMapper {
 
             val cubeMap = CubeShadowMapImpl(
                 textures = faceTextures,
-                lightPosition = light.position,
+                lightPosition = lightPos,
                 near = near,
                 far = far
             )
 
             ShadowResult.Success(cubeMap)
         } catch (e: Exception) {
-            ShadowResult.Error(ShadowException.ShadowMapGenerationFailed("Failed to generate omnidirectional shadow map", e))
+            ShadowResult.Error(ShadowMapGenerationFailed("Failed to generate omnidirectional shadow map: ${e.message}"))
         }
     }
 
-    override fun setShadowFilter(filter: ShadowFilter) {
+    fun setShadowFilter(filter: ShadowFilter) {
         this.shadowFilter = filter
     }
 
-    override fun setShadowBias(bias: Float) {
+    fun setShadowBias(bias: Float) {
         this.shadowBias = bias
     }
 
-    override fun setShadowRadius(radius: Float) {
+    fun setShadowRadius(radius: Float) {
         this.shadowRadius = radius
     }
 
-    override fun setShadowNormalBias(bias: Float) {
+    fun setShadowNormalBias(bias: Float) {
         this.shadowNormalBias = bias
     }
 
-    override fun setCullingDistance(distance: Float) {
+    fun setCullingDistance(distance: Float) {
         this.cullingDistance = distance
     }
 
-    override fun setLODBias(bias: Float) {
+    fun setLODBias(bias: Float) {
         this.lodBias = bias
     }
 
-    override fun enableShadowLOD(enabled: Boolean) {
+    fun enableShadowLOD(enabled: Boolean) {
         this.shadowLODEnabled = enabled
     }
 
@@ -184,8 +226,9 @@ class ShadowMapperImpl : ShadowMapper {
         )
 
         // Position camera at light position looking in light direction
-        lightCamera.position = light.position
-        lightCamera.lookAt(light.position + light.direction)
+        val lightPos = light.position
+        lightCamera.position.copy(lightPos)
+        lightCamera.lookAt(lightPos + light.direction)
         lightCamera.updateMatrixWorld()
 
         val texture = createShadowTexture(shadowMapSize, shadowMapSize)
@@ -193,7 +236,7 @@ class ShadowMapperImpl : ShadowMapper {
 
         val shadowMap = ShadowMapImpl(
             texture = texture,
-            lightSpaceMatrix = lightCamera.projectionViewMatrix,
+            lightSpaceMatrix = lightCamera.projectionMatrix.multiply(lightCamera.matrixWorldInverse),
             near = frustum.near,
             far = frustum.far,
             bias = shadowBias
@@ -218,8 +261,10 @@ class ShadowMapperImpl : ShadowMapper {
             far = light.distance
         )
 
-        lightCamera.position = light.position
-        lightCamera.lookAt(light.position + light.direction)
+        // TODO: Get light position from transform
+        val lightPos = light.position
+        lightCamera.position.copy(lightPos)
+        lightCamera.lookAt(lightPos + light.direction)
         lightCamera.updateMatrixWorld()
 
         val texture = createShadowTexture(shadowMapSize, shadowMapSize)
@@ -227,7 +272,7 @@ class ShadowMapperImpl : ShadowMapper {
 
         val shadowMap = ShadowMapImpl(
             texture = texture,
-            lightSpaceMatrix = lightCamera.projectionViewMatrix,
+            lightSpaceMatrix = lightCamera.projectionMatrix.multiply(lightCamera.matrixWorldInverse),
             near = 0.1f,
             far = light.distance,
             bias = shadowBias
@@ -267,7 +312,7 @@ class ShadowMapperImpl : ShadowMapper {
     /**
      * Generate a single cascade for CSM
      */
-    private fun generateCascade(
+    private suspend fun generateCascade(
         light: DirectionalLight,
         scene: Scene,
         camera: Camera,
@@ -287,19 +332,20 @@ class ShadowMapperImpl : ShadowMapper {
             far = frustum.far
         )
 
-        lightCamera.position = light.position
-        lightCamera.lookAt(light.position + light.direction)
+        // TODO: Get light position from transform
+        val lightPos = light.position
+        lightCamera.position.copy(lightPos)
+        lightCamera.lookAt(lightPos + light.direction)
         lightCamera.updateMatrixWorld()
 
         val shadowMapSize = calculateCascadeShadowMapSize(nearPlane, farPlane)
         val texture = createShadowTexture(shadowMapSize, shadowMapSize)
         renderDepthToTexture(scene, lightCamera, texture)
 
-        return ShadowCascade(
+        return ShadowCascadeImpl(
             texture = texture,
-            matrix = lightCamera.projectionViewMatrix,
-            near = nearPlane,
-            far = farPlane
+            projectionViewMatrix = lightCamera.projectionMatrix.multiply(lightCamera.matrixWorldInverse),
+            splitDistance = farPlane
         )
     }
 
@@ -308,11 +354,13 @@ class ShadowMapperImpl : ShadowMapper {
      */
     private fun calculateDirectionalLightFrustum(light: DirectionalLight, scene: Scene): LightFrustum {
         // Calculate scene bounds
-        val sceneBounds = scene.calculateBounds()
+        val sceneBounds = Box3()
 
         // Transform bounds to light space
-        val lightSpaceMatrix = Matrix4.lookAt(light.position, light.position + light.direction, Vector3.UP)
-        val transformedBounds = sceneBounds.transform(lightSpaceMatrix.inverse())
+        // TODO: Get light position from transform
+        val lightPos = Vector3.ZERO
+        val lightSpaceMatrix = Matrix4.identity() // TODO: Implement Matrix4.lookAt
+        val transformedBounds = sceneBounds // TODO: Implement Box3.transform(matrix)
 
         return LightFrustum(
             left = transformedBounds.min.x,
@@ -336,9 +384,9 @@ class ShadowMapperImpl : ShadowMapper {
         )
 
         // Transform to world space
-        val invProjView = camera.projectionViewMatrix.inverse()
+        val invProjView = camera.projectionMatrix.multiply(camera.matrixWorldInverse.clone().invert())
         for (i in frustumCorners.indices) {
-            frustumCorners[i] = frustumCorners[i].transformByMatrix4(invProjView)
+            frustumCorners[i] = frustumCorners[i].applyMatrix4(invProjView)
         }
 
         // Calculate bounds
@@ -373,7 +421,7 @@ class ShadowMapperImpl : ShadowMapper {
             ShadowQuality.ULTRA -> 4.0f
         }
 
-        return (baseSize * qualityMultiplier).toInt().coerceIn(256, 4096)
+        return ((baseSize * qualityMultiplier)).toInt().coerceIn(256, 4096)
     }
 
     /**
@@ -396,12 +444,16 @@ class ShadowMapperImpl : ShadowMapper {
     private fun createShadowTexture(width: Int, height: Int): Texture {
         // Platform-specific implementation would create depth texture
         return object : Texture {
+            override val id: Int = generateTextureId()
+            val name: String = "ShadowTexture"
+            override var needsUpdate: Boolean = true
+
             override val width: Int = width
             override val height: Int = height
-            override val format: TextureFormat = TextureFormat.DEPTH_COMPONENT
-            override val type: TextureType = TextureType.UNSIGNED_INT
         }
     }
+
+    private fun generateTextureId(): Int = (kotlin.random.Random.nextFloat() * 10000).toInt()
 
     /**
      * Create cascaded texture array
@@ -409,10 +461,11 @@ class ShadowMapperImpl : ShadowMapper {
     private fun createCascadedTexture(cascades: List<ShadowCascade>): Texture {
         // Platform-specific implementation would create texture array
         return object : Texture {
-            override val width: Int = cascades.first().texture.width
-            override val height: Int = cascades.first().texture.height
-            override val format: TextureFormat = TextureFormat.DEPTH_COMPONENT
-            override val type: TextureType = TextureType.UNSIGNED_INT
+            override val id: Int = generateTextureId()
+            val name: String = "CascadedShadowTexture"
+            override var needsUpdate: Boolean = true
+            override val width: Int = 1024 // Default size for cascaded texture
+            override val height: Int = 1024
         }
     }
 
@@ -437,7 +490,7 @@ class ShadowMapperImpl : ShadowMapper {
         normal: Vector3
     ): Float {
         // Transform world position to light space
-        val lightSpacePos = worldPosition.transformByMatrix4(shadowMap.lightSpaceMatrix)
+        val lightSpacePos = worldPosition.applyMatrix4(shadowMap.lightSpaceMatrix)
 
         // Convert to shadow map coordinates
         val shadowCoords = Vector3(
@@ -454,11 +507,12 @@ class ShadowMapperImpl : ShadowMapper {
 
         return when (shadowFilter) {
             ShadowFilter.NONE -> sampleShadowBasic(shadowMap, shadowCoords)
-            ShadowFilter.LINEAR -> sampleShadowLinear(shadowMap, shadowCoords)
-            ShadowFilter.PCF_3X3 -> sampleShadowPCF(shadowMap, shadowCoords, 3)
-            ShadowFilter.PCF_5X5 -> sampleShadowPCF(shadowMap, shadowCoords, 5)
+            ShadowFilter.PCF -> sampleShadowPCF(shadowMap, shadowCoords, 3)
+            ShadowFilter.PCF_SOFT -> sampleShadowPCF(shadowMap, shadowCoords, 7)
             ShadowFilter.PCSS -> sampleShadowPCSS(shadowMap, shadowCoords)
-            ShadowFilter.POISSON -> sampleShadowPoisson(shadowMap, shadowCoords)
+            ShadowFilter.VSM -> sampleShadowBasic(shadowMap, shadowCoords) // TODO: Implement VSM
+            ShadowFilter.ESM -> sampleShadowBasic(shadowMap, shadowCoords) // TODO: Implement ESM
+            ShadowFilter.CONTACT -> sampleShadowBasic(shadowMap, shadowCoords) // TODO: Implement contact shadows
         }
     }
 
@@ -475,7 +529,7 @@ class ShadowMapperImpl : ShadowMapper {
      * Linear filtered shadow sampling
      */
     private fun sampleShadowLinear(shadowMap: ShadowMap, coords: Vector3): Float {
-        val texelSize = 1.0f / shadowMap.texture.width
+        val texelSize = 1.0f / shadowMap.texture.size
 
         var shadow = 0f
         for (y in -1..1) {
@@ -483,7 +537,7 @@ class ShadowMapperImpl : ShadowMapper {
                 val sampleX = coords.x + x * texelSize
                 val sampleY = coords.y + y * texelSize
                 val depth = sampleDepthTexture(shadowMap.texture, sampleX, sampleY)
-                shadow += if (coords.z - shadowBias > depth) 0.0f else 1.0f
+                shadow = shadow + if (coords.z - shadowBias > depth) 0.0f else 1.0f
             }
         }
         return shadow / 9.0f
@@ -493,7 +547,7 @@ class ShadowMapperImpl : ShadowMapper {
      * PCF (Percentage Closer Filtering) shadow sampling
      */
     private fun sampleShadowPCF(shadowMap: ShadowMap, coords: Vector3, kernelSize: Int): Float {
-        val texelSize = 1.0f / shadowMap.texture.width
+        val texelSize = 1.0f / shadowMap.texture.size
         val halfKernel = kernelSize / 2
 
         var shadow = 0f
@@ -504,7 +558,7 @@ class ShadowMapperImpl : ShadowMapper {
                 val sampleX = coords.x + x * texelSize * shadowRadius
                 val sampleY = coords.y + y * texelSize * shadowRadius
                 val depth = sampleDepthTexture(shadowMap.texture, sampleX, sampleY)
-                shadow += if (coords.z - shadowBias > depth) 0.0f else 1.0f
+                shadow = shadow + if (coords.z - shadowBias > depth) 0.0f else 1.0f
                 samples++
             }
         }
@@ -523,7 +577,7 @@ class ShadowMapperImpl : ShadowMapper {
         // Simplified version using variable PCF
         val blockerDistance = findAverageBlockerDistance(shadowMap, coords)
         val penumbraSize = (coords.z - blockerDistance) / blockerDistance
-        val filterSize = max(1, (penumbraSize * 10).toInt())
+        val filterSize = max(1, ((penumbraSize * 10)).toInt())
 
         return sampleShadowPCF(shadowMap, coords, filterSize)
     }
@@ -551,14 +605,14 @@ class ShadowMapperImpl : ShadowMapper {
             Vector2(0.14383161f, -0.14100790f)
         )
 
-        val texelSize = 1.0f / shadowMap.texture.width
+        val texelSize = 1.0f / shadowMap.texture.size
         var shadow = 0f
 
         for (offset in poissonDisk) {
             val sampleX = coords.x + offset.x * texelSize * shadowRadius
             val sampleY = coords.y + offset.y * texelSize * shadowRadius
             val depth = sampleDepthTexture(shadowMap.texture, sampleX, sampleY)
-            shadow += if (coords.z - shadowBias > depth) 0.0f else 1.0f
+            shadow = shadow + if (coords.z - shadowBias > depth) 0.0f else 1.0f
         }
 
         return shadow / poissonDisk.size
@@ -569,7 +623,7 @@ class ShadowMapperImpl : ShadowMapper {
      */
     private fun findAverageBlockerDistance(shadowMap: ShadowMap, coords: Vector3): Float {
         val searchRadius = 0.05f
-        val texelSize = 1.0f / shadowMap.texture.width
+        val texelSize = 1.0f / shadowMap.texture.size
         val samples = 16
 
         var blockerSum = 0f
@@ -582,7 +636,7 @@ class ShadowMapperImpl : ShadowMapper {
             val depth = sampleDepthTexture(shadowMap.texture, sampleX, sampleY)
 
             if (depth < coords.z - shadowBias) {
-                blockerSum += depth
+                blockerSum = blockerSum + depth
                 blockerCount++
             }
         }
@@ -610,20 +664,26 @@ private data class ShadowMapImpl(
     override val bias: Float
 ) : ShadowMap
 
+private data class ShadowCascadeImpl(
+    override val texture: Texture,
+    override val projectionViewMatrix: Matrix4,
+    override val splitDistance: Float
+) : ShadowCascade
+
 /**
  * Cascaded shadow map implementation
  */
 private data class CascadedShadowMapImpl(
     override val cascades: List<ShadowCascade>,
-    override val splitDistances: FloatArray,
-    override val texture: Texture,
-    override val lightSpaceMatrix: Matrix4,
-    override val near: Float,
-    override val far: Float,
-    override val bias: Float
+    val splitDistances: FloatArray,
+    val texture: Texture,
+    val lightSpaceMatrix: Matrix4,
+    val near: Float,
+    val far: Float,
+    val bias: Float
 ) : CascadedShadowMap {
 
-    override fun getCascadeForDepth(depth: Float): Int {
+    fun getCascadeForDepth(depth: Float): Int {
         for (i in 0 until splitDistances.size - 1) {
             if (depth >= splitDistances[i] && depth < splitDistances[i + 1]) {
                 return i
@@ -632,8 +692,8 @@ private data class CascadedShadowMapImpl(
         return splitDistances.size - 2 // Last cascade
     }
 
-    override fun getCascadeMatrix(index: Int): Matrix4 {
-        return if (index < cascades.size) cascades[index].matrix else Matrix4.IDENTITY
+    fun getCascadeMatrix(index: Int): Matrix4 {
+        return if (index < cascades.size) cascades[index].projectionViewMatrix else Matrix4.identity()
     }
 }
 
@@ -641,11 +701,19 @@ private data class CascadedShadowMapImpl(
  * Cube shadow map implementation
  */
 private data class CubeShadowMapImpl(
-    override val textures: Array<Texture>,
-    override val lightPosition: Vector3,
+    val textures: Array<Texture>,
+    val lightPosition: Vector3,
     override val near: Float,
     override val far: Float
-) : CubeShadowMap
+) : CubeShadowMap {
+    override val cubeTexture: CubeTexture = CubeTextureImpl(
+        size = 256,
+        format = TextureFormat.RGBA8, // Using basic format for now
+        filter = TextureFilter.LINEAR
+    )
+
+    override val matrices: Array<Matrix4> = Array(6) { Matrix4.identity() }
+}
 
 /**
  * Light frustum for shadow calculations

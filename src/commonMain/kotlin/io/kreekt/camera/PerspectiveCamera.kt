@@ -1,8 +1,10 @@
 package io.kreekt.camera
+import io.kreekt.core.math.Box3
 
 import io.kreekt.core.math.*
 import io.kreekt.core.scene.Object3D
 import kotlin.math.*
+import kotlin.math.PI
 
 /**
  * Perspective camera with field of view projection.
@@ -83,14 +85,14 @@ class PerspectiveCamera(
         if (view != null && view.enabled) {
             val fullWidth = view.fullWidth.toFloat()
             val fullHeight = view.fullHeight.toFloat()
-            left += view.offsetX * width / fullWidth
-            top -= view.offsetY * height / fullHeight
-            width *= view.width / fullWidth
-            height *= view.height / fullHeight
+            left = left + view.offsetX * width / fullWidth
+            top = top - view.offsetY * height / fullHeight
+            width = width * view.width / fullWidth
+            height = height * view.height / fullHeight
         }
 
         val skew = filmOffset
-        if (skew != 0f) left += near * skew / getFilmWidth()
+        if (skew != 0f) left = left + near * skew / getFilmWidth()
 
         projectionMatrix.makePerspective(
             left, left + width,
@@ -250,7 +252,7 @@ class PerspectiveCamera(
      */
     fun getDistanceToFitSphere(radius: Float, padding: Float = 1.1f): Float {
         val vFOV = fov * PI.toFloat() / 180f
-        val distance = (radius * padding) / tan(vFOV / 2f)
+        val distance = ((radius * padding)) / tan(vFOV / 2f)
         return maxOf(distance, near + radius)
     }
 
@@ -411,7 +413,7 @@ fun PerspectiveCamera.setAspectFromViewport(width: Int, height: Int) {
 fun PerspectiveCamera.adjustFOVForDistance(currentDistance: Float, newDistance: Float) {
     val currentVFOV = fov * PI.toFloat() / 180f
     val currentHeight = 2f * tan(currentVFOV / 2f) * currentDistance
-    val newVFOV = 2f * atan(currentHeight / (2f * newDistance))
+    val newVFOV = 2f * atan(currentHeight / ((2f * newDistance)))
     fov = newVFOV * 180f / PI.toFloat()
     updateProjectionMatrix()
 }

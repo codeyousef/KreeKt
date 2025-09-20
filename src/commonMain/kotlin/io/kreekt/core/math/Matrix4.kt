@@ -1,6 +1,9 @@
 package io.kreekt.core.math
 
 import kotlin.math.*
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * A 4x4 matrix stored in column-major order (OpenGL/WebGL convention).
@@ -20,8 +23,31 @@ data class Matrix4(
         0f, 0f, 0f, 1f   // column 3
     )
 ) {
+    // Matrix element accessors (row-column notation)
+    val m00: Float get() = elements[0]
+    val m10: Float get() = elements[1]
+    val m20: Float get() = elements[2]
+    val m30: Float get() = elements[3]
+
+    val m01: Float get() = elements[4]
+    val m11: Float get() = elements[5]
+    val m21: Float get() = elements[6]
+    val m31: Float get() = elements[7]
+
+    val m02: Float get() = elements[8]
+    val m12: Float get() = elements[9]
+    val m22: Float get() = elements[10]
+    val m32: Float get() = elements[11]
+
+    val m03: Float get() = elements[12]
+    val m13: Float get() = elements[13]
+    val m23: Float get() = elements[14]
+    val m33: Float get() = elements[15]
 
     companion object {
+        val IDENTITY: Matrix4
+            get() = Matrix4()
+
         /**
          * Creates an identity matrix
          */
@@ -239,7 +265,7 @@ data class Matrix4(
                 - n14 * n22 * n33
                 + n12 * n24 * n33
                 + n13 * n22 * n34
-                - n12 * n23 * n34
+                - n12 * (n23 * n34)
             ) +
             n42 * (
                 +n11 * n23 * n34
@@ -247,7 +273,7 @@ data class Matrix4(
                 + n14 * n21 * n33
                 - n13 * n21 * n34
                 + n13 * n24 * n31
-                - n14 * n23 * n31
+                - n14 * (n23 * n31)
             ) +
             n43 * (
                 +n11 * n24 * n32
@@ -255,7 +281,7 @@ data class Matrix4(
                 - n14 * n21 * n32
                 + n12 * n21 * n34
                 + n14 * n22 * n31
-                - n12 * n24 * n31
+                - n12 * (n24 * n31)
             ) +
             n44 * (
                 -n13 * n22 * n31
@@ -263,7 +289,7 @@ data class Matrix4(
                 + n11 * n22 * n33
                 + n13 * n21 * n32
                 - n12 * n21 * n33
-                + n12 * n23 * n31
+                + n12 * (n23 * n31)
             )
         )
     }
@@ -289,24 +315,24 @@ data class Matrix4(
         val detInv = 1f / det
 
         elements[0] = t11 * detInv
-        elements[1] = (n24 * n33 * n41 - n23 * n34 * n41 - n24 * n31 * n43 + n21 * n34 * n43 + n23 * n31 * n44 - n21 * n33 * n44) * detInv
-        elements[2] = (n22 * n34 * n41 - n24 * n32 * n41 + n24 * n31 * n42 - n21 * n34 * n42 - n22 * n31 * n44 + n21 * n32 * n44) * detInv
-        elements[3] = (n23 * n32 * n41 - n22 * n33 * n41 - n23 * n31 * n42 + n21 * n33 * n42 + n22 * n31 * n43 - n21 * n32 * n43) * detInv
+        elements[1] = (n24 * n33 * n41 - n23 * n34 * n41 - n24 * n31 * n43 + n21 * n34 * n43 + n23 * n31 * n44 - n21 * (n33 * n44)) * detInv
+        elements[2] = (n22 * n34 * n41 - n24 * n32 * n41 + n24 * n31 * n42 - n21 * n34 * n42 - n22 * n31 * n44 + n21 * (n32 * n44)) * detInv
+        elements[3] = (n23 * n32 * n41 - n22 * n33 * n41 - n23 * n31 * n42 + n21 * n33 * n42 + n22 * n31 * n43 - n21 * (n32 * n43)) * detInv
 
         elements[4] = t12 * detInv
-        elements[5] = (n13 * n34 * n41 - n14 * n33 * n41 + n14 * n31 * n43 - n11 * n34 * n43 - n13 * n31 * n44 + n11 * n33 * n44) * detInv
-        elements[6] = (n14 * n32 * n41 - n12 * n34 * n41 - n14 * n31 * n42 + n11 * n34 * n42 + n12 * n31 * n44 - n11 * n32 * n44) * detInv
-        elements[7] = (n12 * n33 * n41 - n13 * n32 * n41 + n13 * n31 * n42 - n11 * n33 * n42 - n12 * n31 * n43 + n11 * n32 * n43) * detInv
+        elements[5] = (n13 * n34 * n41 - n14 * n33 * n41 + n14 * n31 * n43 - n11 * n34 * n43 - n13 * n31 * n44 + n11 * (n33 * n44)) * detInv
+        elements[6] = (n14 * n32 * n41 - n12 * n34 * n41 - n14 * n31 * n42 + n11 * n34 * n42 + n12 * n31 * n44 - n11 * (n32 * n44)) * detInv
+        elements[7] = (n12 * n33 * n41 - n13 * n32 * n41 + n13 * n31 * n42 - n11 * n33 * n42 - n12 * n31 * n43 + n11 * (n32 * n43)) * detInv
 
         elements[8] = t13 * detInv
-        elements[9] = (n14 * n23 * n41 - n13 * n24 * n41 - n14 * n21 * n43 + n11 * n24 * n43 + n13 * n21 * n44 - n11 * n23 * n44) * detInv
-        elements[10] = (n12 * n24 * n41 - n14 * n22 * n41 + n14 * n21 * n42 - n11 * n24 * n42 - n12 * n21 * n44 + n11 * n22 * n44) * detInv
-        elements[11] = (n13 * n22 * n41 - n12 * n23 * n41 - n13 * n21 * n42 + n11 * n23 * n42 + n12 * n21 * n43 - n11 * n22 * n43) * detInv
+        elements[9] = (n14 * n23 * n41 - n13 * n24 * n41 - n14 * n21 * n43 + n11 * n24 * n43 + n13 * n21 * n44 - n11 * (n23 * n44)) * detInv
+        elements[10] = (n12 * n24 * n41 - n14 * n22 * n41 + n14 * n21 * n42 - n11 * n24 * n42 - n12 * n21 * n44 + n11 * (n22 * n44)) * detInv
+        elements[11] = (n13 * n22 * n41 - n12 * n23 * n41 - n13 * n21 * n42 + n11 * n23 * n42 + n12 * n21 * n43 - n11 * (n22 * n43)) * detInv
 
         elements[12] = t14 * detInv
-        elements[13] = (n13 * n24 * n31 - n14 * n23 * n31 + n14 * n21 * n33 - n11 * n24 * n33 - n13 * n21 * n34 + n11 * n23 * n34) * detInv
-        elements[14] = (n14 * n22 * n31 - n12 * n24 * n31 - n14 * n21 * n32 + n11 * n24 * n32 + n12 * n21 * n34 - n11 * n22 * n34) * detInv
-        elements[15] = (n12 * n23 * n31 - n13 * n22 * n31 + n13 * n21 * n32 - n11 * n23 * n32 - n12 * n21 * n33 + n11 * n22 * n33) * detInv
+        elements[13] = (n13 * n24 * n31 - n14 * n23 * n31 + n14 * n21 * n33 - n11 * n24 * n33 - n13 * n21 * n34 + n11 * (n23 * n34)) * detInv
+        elements[14] = (n14 * n22 * n31 - n12 * n24 * n31 - n14 * n21 * n32 + n11 * n24 * n32 + n12 * n21 * n34 - n11 * (n22 * n34)) * detInv
+        elements[15] = (n12 * n23 * n31 - n13 * n22 * n31 + n13 * n21 * n32 - n11 * n23 * n32 - n12 * n21 * n33 + n11 * (n22 * n33)) * detInv
 
         return this
     }
@@ -395,9 +421,9 @@ data class Matrix4(
         val y = (top + bottom) * h
         val z = (far + near) * p
 
-        elements[0] = 2f * w; elements[4] = 0f; elements[8] = 0f; elements[12] = -x
-        elements[1] = 0f; elements[5] = 2f * h; elements[9] = 0f; elements[13] = -y
-        elements[2] = 0f; elements[6] = 0f; elements[10] = -2f * p; elements[14] = -z
+        elements[0] = (2f * w); elements[4] = 0f; elements[8] = 0f; elements[12] = -x
+        elements[1] = 0f; elements[5] = (2f * h); elements[9] = 0f; elements[13] = -y
+        elements[2] = 0f; elements[6] = 0f; elements[10] = -(2f * p); elements[14] = -z
         elements[3] = 0f; elements[7] = 0f; elements[11] = 0f; elements[15] = 1f
 
         return this
@@ -421,4 +447,175 @@ data class Matrix4(
                "  ${elements[3]}, ${elements[7]}, ${elements[11]}, ${elements[15]}\n" +
                ")"
     }
+
+    /**
+     * Transforms a 3D point by this matrix
+     */
+    fun multiplyPoint3(point: Vector3): Vector3 {
+        val x = point.x
+        val y = point.y
+        val z = point.z
+        val e = elements
+
+        val w = 1f / (e[3] * x + e[7] * y + e[11] * z + e[15])
+
+        return Vector3(
+            (e[0] * x + e[4] * y + e[8] * z + e[12]) * w,
+            (e[1] * x + e[5] * y + e[9] * z + e[13]) * w,
+            (e[2] * x + e[6] * y + e[10] * z + e[14]) * w
+        )
+    }
+
+    /**
+     * Extracts the translation component from this matrix
+     */
+    fun extractTranslation(target: Vector3 = Vector3()): Vector3 {
+        target.x = elements[12]
+        target.y = elements[13]
+        target.z = elements[14]
+        return target
+    }
+
+    /**
+     * Gets the view matrix (inverse of this matrix)
+     */
+    val viewMatrix: Matrix4
+        get() = clone().invert()
+
+    /**
+     * Returns a new inverted matrix (doesn't modify this matrix)
+     */
+    fun inverse(): Matrix4 = clone().invert()
+
+    /**
+     * Returns the matrix elements as an array
+     */
+    fun toArray(): FloatArray = elements.copyOf()
+
+    /**
+     * Get translation component as Vector3
+     */
+    fun getTranslation(): Vector3 = Vector3(m03, m13, m23)
+
+    /**
+     * Get rotation component as Quaternion
+     */
+    fun getRotation(): Quaternion {
+        val trace = m00 + m11 + m22
+        return when {
+            trace > 0f -> {
+                val s = sqrt(trace + 1f) * 2f
+                Quaternion(
+                    (m21 - m12) / s,
+                    (m02 - m20) / s,
+                    (m10 - m01) / s,
+                    0.25f * s
+                )
+            }
+            m00 > m11 && m00 > m22 -> {
+                val s = sqrt(1f + m00 - m11 - m22) * 2f
+                Quaternion(
+                    0.25f * s,
+                    (m01 + m10) / s,
+                    (m02 + m20) / s,
+                    (m21 - m12) / s
+                )
+            }
+            m11 > m22 -> {
+                val s = sqrt(1f + m11 - m00 - m22) * 2f
+                Quaternion(
+                    (m01 + m10) / s,
+                    0.25f * s,
+                    (m12 + m21) / s,
+                    (m02 - m20) / s
+                )
+            }
+            else -> {
+                val s = sqrt(1f + m22 - m00 - m11) * 2f
+                Quaternion(
+                    (m02 + m20) / s,
+                    (m12 + m21) / s,
+                    0.25f * s,
+                    (m10 - m01) / s
+                )
+            }
+        }
+    }
+
+    /**
+     * Transform a point (with translation)
+     */
+    fun transformPoint(point: Vector3): Vector3 {
+        val x = point.x * m00 + point.y * m01 + point.z * m02 + m03
+        val y = point.x * m10 + point.y * m11 + point.z * m12 + m13
+        val z = point.x * m20 + point.y * m21 + point.z * m22 + m23
+        return Vector3(x, y, z)
+    }
+
+    /**
+     * Transform a direction (without translation)
+     */
+    fun transformDirection(direction: Vector3): Vector3 {
+        val x = direction.x * m00 + direction.y * m01 + direction.z * m02
+        val y = direction.x * m10 + direction.y * m11 + direction.z * m12
+        val z = direction.x * m20 + direction.y * m21 + direction.z * m22
+        return Vector3(x, y, z)
+    }
+
+    /**
+     * Apply translation to this matrix
+     */
+    fun translate(offset: Vector3): Matrix4 {
+        return this.multiply(Matrix4.translation(offset.x, offset.y, offset.z))
+    }
+
+    /**
+     * Apply rotation to this matrix
+     */
+    fun rotate(rotation: Quaternion): Matrix4 {
+        val rotMatrix = Matrix4().makeRotationFromQuaternion(rotation)
+        return this.multiply(rotMatrix)
+    }
+
+    /**
+     * Create rotation matrix from quaternion
+     */
+    fun makeRotationFromQuaternion(q: Quaternion): Matrix4 {
+        val x = q.x; val y = q.y; val z = q.z; val w = q.w
+        val x2 = x + x; val y2 = y + y; val z2 = z + z
+        val xx = x * x2; val xy = x * y2; val xz = x * z2
+        val yy = y * y2; val yz = y * z2; val zz = z * z2
+        val wx = w * x2; val wy = w * y2; val wz = w * z2
+
+        elements[0] = 1f - (yy + zz)
+        elements[4] = xy - wz
+        elements[8] = xz + wy
+
+        elements[1] = xy + wz
+        elements[5] = 1f - (xx + zz)
+        elements[9] = yz - wx
+
+        elements[2] = xz - wy
+        elements[6] = yz + wx
+        elements[10] = 1f - (xx + yy)
+
+        // Last row
+        elements[3] = 0f
+        elements[7] = 0f
+        elements[11] = 0f
+
+        // Last column
+        elements[12] = 0f
+        elements[13] = 0f
+        elements[14] = 0f
+        elements[15] = 1f
+
+        return this
+    }
+
+    /**
+     * Multiply operator for matrices
+     */
+    operator fun times(other: Matrix4): Matrix4 = clone().multiply(other)
+
 }

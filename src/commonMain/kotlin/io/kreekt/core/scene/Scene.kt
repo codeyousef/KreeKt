@@ -1,6 +1,11 @@
 package io.kreekt.core.scene
+import io.kreekt.core.math.Box3
+import io.kreekt.core.scene.Material
 
 import io.kreekt.core.math.*
+import io.kreekt.renderer.CubeTexture
+import kotlin.math.PI
+import io.kreekt.renderer.Texture
 
 /**
  * Scene represents the root of a 3D object hierarchy.
@@ -218,6 +223,7 @@ interface Material {
     val id: Int
     val name: String
     var needsUpdate: Boolean
+    var visible: Boolean
 }
 
 /**

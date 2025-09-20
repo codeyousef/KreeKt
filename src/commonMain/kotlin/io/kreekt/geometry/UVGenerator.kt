@@ -13,7 +13,12 @@
 package io.kreekt.geometry
 
 import io.kreekt.core.math.*
+import io.kreekt.core.platform.platformClone
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Advanced UV coordinate generator for texture mapping
@@ -55,7 +60,7 @@ class UVGenerator {
             ?: return UVGenerationResult(geometry, false, "Could not generate normals")
 
         val vertexCount = positionAttribute.count
-        val uvCoordinates = FloatArray(vertexCount * 2)
+        val uvCoordinates = FloatArray((vertexCount * 2))
         val seamVertices = mutableSetOf<Int>()
 
         // Calculate bounding box for normalization
@@ -82,7 +87,7 @@ class UVGenerator {
             // Project onto appropriate face
             val uv = projectToBoxFace(localPos, size, face, options.faceMapping)
 
-            uvCoordinates[i * 2] = uv.x
+            uvCoordinates[(i * 2)] = uv.x
             uvCoordinates[i * 2 + 1] = uv.y
 
             // Mark seam vertices
@@ -123,7 +128,7 @@ class UVGenerator {
             ?: return UVGenerationResult(geometry, false, "No position attribute found")
 
         val vertexCount = positionAttribute.count
-        val uvCoordinates = FloatArray(vertexCount * 2)
+        val uvCoordinates = FloatArray((vertexCount * 2))
 
         // Transform to cylinder space
         val axis = options.axis.clone().normalize()
@@ -141,7 +146,7 @@ class UVGenerator {
             val localPos = position.clone().subtract(center)
             val uv = projectToCylinder(localPos, axis, height, options)
 
-            uvCoordinates[i * 2] = uv.x
+            uvCoordinates[(i * 2)] = uv.x
             uvCoordinates[i * 2 + 1] = uv.y
         }
 
@@ -172,7 +177,7 @@ class UVGenerator {
             ?: return UVGenerationResult(geometry, false, "No position attribute found")
 
         val vertexCount = positionAttribute.count
-        val uvCoordinates = FloatArray(vertexCount * 2)
+        val uvCoordinates = FloatArray((vertexCount * 2))
 
         val boundingBox = geometry.computeBoundingBox()
         val center = boundingBox.getCenter(Vector3())
@@ -188,7 +193,7 @@ class UVGenerator {
             val localPos = position.clone().subtract(center)
             val uv = projectToSphere(localPos, radius, options)
 
-            uvCoordinates[i * 2] = uv.x
+            uvCoordinates[(i * 2)] = uv.x
             uvCoordinates[i * 2 + 1] = uv.y
         }
 
@@ -219,7 +224,7 @@ class UVGenerator {
             ?: return UVGenerationResult(geometry, false, "No position attribute found")
 
         val vertexCount = positionAttribute.count
-        val uvCoordinates = FloatArray(vertexCount * 2)
+        val uvCoordinates = FloatArray((vertexCount * 2))
 
         // Create projection plane
         val normal = options.normal.clone().normalize()
@@ -252,7 +257,7 @@ class UVGenerator {
             val normalizedU = if (size.x > 0) (point.x - bounds.min.x) / size.x else 0.5f
             val normalizedV = if (size.y > 0) (point.y - bounds.min.y) / size.y else 0.5f
 
-            uvCoordinates[i * 2] = normalizedU
+            uvCoordinates[(i * 2)] = normalizedU
             uvCoordinates[i * 2 + 1] = normalizedV
         }
 
@@ -321,10 +326,10 @@ class UVGenerator {
         options: UVOptimizationOptions = UVOptimizationOptions()
     ): UVOptimizationResult {
         val positionAttribute = geometry.getAttribute("position")
-            ?: return UVOptimizationResult(geometry, false, "No position attribute found")
+            ?: return UVOptimizationResult(geometry, false, listOf("No position attribute found"))
 
         val uvAttribute = geometry.getAttribute("uv")
-            ?: return UVOptimizationResult(geometry, false, "No UV attribute found")
+            ?: return UVOptimizationResult(geometry, false, listOf("No UV attribute found"))
 
         var resultGeometry = geometry.clone()
         val optimizations = mutableListOf<String>()
@@ -454,7 +459,7 @@ class UVGenerator {
 
         // Calculate angle around axis
         var angle = atan2(radialVector.z, radialVector.x)
-        if (angle < 0) angle += 2 * PI.toFloat()
+        if (angle < 0) angle = angle + 2 * PI.toFloat()
 
         // Calculate height coordinate
         val heightCoord = (axisProjection.length() + height * 0.5f) / height
@@ -545,12 +550,12 @@ class UVGenerator {
             var v = uvCoordinates[i + 1]
 
             // Apply offset
-            u += transform.offset.x
-            v += transform.offset.y
+            u = u + transform.offset.x
+            v = v + transform.offset.y
 
             // Apply scale
-            u *= transform.scale.x
-            v *= transform.scale.y
+            u = u * transform.scale.x
+            v = v * transform.scale.y
 
             // Apply rotation
             if (transform.rotation != 0f) {
@@ -860,7 +865,7 @@ class GeometryAnalysis {
  * Extension function for Vector2 add operation
  */
 fun Vector2.add(other: Vector2): Vector2 {
-    x += other.x
-    y += other.y
+    x = x + other.x
+    y = y + other.y
     return this
 }

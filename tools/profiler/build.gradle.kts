@@ -5,20 +5,22 @@ plugins {
 
 kotlin {
     jvm {
-        withJava()
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
     }
 
     js(IR) {
         browser {
-            webpackTask {
-                outputFileName = "performance-profiler.js"
-            }
+            webpackTask(Action {
+                mainOutputFileName = "performance-profiler.js"
+            })
         }
         binaries.executable()
     }
 
     sourceSets {
-        commonMain {
+        val commonMain by getting {
             dependencies {
                 implementation(project(":"))
                 implementation(libs.kotlinx.coroutines.core)
@@ -27,24 +29,36 @@ kotlin {
             }
         }
 
-        commonTest {
+        val commonTest by getting {
             dependencies {
-                implementation(kotlin("test"))
+                implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
             }
         }
 
-        jvmMain {
+        val jvmMain by getting {
             dependencies {
                 implementation("org.slf4j:slf4j-api:2.0.9")
                 implementation("ch.qos.logback:logback-classic:1.4.11")
             }
         }
 
-        jsMain {
+        val jvmTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+            }
+        }
+
+        val jsMain by getting {
             dependencies {
                 implementation(npm("@webgpu/types", "0.1.40"))
                 implementation(libs.kotlinx.browser)
+            }
+        }
+
+        val jsTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
             }
         }
     }

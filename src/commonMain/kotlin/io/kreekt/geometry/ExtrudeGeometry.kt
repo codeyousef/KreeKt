@@ -5,7 +5,12 @@
 package io.kreekt.geometry
 
 import io.kreekt.core.math.*
+import io.kreekt.core.platform.platformClone
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Options for extrusion geometry generation
@@ -168,7 +173,7 @@ class ExtrudeGeometry(
         setAttribute("position", BufferAttribute(vertices.flatMap { listOf(it.x, it.y, it.z) }.toFloatArray(), 3))
         setAttribute("normal", BufferAttribute(normals.flatMap { listOf(it.x, it.y, it.z) }.toFloatArray(), 3))
         setAttribute("uv", BufferAttribute(uvs.flatMap { listOf(it.x, it.y) }.toFloatArray(), 2))
-        setIndex(BufferAttribute(indices.toIntArray(), 1))
+        setIndex(BufferAttribute(indices.map { it.toFloat() }.toFloatArray(), 1))
 
         computeBoundingSphere()
     }
@@ -211,7 +216,7 @@ class ExtrudeGeometry(
             val straightSteps = steps - 2 * bevelSegments
             for (i in 1 until straightSteps) {
                 val t = i.toFloat() / straightSteps
-                layerPositions.add(t * depth)
+                layerPositions.add((t * depth))
             }
 
             // Top bevel
@@ -224,7 +229,7 @@ class ExtrudeGeometry(
             // Simple linear layers
             for (i in 0..steps) {
                 val t = i.toFloat() / steps
-                layerPositions.add(t * depth)
+                layerPositions.add((t * depth))
             }
         }
 
@@ -418,7 +423,7 @@ class ExtrudeGeometry(
         var indexOffset = vertices.size
         for (hole in holes) {
             vertices.addAll(hole)
-            indexOffset += hole.size
+            indexOffset = indexOffset + hole.size
         }
 
         // Simple triangulation for convex polygons (simplified)
@@ -558,8 +563,8 @@ object ShapeHelper {
     fun createStar(outerRadius: Float, innerRadius: Float, points: Int = 5): Shape {
         val vertices = mutableListOf<Vector2>()
 
-        for (i in 0 until points * 2) {
-            val angle = (i.toFloat() / (points * 2)) * 2f * PI.toFloat()
+        for (i in 0 until (points * 2)) {
+            val angle = (i.toFloat() / ((points * 2))) * 2f * PI.toFloat()
             val radius = if (i % 2 == 0) outerRadius else innerRadius
             vertices.add(Vector2(cos(angle) * radius, sin(angle) * radius))
         }
@@ -576,7 +581,7 @@ object ShapeHelper {
         for (i in 0..100) {
             val t = (i.toFloat() / 100f) * 2f * PI.toFloat()
             val x = 16f * sin(t).pow(3)
-            val y = 13f * cos(t) - 5f * cos(2f * t) - 2f * cos(3f * t) - cos(4f * t)
+            val y = 13f * cos(t) - 5f * cos((2f * t)) - 2f * cos((3f * t)) - cos((4f * t))
 
             points.add(Vector2(x * scale / 16f, y * scale / 16f))
         }

@@ -6,9 +6,56 @@ package io.kreekt.lighting
 
 import io.kreekt.core.math.*
 import io.kreekt.renderer.*
-import io.kreekt.material.Texture
-import io.kreekt.material.Texture3D
 import kotlin.math.*
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
+import io.kreekt.renderer.Texture
+import io.kreekt.renderer.Texture3D
+
+/**
+ * Area light shape enumeration
+ */
+enum class AreaLightShape {
+    RECTANGLE,
+    DISK,
+    SPHERE,
+    TUBE
+}
+
+/**
+ * Area light interface
+ */
+interface AreaLight {
+    var width: Float
+    var height: Float
+    var shape: AreaLightShape
+    var texture: Texture?
+    var doubleSided: Boolean
+    var intensity: Float
+    var color: Color
+    var position: Vector3
+    var rotation: Quaternion
+    var castShadow: Boolean
+    var visible: Boolean
+}
+
+/**
+ * Volumetric light interface
+ */
+interface VolumetricLight {
+    var volumeTexture: Texture3D?
+    var scattering: Float
+    var extinction: Float
+    var phase: Float
+    var steps: Int
+    var intensity: Float
+    var color: Color
+    var position: Vector3
+    var rotation: Quaternion
+    var castShadow: Boolean
+    var visible: Boolean
+}
 
 /**
  * Area light implementation with different shapes and physical light units
@@ -25,7 +72,7 @@ class AreaLightImpl(
     override var intensity: Float = 1.0f
     override var color: Color = Color.WHITE
     override var position: Vector3 = Vector3.ZERO
-    override var rotation: Quaternion = Quaternion.IDENTITY
+    override var rotation: Quaternion = Quaternion.identity()
     override var castShadow: Boolean = true
     override var visible: Boolean = true
 
@@ -64,7 +111,7 @@ class AreaLightImpl(
             AreaLightShape.TUBE -> calculateTubeIntensity(surfacePoint, surfaceNormal)
         }
 
-        return (intensity * shapeIntensity) / attenuation
+        return ((intensity * shapeIntensity)) / attenuation
     }
 
     /**
@@ -89,7 +136,7 @@ class AreaLightImpl(
             else -> 138.5177312231f * ln(temp - 10) - 305.0447927307f
         }.coerceIn(0f, 255f)
 
-        return Color(red / 255f, green / 255f, blue / 255f, 1f)
+        return Color(red / 255f, green / 255f, blue / 255f)
     }
 
     /**
@@ -99,7 +146,7 @@ class AreaLightImpl(
         AreaLightShape.RECTANGLE -> width * height
         AreaLightShape.DISK -> PI.toFloat() * radius * radius
         AreaLightShape.SPHERE -> 4f * PI.toFloat() * radius * radius
-        AreaLightShape.TUBE -> 2f * PI.toFloat() * radius * tubeLength
+        AreaLightShape.TUBE -> 2f * PI.toFloat() * (radius * tubeLength)
     }
 
     /**
@@ -121,26 +168,26 @@ class AreaLightImpl(
         metallic: Float,
         albedo: Color
     ): Color {
-        val lightDir = (position - surfacePoint).normalized()
+        val lightDir = position.clone().subtract(surfacePoint).normalize()
         val distance = position.distanceTo(surfacePoint)
         val lightIntensity = calculateIntensity(distance, surfacePoint, surfaceNormal)
 
         // Cook-Torrance BRDF calculation
-        val halfVector = (lightDir + viewDirection).normalized()
+        val halfVector = lightDir.clone().add(viewDirection).normalize()
         val nDotL = max(0f, surfaceNormal.dot(lightDir))
         val nDotV = max(0f, surfaceNormal.dot(viewDirection))
         val nDotH = max(0f, surfaceNormal.dot(halfVector))
         val vDotH = max(0f, viewDirection.dot(halfVector))
 
         // Fresnel term (Schlick approximation)
-        val f0 = Color.mix(Color(0.04f, 0.04f, 0.04f), albedo, metallic)
-        val fresnel = f0 + (Color.WHITE - f0) * (1f - vDotH).pow(5f)
+        val f0 = Color(0.04f, 0.04f, 0.04f).clone().multiplyScalar(1f - metallic).add(albedo.clone().multiplyScalar(metallic))
+        val fresnel = f0.clone().add(Color.WHITE.clone().sub(f0).multiplyScalar((1f - vDotH).pow(5f)))
 
         // Distribution term (GGX/Trowbridge-Reitz)
         val alpha = roughness * roughness
         val alpha2 = alpha * alpha
         val denom = nDotH * nDotH * (alpha2 - 1f) + 1f
-        val distribution = alpha2 / (PI.toFloat() * denom * denom)
+        val distribution = alpha2 / (PI.toFloat() * (denom * denom))
 
         // Geometry term (Smith G-function)
         val k = (roughness + 1f) * (roughness + 1f) / 8f
@@ -149,17 +196,17 @@ class AreaLightImpl(
         val geometry = g1L * g1V
 
         // Final BRDF
-        val specular = (distribution * geometry * fresnel) / (4f * nDotL * nDotV + 0.001f)
-        val diffuse = albedo / PI.toFloat() * (Color.WHITE - fresnel) * (1f - metallic)
+        val specular = fresnel.clone().multiplyScalar(distribution * geometry / (4f * nDotL * nDotV + 0.001f))
+        val diffuse = albedo.clone().multiplyScalar(1f / PI.toFloat()).multiply(Color.WHITE.clone().sub(fresnel)).multiplyScalar(1f - metallic)
 
-        return (diffuse + specular) * color * lightIntensity * nDotL
+        return diffuse.clone().add(specular).multiply(color).multiplyScalar((lightIntensity * nDotL))
     }
 
     private fun calculateRectangleIntensity(surfacePoint: Vector3, surfaceNormal: Vector3): Float {
         // Simplified rectangular area light calculation
         // In practice, would use more sophisticated integration methods
-        val lightToSurface = (surfacePoint - position).normalized()
-        val lightNormal = Vector3(0f, 0f, 1f).transformByQuaternion(rotation)
+        val lightToSurface = surfacePoint.clone().subtract(position).normalize()
+        val lightNormal = Vector3(0f, 0f, 1f).applyQuaternion(rotation)
         val cosTheta = max(0f, -lightNormal.dot(lightToSurface))
 
         if (!doubleSided && cosTheta <= 0f) return 0f
@@ -168,8 +215,8 @@ class AreaLightImpl(
     }
 
     private fun calculateDiskIntensity(surfacePoint: Vector3, surfaceNormal: Vector3): Float {
-        val lightToSurface = (surfacePoint - position).normalized()
-        val lightNormal = Vector3(0f, 0f, 1f).transformByQuaternion(rotation)
+        val lightToSurface = surfacePoint.clone().subtract(position).normalize()
+        val lightNormal = Vector3(0f, 0f, 1f).applyQuaternion(rotation)
         val cosTheta = max(0f, -lightNormal.dot(lightToSurface))
 
         if (!doubleSided && cosTheta <= 0f) return 0f
@@ -185,10 +232,10 @@ class AreaLightImpl(
     private fun calculateTubeIntensity(surfacePoint: Vector3, surfaceNormal: Vector3): Float {
         // Simplified tube light calculation
         // Would need line-to-point distance calculation for accuracy
-        val lightToSurface = (surfacePoint - position).normalized()
-        val tubeAxis = Vector3(1f, 0f, 0f).transformByQuaternion(rotation)
-        val perpendicular = lightToSurface - (lightToSurface.dot(tubeAxis) * tubeAxis)
-        val distance = perpendicular.magnitude()
+        val lightToSurface = surfacePoint.clone().subtract(position).normalize()
+        val tubeAxis = Vector3(1f, 0f, 0f).applyQuaternion(rotation)
+        val perpendicular = lightToSurface.clone().subtract(tubeAxis.clone().multiplyScalar(lightToSurface.dot(tubeAxis)))
+        val distance = perpendicular.length()
 
         return 1.0f / (1.0f + distance)
     }
@@ -209,7 +256,7 @@ class VolumetricLightImpl(
     override var intensity: Float = 1.0f
     override var color: Color = Color.WHITE
     override var position: Vector3 = Vector3.ZERO
-    override var rotation: Quaternion = Quaternion.IDENTITY
+    override var rotation: Quaternion = Quaternion.identity()
     override var castShadow: Boolean = false // Volumetric lights typically don't cast sharp shadows
     override var visible: Boolean = true
 
@@ -236,7 +283,7 @@ class VolumetricLightImpl(
         cameraPosition: Vector3,
         time: Float = 0f
     ): Color {
-        val rayDirection = (rayEnd - rayStart).normalized()
+        val rayDirection = rayEnd.clone().subtract(rayStart).normalize()
         val rayLength = rayStart.distanceTo(rayEnd)
         val stepSize = rayLength / steps
 
@@ -245,15 +292,17 @@ class VolumetricLightImpl(
 
         for (i in 0 until steps) {
             val t = (i + 0.5f) * stepSize
-            val currentPos = rayStart + rayDirection * t
+            val currentPos = rayStart.clone().add(rayDirection.clone().multiplyScalar(t))
 
             // Sample density at current position
             val localDensity = sampleDensity(currentPos, time)
             if (localDensity <= 0f) continue
 
             // Calculate lighting at this point
-            val lightDir = (position - currentPos).normalized()
-            val viewDir = (cameraPosition - currentPos).normalized()
+            val lightDir = position.clone().subtract(currentPos)
+            lightDir.normalize()
+            val viewDir = cameraPosition.clone().subtract(currentPos)
+            viewDir.normalize()
 
             // Phase function (Henyey-Greenstein)
             val phaseValue = calculatePhaseFunction(lightDir, viewDir, anisotropy)
@@ -266,11 +315,11 @@ class VolumetricLightImpl(
             val inscattering = scatteringCoeff * phaseValue * lightAttenuation * intensity
 
             // Volumetric contribution
-            val sampleContribution = inscattering * color * transmittance * stepSize
-            accumColor += sampleContribution
+            val sampleContribution = color.clone().multiplyScalar(inscattering * (transmittance * stepSize))
+            accumColor.add(sampleContribution)
 
             // Update transmittance
-            transmittance *= exp(-extinctionCoeff * stepSize)
+            transmittance = transmittance * exp(-(extinctionCoeff * stepSize))
 
             if (transmittance < 0.01f) break // Early termination
         }
@@ -287,27 +336,27 @@ class VolumetricLightImpl(
         // Height-based falloff
         if (heightFalloff > 0f) {
             val height = position.y - this.position.y
-            baseDensity *= exp(-height * heightFalloff)
+            baseDensity = baseDensity * exp(-(height * heightFalloff))
         }
 
         // Wind effect
         if (windStrength > 0f) {
-            val windOffset = windDirection * windStrength * time
-            val windPosition = position + windOffset
-            baseDensity *= sampleWindNoise(windPosition)
+            val windOffset = windDirection.clone().multiplyScalar((windStrength * time))
+            val windPosition = position.clone().add(windOffset)
+            baseDensity = baseDensity * sampleWindNoise(windPosition)
         }
 
         // 3D texture sampling
         volumeTexture?.let { texture ->
             val uvw = worldToTextureCoordinates(position)
-            baseDensity *= sampleTexture3D(texture, uvw)
+            baseDensity = baseDensity * sampleTexture3D(texture, uvw)
         }
 
         // Procedural noise
         if (noiseStrength > 0f) {
-            val noisePos = position * noiseScale + Vector3.ONE * time * noiseSpeed
+            val noisePos = position.clone().multiplyScalar(noiseScale).add(Vector3.ONE.clone().multiplyScalar((time * noiseSpeed)))
             val noise = simplexNoise3D(noisePos)
-            baseDensity *= (1f + noise * noiseStrength)
+            baseDensity *= (1f + (noise * noiseStrength))
         }
 
         return max(0f, baseDensity)
@@ -334,9 +383,9 @@ class VolumetricLightImpl(
         val attenuationDistance = max(distance, minDistance)
 
         // Atmospheric absorption
-        val atmosphericExtinction = exp(-distance * fogDensity)
+        val atmosphericExtinction = exp(-(distance * fogDensity))
 
-        return atmosphericExtinction / (attenuationDistance * attenuationDistance)
+        return atmosphericExtinction / ((attenuationDistance * attenuationDistance))
     }
 
     /**
@@ -344,9 +393,9 @@ class VolumetricLightImpl(
      */
     private fun worldToTextureCoordinates(worldPos: Vector3): Vector3 {
         // Simple box mapping - could be extended for more complex shapes
-        val localPos = worldPos - position
+        val localPos = worldPos.clone().subtract(position)
         val size = Vector3(10f, 10f, 10f) // Volume size
-        return (localPos + size * 0.5f) / size
+        return localPos.clone().add(size.clone().multiplyScalar(0.5f)).divide(size)
     }
 
     /**
@@ -369,9 +418,9 @@ class VolumetricLightImpl(
         var frequency = 1f
 
         for (i in 0 until octaves) {
-            value += amplitude * simplexNoise3D(position * frequency)
-            amplitude *= 0.5f
-            frequency *= 2f
+            value = value + amplitude * simplexNoise3D(position.clone().multiplyScalar(frequency))
+            amplitude = amplitude * 0.5f
+            frequency = frequency * 2f
         }
 
         return (value + 1f) * 0.5f // Normalize to [0,1]
@@ -398,9 +447,10 @@ class VolumetricLightImpl(
         fragmentColor: Color
     ): Color {
         val distance = cameraPosition.distanceTo(fragmentPosition)
-        val fogFactor = 1f - exp(-distance * fogDensity)
+        val fogFactor = 1f - exp(-(distance * fogDensity))
 
-        return Color.mix(fragmentColor, fogColor, fogFactor.coerceIn(0f, 1f))
+        val t = fogFactor.coerceIn(0f, 1f)
+        return fragmentColor.clone().multiplyScalar(1f - t).add(fogColor.clone().multiplyScalar(t))
     }
 
     /**
@@ -411,7 +461,7 @@ class VolumetricLightImpl(
         rayEnd: Vector3,
         samples: Int = 16
     ): Float {
-        val rayDirection = (rayEnd - rayStart).normalized()
+        val rayDirection = rayEnd.clone().subtract(rayStart).normalize()
         val rayLength = rayStart.distanceTo(rayEnd)
         val stepSize = rayLength / samples
 
@@ -419,13 +469,13 @@ class VolumetricLightImpl(
 
         for (i in 0 until samples) {
             val t = i * stepSize
-            val samplePos = rayStart + rayDirection * t
+            val samplePos = rayStart.clone().add(rayDirection.clone().multiplyScalar(t))
 
             // Check if sample point is within light volume
             val distanceToLight = position.distanceTo(samplePos)
             val lightContribution = 1f / (1f + distanceToLight)
 
-            rayStrength += lightContribution * stepSize
+            rayStrength += (lightContribution * stepSize)
         }
 
         return rayStrength / rayLength
@@ -470,6 +520,6 @@ object LightUtils {
             else -> 138.5177312231f * ln(temp - 10) - 305.0447927307f
         }.coerceIn(0f, 255f)
 
-        return Color(red / 255f, green / 255f, blue / 255f, 1f)
+        return Color(red / 255f, green / 255f, blue / 255f)
     }
 }

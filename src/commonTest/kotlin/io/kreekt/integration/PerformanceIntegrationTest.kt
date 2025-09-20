@@ -752,12 +752,12 @@ class PerformanceIntegrationTest {
         var currentQuality = QualityTier.ULTRA
 
         repeat(300) { frameIndex -> // 5 seconds
-            val frameStart = System.currentTimeMillis()
+            val frameStart = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
 
             // Render frame
             renderer.render(scene, scene.activeCamera!!)
 
-            val frameTime = System.currentTimeMillis() - frameStart
+            val frameTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - frameStart
             performanceMonitor.recordFrameTime(frameTime.toFloat())
 
             // Update adaptive system

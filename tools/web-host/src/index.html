@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KreeKt Development Tools</title>
+  <meta name="description" content="Web-based development tools for KreeKt 3D library">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .header h1 {
+      color: white;
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .header p {
+      color: rgba(255,255,255,0.9);
+      font-size: 1.2rem;
+    }
+
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .tool-card {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      cursor: pointer;
+    }
+
+    .tool-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 48px rgba(0,0,0,0.15);
+    }
+
+    .tool-card h3 {
+      margin: 0 0 1rem 0;
+      color: #2d3748;
+      font-size: 1.5rem;
+    }
+
+    .tool-card p {
+      margin: 0 0 1.5rem 0;
+      color: #718096;
+      line-height: 1.6;
+    }
+
+    .tool-status {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .status-active {
+      background: #10f89e;
+      color: #065f46;
+    }
+
+    .status-beta {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .footer {
+      text-align: center;
+      color: rgba(255,255,255,0.8);
+      margin-top: 3rem;
+    }
+
+    .footer a {
+      color: white;
+      text-decoration: none;
+      margin: 0 1rem;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>KreeKt Development Tools</h1>
+      <p>Professional-grade development environment for 3D applications</p>
+    </header>
+
+    <main>
+      <div class="tools-grid" id="tools-container">
+        <!-- Tools will be loaded dynamically -->
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>
+        <a href="/docs">Documentation</a>
+        <a href="https://github.com/kreekt/kreekt">GitHub</a>
+        <a href="/api/health">API Status</a>
+      </p>
+      <p>&copy; 2025 KreeKt Project. Built with passion for 3D development.</p>
+    </footer>
+  </div>
+
+  <script>
+    // Load tools dynamically
+    async function loadTools() {
+      try {
+        const response = await fetch('/api/tools');
+        const data = await response.json();
+
+        const container = document.getElementById('tools-container');
+        container.innerHTML = data.tools.map(tool => `
+          <div class="tool-card" onclick="window.open('${tool.url}', '_blank')">
+            <h3>${tool.name}</h3>
+            <p>${tool.description}</p>
+            <span class="tool-status status-${tool.status}">${tool.status.toUpperCase()}</span>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Failed to load tools:', error);
+        document.getElementById('tools-container').innerHTML = `
+          <div class="tool-card">
+            <h3>Loading Error</h3>
+            <p>Failed to load development tools. Please check the server connection.</p>
+          </div>
+        `;
+      }
+    }
+
+    // WebSocket connection for real-time updates
+    function connectWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${protocol}//${window.location.host}`);
+
+      ws.onopen = () => {
+        console.log('Connected to KreeKt Tools WebSocket');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          console.log('Tool event:', message);
+
+          // Handle real-time tool events
+          if (message.type === 'tool-event') {
+            // Could trigger UI updates, notifications, etc.
+          }
+        } catch (error) {
+          console.error('WebSocket message error:', error);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket connection closed, attempting to reconnect...');
+        setTimeout(connectWebSocket, 3000);
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadTools();
+      connectWebSocket();
+    });
+  </script>
+</body>
+</html>

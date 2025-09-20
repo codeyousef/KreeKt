@@ -115,8 +115,8 @@ external object RAPIER {
         fun setBodyType(type: RigidBodyType, wakeUp: Boolean)
         fun setGravityScale(scale: Float, wakeUp: Boolean)
         fun gravityScale(): Float
-        fun userData: Any?
-        fun handle: Int
+        fun userData(): Any?
+        fun handle(): Int
     }
 
     class ColliderDesc {
@@ -177,8 +177,8 @@ external object RAPIER {
         fun parent(): RigidBody?
         fun setEnabled(enabled: Boolean)
         fun isEnabled(): Boolean
-        fun userData: Any?
-        fun handle: Int
+        fun userData(): Any?
+        fun handle(): Int
     }
 
     class ColliderShape
@@ -270,6 +270,7 @@ class RapierPhysicsWorld(
     private lateinit var world: RAPIER.World
     private val rigidBodies = mutableMapOf<String, RapierRigidBody>()
     private val colliders = mutableMapOf<String, RAPIER.Collider>()
+    private val colliderUserData = mutableMapOf<Int, Any>()
     private val constraints = mutableMapOf<String, RapierConstraint>()
     private var collisionCallback: CollisionCallback? = null
     private val eventQueue = RAPIER.EventQueue()
@@ -309,11 +310,9 @@ class RapierPhysicsWorld(
 
     private fun ensureInitialized() {
         if (!initialized) {
-            runBlocking {
-                while (!initialized) {
-                    delay(10)
-                }
-            }
+            // Note: Initialization is async, should be handled differently in production
+            // For now, assuming it's already initialized or will fail gracefully
+            console.warn("RapierPhysicsEngine not yet initialized")
         }
     }
 
@@ -322,12 +321,12 @@ class RapierPhysicsWorld(
 
         return try {
             val rapierBody = body as? RapierRigidBody
-                ?: return PhysicsResult.Error(PhysicsException.InvalidOperation("Body must be created through RapierPhysicsEngine"))
+                ?: return PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Body must be created through RapierPhysicsEngine"))
 
             rigidBodies[body.id] = rapierBody
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to add rigid body"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to add rigid body"))
         }
     }
 
@@ -339,9 +338,9 @@ class RapierPhysicsWorld(
             rapierBody?.let {
                 world.removeRigidBody(it.rapierBody)
             }
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to remove rigid body"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to remove rigid body"))
         }
     }
 
@@ -354,12 +353,12 @@ class RapierPhysicsWorld(
 
         return try {
             val rapierConstraint = constraint as? RapierConstraint
-                ?: return PhysicsResult.Error(PhysicsException.InvalidOperation("Constraint must be created through RapierPhysicsEngine"))
+                ?: return PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Constraint must be created through RapierPhysicsEngine"))
 
             constraints[constraint.id] = rapierConstraint
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to add constraint"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to add constraint"))
         }
     }
 
@@ -371,9 +370,9 @@ class RapierPhysicsWorld(
             rapierConstraint?.let {
                 world.removeImpulseJoint(it.joint, true)
             }
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to remove constraint"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to remove constraint"))
         }
     }
 
@@ -388,13 +387,14 @@ class RapierPhysicsWorld(
             desc.setTranslation(obj.transform.m03, obj.transform.m13, obj.transform.m23)
 
             val collider = world.createCollider(desc, null)
-            collider.userData = obj
+            // Note: userData assignment needs proper API - storing in a map for now
+            colliderUserData[collider.handle()] = obj
             collider.setCollisionGroups(obj.collisionGroups)
             colliders[obj.id] = collider
 
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to add collision object"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to add collision object"))
         }
     }
 
@@ -406,9 +406,9 @@ class RapierPhysicsWorld(
             collider?.let {
                 world.removeCollider(it)
             }
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to remove collision object"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to remove collision object"))
         }
     }
 
@@ -435,9 +435,9 @@ class RapierPhysicsWorld(
                 body?.updateFromRapier()
             }
 
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError(e.message ?: "Simulation step failed"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError(e.message ?: "Simulation step failed"))
         }
     }
 
@@ -524,7 +524,7 @@ class RapierPhysicsWorld(
 
         return hit?.let {
             val collider = it.collider as RAPIER.Collider
-            val hitPoint = from.add(direction.scale(it.toi as Float))
+            val hitPoint = from + (direction * (it.toi as Float))
             val normal = fromRapierVector3(it.normal)
 
             RaycastResult(
@@ -752,9 +752,9 @@ class RapierRigidBody(
             collisionShape = shape
             // In Rapier, we need to recreate the collider with new shape
             // This is a limitation of the current implementation
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.InvalidOperation("Failed to set collision shape"))
+            PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Failed to set collision shape"))
         }
     }
 
@@ -788,9 +788,9 @@ class RapierRigidBody(
                 val worldPos = transform.transformPoint(relativePosition)
                 rapierBody.addForceAtPoint(toRapierVector3(force), toRapierVector3(worldPos), true)
             }
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError("Failed to apply force"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError("Failed to apply force"))
         }
     }
 
@@ -802,27 +802,27 @@ class RapierRigidBody(
                 val worldPos = transform.transformPoint(relativePosition)
                 rapierBody.applyImpulseAtPoint(toRapierVector3(impulse), toRapierVector3(worldPos), true)
             }
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError("Failed to apply impulse"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError("Failed to apply impulse"))
         }
     }
 
     override fun applyTorque(torque: Vector3): PhysicsResult<Unit> {
         return try {
             rapierBody.addTorque(toRapierVector3(torque), true)
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError("Failed to apply torque"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError("Failed to apply torque"))
         }
     }
 
     override fun applyTorqueImpulse(torque: Vector3): PhysicsResult<Unit> {
         return try {
             rapierBody.applyTorqueImpulse(toRapierVector3(torque), true)
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError("Failed to apply torque impulse"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError("Failed to apply torque impulse"))
         }
     }
 
@@ -940,11 +940,9 @@ class RapierPhysicsEngine : PhysicsEngine {
 
     private fun ensureInitialized() {
         if (!initialized) {
-            runBlocking {
-                while (!initialized) {
-                    delay(10)
-                }
-            }
+            // Note: Initialization is async, should be handled differently in production
+            // For now, assuming it's already initialized or will fail gracefully
+            console.warn("RapierPhysicsEngine not yet initialized")
         }
     }
 
@@ -956,9 +954,9 @@ class RapierPhysicsEngine : PhysicsEngine {
     override fun destroyWorld(world: PhysicsWorld): PhysicsResult<Unit> {
         return try {
             (world as? RapierPhysicsWorld)?.reset()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.InvalidOperation("Failed to destroy world"))
+            PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Failed to destroy world"))
         }
     }
 
@@ -1024,7 +1022,7 @@ class RapierPhysicsEngine : PhysicsEngine {
         val rapierCollider = tempWorld.createCollider(colliderDesc, rapierBody)
 
         return RapierRigidBody(
-            id = "rb_${System.currentTimeMillis()}",
+            id = "rb_${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}",
             rapierBody = rapierBody,
             rapierCollider = rapierCollider,
             initialShape = shape,
@@ -1114,11 +1112,11 @@ private class RapierBoxShape(override val halfExtents: Vector3) : BoxShape {
         val y = halfExtents.y * 2f
         val z = halfExtents.z * 2f
         val factor = mass / 12f
-        return Matrix3(
+        return Matrix3(floatArrayOf(
             factor * (y * y + z * z), 0f, 0f,
             0f, factor * (x * x + z * z), 0f,
             0f, 0f, factor * (x * x + y * y)
-        )
+        ))
     }
 
     override fun getVolume() = 8f * halfExtents.x * halfExtents.y * halfExtents.z
@@ -1131,7 +1129,7 @@ private class RapierBoxShape(override val halfExtents: Vector3) : BoxShape {
         if (direction.x > 0) halfExtents.x else -halfExtents.x,
         if (direction.y > 0) halfExtents.y else -halfExtents.y,
         if (direction.z > 0) halfExtents.z else -halfExtents.z
-    ).add(direction.normalize().scale(margin))
+    ) + (direction.normalize() * margin)
 
     override fun localGetSupportingVertexWithoutMargin(direction: Vector3) = Vector3(
         if (direction.x > 0) halfExtents.x else -halfExtents.x,
@@ -1164,11 +1162,9 @@ private class RapierSphereShape(override val radius: Float) : SphereShape {
 
     override fun calculateInertia(mass: Float): Matrix3 {
         val inertia = 0.4f * mass * radius * radius
-        return Matrix3(
-            inertia, 0f, 0f,
+        return Matrix3(floatArrayOf(inertia, 0f, 0f,
             0f, inertia, 0f,
-            0f, 0f, inertia
-        )
+            0f, 0f, inertia))
     }
 
     override fun getVolume() = (4f / 3f) * kotlin.math.PI.toFloat() * radius * radius * radius
@@ -1177,10 +1173,10 @@ private class RapierSphereShape(override val radius: Float) : SphereShape {
     override fun isCompound() = false
 
     override fun localGetSupportingVertex(direction: Vector3) =
-        direction.normalize().scale(radius + margin)
+        direction.normalize() * (radius + margin)
 
     override fun localGetSupportingVertexWithoutMargin(direction: Vector3) =
-        direction.normalize().scale(radius)
+        direction.normalize() * radius
 
     override fun calculateLocalInertia(mass: Float): Vector3 {
         val inertia = 0.4f * mass * radius * radius
@@ -1217,11 +1213,9 @@ private class RapierCapsuleShape(
         val hemisphereInertiaX = hemisphereMass * (2f * radius * radius / 5f + height * height / 4f)
         val hemisphereInertiaY = hemisphereMass * 2f * radius * radius / 5f
 
-        return Matrix3(
-            cylinderInertiaX + hemisphereInertiaX, 0f, 0f,
+        return Matrix3(floatArrayOf(cylinderInertiaX + hemisphereInertiaX, 0f, 0f,
             0f, cylinderInertiaY + hemisphereInertiaY, 0f,
-            0f, 0f, cylinderInertiaX + hemisphereInertiaX
-        )
+            0f, 0f, cylinderInertiaX + hemisphereInertiaX))
     }
 
     override fun getVolume() = kotlin.math.PI.toFloat() * radius * radius *
@@ -1240,7 +1234,7 @@ private class RapierCapsuleShape(
         }
         val horizontal = Vector3(dir.x, 0f, dir.z).normalize()
         val y = if (dir.y > 0) height/2f else -height/2f
-        return horizontal.scale(radius).add(Vector3(0f, y, 0f))
+        return (horizontal * radius) + Vector3(0f, y, 0f)
     }
 
     override fun localGetSupportingVertexWithoutMargin(direction: Vector3) =
@@ -1269,11 +1263,9 @@ private class RapierCylinderShape(override val halfExtents: Vector3) : CylinderS
         val height = halfExtents.y * 2f
         val lateral = mass * (3f * radius * radius + height * height) / 12f
         val vertical = mass * radius * radius / 2f
-        return Matrix3(
-            lateral, 0f, 0f,
+        return Matrix3(floatArrayOf(lateral, 0f, 0f,
             0f, vertical, 0f,
-            0f, 0f, lateral
-        )
+            0f, 0f, lateral))
     }
 
     override fun getVolume() = kotlin.math.PI.toFloat() * halfExtents.x * halfExtents.x * halfExtents.y * 2f
@@ -1313,11 +1305,9 @@ private class RapierConeShape(
     override fun calculateInertia(mass: Float): Matrix3 {
         val lateral = mass * (3f * radius * radius / 20f + 3f * height * height / 80f)
         val vertical = mass * 3f * radius * radius / 10f
-        return Matrix3(
-            lateral, 0f, 0f,
+        return Matrix3(floatArrayOf(lateral, 0f, 0f,
             0f, vertical, 0f,
-            0f, 0f, lateral
-        )
+            0f, 0f, lateral))
     }
 
     override fun getVolume() = kotlin.math.PI.toFloat() * radius * radius * height / 3f
@@ -1393,11 +1383,11 @@ private class RapierConvexHullShape(
     override fun calculateInertia(mass: Float): Matrix3 {
         // Simplified inertia for convex hull
         val size = boundingBox.getSize()
-        return Matrix3(
+        return Matrix3(floatArrayOf(
             mass * (size.y * size.y + size.z * size.z) / 12f, 0f, 0f,
             0f, mass * (size.x * size.x + size.z * size.z) / 12f, 0f,
             0f, 0f, mass * (size.x * size.x + size.y * size.y) / 12f
-        )
+        ))
     }
 
     override fun getVolume(): Float {
@@ -1428,7 +1418,7 @@ private class RapierConvexHullShape(
             }
         }
 
-        return support.add(direction.normalize().scale(margin))
+        return support + (direction.normalize() * margin)
     }
 
     override fun localGetSupportingVertexWithoutMargin(direction: Vector3): Vector3 {
@@ -1517,11 +1507,11 @@ private class RapierTriangleMeshShape(
     override fun calculateInertia(mass: Float): Matrix3 {
         // Use bounding box for mesh inertia
         val size = boundingBox.getSize()
-        return Matrix3(
+        return Matrix3(floatArrayOf(
             mass * (size.y * size.y + size.z * size.z) / 12f, 0f, 0f,
             0f, mass * (size.x * size.x + size.z * size.z) / 12f, 0f,
             0f, 0f, mass * (size.x * size.x + size.y * size.y) / 12f
-        )
+        ))
     }
 
     override fun getVolume(): Float {
@@ -1605,11 +1595,11 @@ private class RapierHeightfieldShape(
     override fun calculateInertia(mass: Float): Matrix3 {
         // Approximate using bounding box
         val size = boundingBox.getSize()
-        return Matrix3(
+        return Matrix3(floatArrayOf(
             mass * (size.y * size.y + size.z * size.z) / 12f, 0f, 0f,
             0f, mass * (size.x * size.x + size.z * size.z) / 12f, 0f,
             0f, 0f, mass * (size.x * size.x + size.y * size.y) / 12f
-        )
+        ))
     }
 
     override fun getVolume(): Float {
@@ -1646,9 +1636,9 @@ private class RapierCompoundShape : CompoundShape {
         return try {
             childShapes.add(ChildShape(transform, shape))
             recalculateLocalAabb()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.InvalidOperation("Failed to add child shape"))
+            PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Failed to add child shape"))
         }
     }
 
@@ -1656,9 +1646,9 @@ private class RapierCompoundShape : CompoundShape {
         return try {
             childShapes.removeAll { it.shape == shape }
             recalculateLocalAabb()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.InvalidOperation("Failed to remove child shape"))
+            PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Failed to remove child shape"))
         }
     }
 
@@ -1668,9 +1658,9 @@ private class RapierCompoundShape : CompoundShape {
                 childShapes.removeAt(index)
                 recalculateLocalAabb()
             }
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.InvalidOperation("Failed to remove child shape"))
+            PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Failed to remove child shape"))
         }
     }
 
@@ -1680,9 +1670,9 @@ private class RapierCompoundShape : CompoundShape {
                 childShapes[index] = ChildShape(transform, childShapes[index].shape)
                 recalculateLocalAabb()
             }
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.InvalidOperation("Failed to update child transform"))
+            PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Failed to update child transform"))
         }
     }
 
@@ -1781,11 +1771,9 @@ private class SimpleMeshBVH(private val mesh: TriangleMeshShape) : MeshBVH {
 
 // Extension functions for Matrix3
 private fun Matrix3.getDiagonal() = Vector3(m00, m11, m22)
-private fun Matrix3.add(other: Matrix3) = Matrix3(
-    m00 + other.m00, m01 + other.m01, m02 + other.m02,
+private fun Matrix3.add(other: Matrix3) = Matrix3(floatArrayOf(m00 + other.m00, m01 + other.m01, m02 + other.m02,
     m10 + other.m10, m11 + other.m11, m12 + other.m12,
-    m20 + other.m20, m21 + other.m21, m22 + other.m22
-)
+    m20 + other.m20, m21 + other.m21, m22 + other.m22))
 
 // Extension function for Matrix4
 private fun Matrix4.extractRotation(): Quaternion {

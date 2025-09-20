@@ -3,7 +3,10 @@ package io.kreekt.animation
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Quaternion
 import io.kreekt.core.math.Vector3
+import io.kreekt.core.platform.platformClone
 import kotlin.math.*
+import kotlin.math.PI
+import kotlin.math.cos
 
 /**
  * Advanced IK Solver with multiple algorithms:
@@ -173,12 +176,12 @@ class IKSolver {
 
             // Angle at upper joint
             val upperAngle = acos(
-                ((a * a) + (c * c) - (b * b)) / (2 * a * c)
+                (((a * a)) + ((c * c)) - ((b * b))) / (2 * (a * c))
             )
 
             // Angle at lower joint
             val lowerAngle = acos(
-                ((a * a) + (b * b) - (c * c)) / (2 * a * b)
+                (((a * a)) + ((b * b)) - ((c * c))) / (2 * (a * b))
             )
 
             // Direction to target
@@ -499,10 +502,10 @@ class IKSolver {
 
             for (i in 0 until numJoints) {
                 var sum = 0f
-                sum += jacobian[0][i] * error.x
-                sum += jacobian[1][i] * error.y
-                sum += jacobian[2][i] * error.z
-                deltaTheta[i] = sum * damping
+                sum = sum + jacobian[0][i] * error.x
+                sum = sum + jacobian[1][i] * error.y
+                sum = sum + jacobian[2][i] * error.z
+                deltaTheta[i] = (sum * damping)
             }
 
             return deltaTheta

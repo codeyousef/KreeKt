@@ -11,10 +11,14 @@
  * - Memory optimization techniques
  */
 package io.kreekt.geometry
+import io.kreekt.core.math.Box3
 
 import io.kreekt.core.math.*
+import io.kreekt.core.platform.platformClone
 import kotlinx.collections.immutable.*
+import io.kreekt.core.platform.platformClone
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
 
 /**
  * Advanced geometry processor for real-time 3D applications
@@ -81,7 +85,7 @@ class GeometryProcessor {
 
         // Generate progressive LOD levels
         for (level in 1 until options.lodLevels) {
-            val targetTriangleCount = (originalTriangleCount * currentReduction).toInt()
+            val targetTriangleCount = ((originalTriangleCount * currentReduction)).toInt()
 
             if (targetTriangleCount < options.minimumTriangles) {
                 break
@@ -97,7 +101,7 @@ class GeometryProcessor {
             ))
 
             currentGeometry = simplifiedGeometry
-            currentReduction *= options.reductionFactor
+            currentReduction = currentReduction * options.reductionFactor
         }
 
         return LodResult(
@@ -237,9 +241,9 @@ class GeometryProcessor {
         applyAngleThreshold(result, normals, angleThreshold)
 
         // Set normal attribute
-        val normalArray = FloatArray(vertexCount * 3)
+        val normalArray = FloatArray((vertexCount * 3))
         for (i in normals.indices) {
-            normalArray[i * 3] = normals[i].x
+            normalArray[(i * 3)] = normals[i].x
             normalArray[i * 3 + 1] = normals[i].y
             normalArray[i * 3 + 2] = normals[i].z
         }
@@ -275,7 +279,7 @@ class GeometryProcessor {
         orthogonalizeTangents(normalAttribute, tangents, bitangents)
 
         // Set tangent attribute (w component stores handedness)
-        val tangentArray = FloatArray(vertexCount * 4)
+        val tangentArray = FloatArray((vertexCount * 4))
         for (i in 0 until vertexCount) {
             val normal = Vector3(
                 normalAttribute.getX(i),
@@ -288,7 +292,7 @@ class GeometryProcessor {
             // Calculate handedness
             val handedness = if (normal.clone().cross(tangent).dot(bitangent) < 0f) -1f else 1f
 
-            tangentArray[i * 4] = tangent.x
+            tangentArray[(i * 4)] = tangent.x
             tangentArray[i * 4 + 1] = tangent.y
             tangentArray[i * 4 + 2] = tangent.z
             tangentArray[i * 4 + 3] = handedness
@@ -487,12 +491,12 @@ class GeometryProcessor {
 
         // Calculate attribute memory usage
         geometry.attributes.values.forEach { attribute ->
-            totalBytes += attribute.array.size * 4 // Float size
+            totalBytes = totalBytes + attribute.array.size * 4 // Float size
         }
 
         // Add index buffer if present
         geometry.getIndex()?.let { index ->
-            totalBytes += index.array.size * 4
+            totalBytes = totalBytes + index.array.size * 4
         }
 
         return totalBytes
@@ -530,7 +534,7 @@ class GeometryProcessor {
         // Build position attribute
         val positionArray = FloatArray(vertices.size * 3)
         vertices.forEachIndexed { i, vertex ->
-            positionArray[i * 3] = vertex.x
+            positionArray[(i * 3)] = vertex.x
             positionArray[i * 3 + 1] = vertex.y
             positionArray[i * 3 + 2] = vertex.z
         }

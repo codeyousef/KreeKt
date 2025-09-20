@@ -1,6 +1,11 @@
 package io.kreekt.core.math
+import io.kreekt.core.math.Box3
 
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * A sphere represented by center point and radius.
@@ -137,7 +142,7 @@ data class Sphere(
      * Checks if a point is contained within this sphere
      */
     fun containsPoint(point: Vector3): Boolean {
-        return point.distanceToSquared(center) <= (radius * radius)
+        return point.distanceToSquared(center) <= ((radius * radius))
     }
 
     /**
@@ -152,7 +157,7 @@ data class Sphere(
      */
     fun intersectsSphere(sphere: Sphere): Boolean {
         val radiusSum = radius + sphere.radius
-        return sphere.center.distanceToSquared(center) <= (radiusSum * radiusSum)
+        return sphere.center.distanceToSquared(center) <= ((radiusSum * radiusSum))
     }
 
     /**
@@ -185,7 +190,7 @@ data class Sphere(
 
         target.copy(point)
 
-        if (deltaLengthSq > (radius * radius)) {
+        if (deltaLengthSq > ((radius * radius))) {
             target.sub(center).normalize()
             target.multiplyScalar(radius).add(center)
         }
@@ -228,7 +233,7 @@ data class Sphere(
 
         val lengthSq = center.distanceToSquared(point)
 
-        if (lengthSq > (radius * radius)) {
+        if (lengthSq > ((radius * radius))) {
             val length = sqrt(lengthSq)
             val newRadius = (radius + length) * 0.5f
             val alpha = (newRadius - radius) / length
@@ -284,7 +289,7 @@ data class Sphere(
      */
     fun applyMatrix4(matrix: Matrix4): Sphere {
         center.applyMatrix4(matrix)
-        radius *= matrix.getMaxScaleOnAxis()
+        radius = radius * matrix.getMaxScaleOnAxis()
         return this
     }
 
@@ -300,7 +305,7 @@ data class Sphere(
      * Expands this sphere by a scalar
      */
     fun expandByScalar(scalar: Float): Sphere {
-        radius += scalar
+        radius = radius + scalar
         return this
     }
 
@@ -316,14 +321,14 @@ data class Sphere(
      * Gets the volume of this sphere
      */
     fun getVolume(): Float {
-        return (4f / 3f) * PI.toFloat() * radius * radius * radius
+        return (4f / 3f) * PI.toFloat() * radius * (radius * radius)
     }
 
     /**
      * Gets the surface area of this sphere
      */
     fun getSurfaceArea(): Float {
-        return 4f * PI.toFloat() * radius * radius
+        return 4f * PI.toFloat() * (radius * radius)
     }
 
     /**

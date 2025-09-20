@@ -6,22 +6,24 @@ plugins {
 
 kotlin {
     jvm {
-        withJava()
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
     }
 
     js(IR) {
         browser {
-            testTask {
+            testTask(Action {
                 useKarma {
                     useChrome()
                     useFirefox()
                 }
-            }
+            })
         }
     }
 
     sourceSets {
-        commonMain {
+        val commonMain by getting {
             dependencies {
                 implementation(project(":"))
                 implementation(libs.kotlinx.coroutines.core)
@@ -30,34 +32,40 @@ kotlin {
             }
         }
 
-        commonTest {
+        val commonTest by getting {
             dependencies {
-                implementation(kotlin("test"))
+                implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
             }
         }
 
-        jvmMain {
+        val jvmMain by getting {
             dependencies {
                 implementation("org.junit.jupiter:junit-jupiter:5.10.0")
-                implementation("org.jetbrains.kotlin:kotlin-test-junit5")
+                implementation(libs.kotlin.test)
                 implementation("io.kotest:kotest-runner-junit5:5.7.2")
                 implementation("io.kotest:kotest-assertions-core:5.7.2")
             }
         }
 
-        jvmTest {
+        val jvmTest by getting {
             dependencies {
                 implementation("org.junit.jupiter:junit-jupiter")
-                implementation("org.jetbrains.kotlin:kotlin-test-junit5")
+                implementation(libs.kotlin.test)
             }
         }
 
-        jsMain {
+        val jsMain by getting {
             dependencies {
                 implementation(npm("puppeteer", "21.0.0"))
                 implementation(npm("pixelmatch", "5.3.0"))
                 implementation(npm("pngjs", "7.0.0"))
+            }
+        }
+
+        val jsTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
             }
         }
     }
@@ -131,8 +139,8 @@ tasks.register("performanceReport") {
 }
 
 // Kover configuration
-koverReport {
-    defaults {
+kover {
+    reports {
         verify {
             rule {
                 minBound(80)

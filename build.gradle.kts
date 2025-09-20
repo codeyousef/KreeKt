@@ -23,32 +23,26 @@ version = "0.1.0-alpha01"
 kotlin {
     // JVM Target
     jvm {
-        compilations.all {
-            kotlinOptions.jvmTarget = "11"
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
         }
     }
 
     // JS Target
     js(IR) {
         browser {
-            testTask {
+            testTask(Action {
                 useKarma {
                     useChromeHeadless()
                 }
-            }
+            })
         }
-    }
-
-    // WASM Target (experimental)
-    @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
-    wasmJs {
-        browser()
     }
 
     // Android Target
     androidTarget {
-        compilations.all {
-            kotlinOptions.jvmTarget = "11"
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
         }
     }
 
@@ -80,10 +74,10 @@ kotlin {
                 implementation(libs.kotlinx.datetime)
 
                 // Math and collections
-                implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.6")
+                implementation(libs.kotlinx.collections.immutable)
 
                 // Asset loading and compression
-                implementation("com.squareup.okio:okio:3.6.0")
+                implementation(libs.okio)
             }
         }
 
@@ -176,5 +170,14 @@ android {
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()
     }
+
+    testOptions {
+        targetSdk = libs.versions.android.targetSdk.get().toInt()
+    }
     namespace = "io.kreekt"
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
 }

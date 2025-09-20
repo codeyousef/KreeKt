@@ -1,6 +1,9 @@
 package io.kreekt.core.math
 
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
+import kotlin.math.PI
+import io.kreekt.core.math.Box3
 
 /**
  * A plane represented by a normal vector and a constant.
@@ -212,7 +215,7 @@ data class Plane(
      * Translates this plane by an offset
      */
     fun translate(offset: Vector3): Plane {
-        constant -= offset.dot(normal)
+        constant = constant - offset.dot(normal)
         return this
     }
 

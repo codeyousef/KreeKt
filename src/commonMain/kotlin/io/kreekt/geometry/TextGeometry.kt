@@ -6,6 +6,7 @@ package io.kreekt.geometry
 
 import io.kreekt.core.math.*
 import kotlin.math.*
+import io.kreekt.core.math.Box3
 
 /**
  * Options for text geometry generation
@@ -225,7 +226,7 @@ class TextGeometry(
         setAttribute("position", BufferAttribute(vertices.flatMap { listOf(it.x, it.y, it.z) }.toFloatArray(), 3))
         setAttribute("normal", BufferAttribute(normals.flatMap { listOf(it.x, it.y, it.z) }.toFloatArray(), 3))
         setAttribute("uv", BufferAttribute(uvs.flatMap { listOf(it.x, it.y) }.toFloatArray(), 2))
-        setIndex(BufferAttribute(indices.toIntArray(), 1))
+        setIndex(BufferAttribute(indices.map { it.toFloat() }.toFloatArray(), 1))
 
         computeBoundingSphere()
     }
@@ -276,7 +277,7 @@ class TextGeometry(
             // Apply kerning if not the first character
             if (i > 0) {
                 val kerning = font.getKerning(text[i - 1], char)
-                currentX += kerning * scale
+                currentX += (kerning * scale)
             }
 
             val positionedGlyph = PositionedGlyph(
@@ -353,7 +354,7 @@ class TextGeometry(
     ) {
         val glyph = positionedGlyph.glyph
         val path = glyph.path
-        val transform = Matrix3()
+        val transform = TransformMatrix3()
             .scale(positionedGlyph.scale, positionedGlyph.scale)
             .translate(positionedGlyph.x + lineOffsetX, positionedGlyph.y + lineOffsetY)
 
@@ -383,7 +384,7 @@ class TextGeometry(
         }
     }
 
-    private fun convertPathToShapes(path: GlyphPath, transform: Matrix3): List<Shape> {
+    private fun convertPathToShapes(path: GlyphPath, transform: TransformMatrix3): List<Shape> {
         val shapes = mutableListOf<Shape>()
         val currentContour = mutableListOf<Vector2>()
         var currentPoint = Vector2()
@@ -570,7 +571,7 @@ class TextGeometry(
 
         // Add indices
         for (i in 0 until indexAttribute.count) {
-            targetIndices.add(indexAttribute.getIndex(i) + startVertexIndex)
+            targetIndices.add(indexAttribute.getX(i).toInt() + startVertexIndex)
         }
     }
 
@@ -582,9 +583,8 @@ class TextGeometry(
     /**
      * Get text bounds in 3D space
      */
-    fun getTextBounds(): BoundingBox {
-        val bounds = computeBoundingBox()
-        return bounds ?: BoundingBox(Vector3.ZERO, Vector3.ZERO)
+    fun getTextBounds(): Box3 {
+        return computeBoundingBox()
     }
 }
 
@@ -612,7 +612,7 @@ class SimpleFont(
         for (char in text) {
             val glyph = getGlyph(char)
             if (glyph != null) {
-                width += glyph.width * scale
+                width = width + glyph.width * scale
             }
         }
 
@@ -621,10 +621,10 @@ class SimpleFont(
             height = size,
             actualBoundingBoxLeft = 0f,
             actualBoundingBoxRight = width,
-            actualBoundingBoxAscent = ascender * scale,
-            actualBoundingBoxDescent = -descender * scale,
-            fontBoundingBoxAscent = ascender * scale,
-            fontBoundingBoxDescent = -descender * scale
+            actualBoundingBoxAscent = (ascender * scale),
+            actualBoundingBoxDescent = -(descender * scale),
+            fontBoundingBoxAscent = (ascender * scale),
+            fontBoundingBoxDescent = -(descender * scale)
         )
     }
 }
@@ -632,27 +632,27 @@ class SimpleFont(
 /**
  * Helper class for 3x3 matrix transformations
  */
-class Matrix3 {
+class TransformMatrix3 {
     private val elements = FloatArray(9) { 0f }
 
     init {
         identity()
     }
 
-    fun identity(): Matrix3 {
+    fun identity(): TransformMatrix3 {
         elements[0] = 1f; elements[1] = 0f; elements[2] = 0f
         elements[3] = 0f; elements[4] = 1f; elements[5] = 0f
         elements[6] = 0f; elements[7] = 0f; elements[8] = 1f
         return this
     }
 
-    fun scale(sx: Float, sy: Float): Matrix3 {
+    fun scale(sx: Float, sy: Float): TransformMatrix3 {
         elements[0] *= sx; elements[3] *= sx; elements[6] *= sx
         elements[1] *= sy; elements[4] *= sy; elements[7] *= sy
         return this
     }
 
-    fun translate(tx: Float, ty: Float): Matrix3 {
+    fun translate(tx: Float, ty: Float): TransformMatrix3 {
         elements[6] += elements[0] * tx + elements[3] * ty
         elements[7] += elements[1] * tx + elements[4] * ty
         return this

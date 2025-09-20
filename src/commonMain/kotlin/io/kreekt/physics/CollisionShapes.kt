@@ -3,9 +3,14 @@
  * Supports all common shapes: primitives, convex hulls, meshes, compounds
  */
 package io.kreekt.physics
+import io.kreekt.core.math.Box3
 
 import io.kreekt.core.math.*
+import io.kreekt.core.platform.platformClone
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
+import kotlin.math.PI
+import kotlin.math.cos
 
 /**
  * Base collision shape implementation
@@ -45,9 +50,11 @@ abstract class CollisionShapeImpl : CollisionShape {
 
         val localInertia = calculateLocalInertia(mass)
         return Matrix3(
-            localInertia.x, 0f, 0f,
-            0f, localInertia.y, 0f,
-            0f, 0f, localInertia.z
+            floatArrayOf(
+                localInertia.x, 0f, 0f,
+                0f, localInertia.y, 0f,
+                0f, 0f, localInertia.z
+            )
         )
     }
 
@@ -108,7 +115,7 @@ class BoxShapeImpl(
     }
 
     override fun getHalfExtentsWithoutMargin(): Vector3 {
-        return halfExtents * localScaling
+        return (halfExtents * localScaling)
     }
 
     override fun getVolume(): Float {
@@ -189,24 +196,24 @@ class SphereShapeImpl(
 
     override fun getVolume(): Float {
         val scaledRadius = getRadiusWithoutMargin()
-        return (4f / 3f) * PI.toFloat() * scaledRadius * scaledRadius * scaledRadius
+        return (4f / 3f) * PI.toFloat() * scaledRadius * (scaledRadius * scaledRadius)
     }
 
     override fun getSurfaceArea(): Float {
         val scaledRadius = getRadiusWithoutMargin()
-        return 4f * PI.toFloat() * scaledRadius * scaledRadius
+        return 4f * PI.toFloat() * (scaledRadius * scaledRadius)
     }
 
     override fun isConvex(): Boolean = true
     override fun isCompound(): Boolean = false
 
     override fun localGetSupportingVertex(direction: Vector3): Vector3 {
-        val normalizedDirection = direction.normalized()
+        val normalizedDirection = direction.normalize()
         return normalizedDirection * getRadiusWithMargin()
     }
 
     override fun localGetSupportingVertexWithoutMargin(direction: Vector3): Vector3 {
-        val normalizedDirection = direction.normalized()
+        val normalizedDirection = direction.normalize()
         return normalizedDirection * getRadiusWithoutMargin()
     }
 
@@ -297,12 +304,12 @@ class CapsuleShapeImpl(
 
         val directionInPlane = direction - upVector * upComponent
         val normalizedPlane = if (directionInPlane.length() > 0f) {
-            directionInPlane.normalized()
+            directionInPlane.normalize()
         } else {
             Vector3.ZERO
         }
 
-        return center + normalizedPlane * scaledRadius
+        return center + (normalizedPlane * scaledRadius)
     }
 
     override fun localGetSupportingVertexWithoutMargin(direction: Vector3): Vector3 {
@@ -321,12 +328,12 @@ class CapsuleShapeImpl(
 
         val directionInPlane = direction - upVector * upComponent
         val normalizedPlane = if (directionInPlane.length() > 0f) {
-            directionInPlane.normalized()
+            directionInPlane.normalize()
         } else {
             Vector3.ZERO
         }
 
-        return center + normalizedPlane * scaledRadius
+        return center + (normalizedPlane * scaledRadius)
     }
 
     override fun calculateLocalInertia(mass: Float): Vector3 {
@@ -423,14 +430,14 @@ class CylinderShapeImpl(
     override fun getVolume(): Float {
         val scaledRadius = getRadius()
         val scaledHeight = getHalfHeight() * 2f
-        return PI.toFloat() * scaledRadius * scaledRadius * scaledHeight
+        return PI.toFloat() * scaledRadius * (scaledRadius * scaledHeight)
     }
 
     override fun getSurfaceArea(): Float {
         val scaledRadius = getRadius()
         val scaledHeight = getHalfHeight() * 2f
         // Surface area = 2 * base area + side area
-        return 2f * PI.toFloat() * scaledRadius * scaledRadius + 2f * PI.toFloat() * scaledRadius * scaledHeight
+        return 2f * PI.toFloat() * scaledRadius * scaledRadius + 2f * PI.toFloat() * (scaledRadius * scaledHeight)
     }
 
     override fun isConvex(): Boolean = true
@@ -473,7 +480,7 @@ class CylinderShapeImpl(
         val scaledHeight = getHalfHeight()
 
         val radiusSquared = scaledRadius * scaledRadius
-        val heightSquared = (scaledHeight * 2f) * (scaledHeight * 2f)
+        val heightSquared = ((scaledHeight * 2f)) * ((scaledHeight * 2f))
 
         return when (upAxis) {
             0 -> Vector3(
@@ -529,15 +536,15 @@ class ConeShapeImpl(
     override fun getVolume(): Float {
         val scaledRadius = getConeRadius()
         val scaledHeight = getConeHeight()
-        return (1f / 3f) * PI.toFloat() * scaledRadius * scaledRadius * scaledHeight
+        return (1f / 3f) * PI.toFloat() * scaledRadius * (scaledRadius * scaledHeight)
     }
 
     override fun getSurfaceArea(): Float {
         val scaledRadius = getConeRadius()
         val scaledHeight = getConeHeight()
-        val slantHeight = sqrt(scaledRadius * scaledRadius + scaledHeight * scaledHeight)
+        val slantHeight = sqrt(scaledRadius * scaledRadius + (scaledHeight * scaledHeight))
         // Surface area = base area + lateral area
-        return PI.toFloat() * scaledRadius * scaledRadius + PI.toFloat() * scaledRadius * slantHeight
+        return PI.toFloat() * scaledRadius * scaledRadius + PI.toFloat() * (scaledRadius * slantHeight)
     }
 
     override fun isConvex(): Boolean = true
@@ -564,12 +571,12 @@ class ConeShapeImpl(
         // Otherwise, support is on the base
         val directionInPlane = direction - upVector * upComponent
         val normalizedPlane = if (directionInPlane.length() > 0f) {
-            directionInPlane.normalized()
+            directionInPlane.normalize()
         } else {
             Vector3.ZERO
         }
 
-        return -upVector * scaledHeight * 0.5f + normalizedPlane * scaledRadius
+        return -upVector * scaledHeight * 0.5f + (normalizedPlane * scaledRadius)
     }
 
     override fun localGetSupportingVertexWithoutMargin(direction: Vector3): Vector3 {
@@ -593,12 +600,12 @@ class ConeShapeImpl(
         // Otherwise, support is on the base
         val directionInPlane = direction - upVector * upComponent
         val normalizedPlane = if (directionInPlane.length() > 0f) {
-            directionInPlane.normalized()
+            directionInPlane.normalize()
         } else {
             Vector3.ZERO
         }
 
-        return -upVector * scaledHeight * 0.5f + normalizedPlane * scaledRadius
+        return -upVector * scaledHeight * 0.5f + (normalizedPlane * scaledRadius)
     }
 
     override fun calculateLocalInertia(mass: Float): Vector3 {
@@ -750,8 +757,8 @@ class ConvexHullShapeImpl(
         }
 
         // Add margin in the direction of the normal
-        val normalizedDirection = direction.normalized()
-        return supportVertex + normalizedDirection * margin
+        val normalizedDirection = direction.normalize()
+        return supportVertex + (normalizedDirection * margin)
     }
 
     override fun localGetSupportingVertexWithoutMargin(direction: Vector3): Vector3 {
@@ -927,7 +934,7 @@ class TriangleMeshShapeImpl(
             val edge1 = triangle.vertex1 - triangle.vertex0
             val edge2 = triangle.vertex2 - triangle.vertex0
             val cross = edge1.cross(edge2)
-            totalArea += cross.length() * 0.5f
+            totalArea = totalArea + cross.length() * 0.5f
         }
         return totalArea
     }
@@ -942,7 +949,7 @@ class TriangleMeshShapeImpl(
         // Check all vertices
         for (i in 0 until vertices.size / 3) {
             val vertex = Vector3(
-                vertices[i * 3] * localScaling.x,
+                vertices[(i * 3)] * localScaling.x,
                 vertices[i * 3 + 1] * localScaling.y,
                 vertices[i * 3 + 2] * localScaling.z
             )
@@ -976,7 +983,7 @@ class TriangleMeshShapeImpl(
 
         for (i in 1 until vertices.size / 3) {
             val vertex = Vector3(
-                vertices[i * 3] * localScaling.x,
+                vertices[(i * 3)] * localScaling.x,
                 vertices[i * 3 + 1] * localScaling.y,
                 vertices[i * 3 + 2] * localScaling.z
             )
@@ -1020,7 +1027,7 @@ class HeightfieldShapeImpl(
 
     init {
         require(width > 0 && height > 0) { "Heightfield dimensions must be positive" }
-        require(initialHeightData.size == width * height) { "Height data size must match width * height" }
+        require(initialHeightData.size == (width * height)) { "Height data size must match width * height" }
         require(maxHeight >= minHeight) { "Max height must be >= min height" }
         require(upAxis in 0..2) { "Up axis must be 0 (X), 1 (Y), or 2 (Z)" }
 
@@ -1051,7 +1058,7 @@ class HeightfieldShapeImpl(
         // Bilinear interpolation
         val h0 = h00 * (1f - fx) + h10 * fx
         val h1 = h01 * (1f - fx) + h11 * fx
-        return h0 * (1f - fz) + h1 * fz
+        return h0 * (1f - fz) + (h1 * fz)
     }
 
     override fun setHeightValue(x: Int, z: Int, height: Float) {
@@ -1090,12 +1097,12 @@ class HeightfieldShapeImpl(
                 // Triangle 1: v00, v10, v01
                 val edge1 = v10 - v00
                 val edge2 = v01 - v00
-                totalArea += edge1.cross(edge2).length() * 0.5f
+                totalArea = totalArea + edge1.cross(edge2).length() * 0.5f
 
                 // Triangle 2: v10, v11, v01
                 val edge3 = v11 - v10
                 val edge4 = v01 - v10
-                totalArea += edge3.cross(edge4).length() * 0.5f
+                totalArea = totalArea + edge3.cross(edge4).length() * 0.5f
             }
         }
 
@@ -1162,9 +1169,9 @@ class CompoundShapeImpl : CollisionShapeImpl(), CompoundShape {
         return try {
             _childShapes.add(ChildShape(transform, shape))
             invalidateBoundingBox()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.ShapeCreationFailed("Failed to add child shape", e))
+            PhysicsOperationResult.Error(PhysicsException.ShapeCreationFailed("Failed to add child shape", e))
         }
     }
 
@@ -1172,9 +1179,9 @@ class CompoundShapeImpl : CollisionShapeImpl(), CompoundShape {
         return try {
             _childShapes.removeAll { it.shape == shape }
             invalidateBoundingBox()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.ShapeCreationFailed("Failed to remove child shape", e))
+            PhysicsOperationResult.Error(PhysicsException.ShapeCreationFailed("Failed to remove child shape", e))
         }
     }
 
@@ -1183,9 +1190,9 @@ class CompoundShapeImpl : CollisionShapeImpl(), CompoundShape {
             require(index in 0 until _childShapes.size) { "Child shape index out of range" }
             _childShapes.removeAt(index)
             invalidateBoundingBox()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.ShapeCreationFailed("Failed to remove child shape by index", e))
+            PhysicsOperationResult.Error(PhysicsException.ShapeCreationFailed("Failed to remove child shape by index", e))
         }
     }
 
@@ -1195,9 +1202,9 @@ class CompoundShapeImpl : CollisionShapeImpl(), CompoundShape {
             val childShape = _childShapes[index]
             _childShapes[index] = ChildShape(transform, childShape.shape)
             invalidateBoundingBox()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.ShapeCreationFailed("Failed to update child transform", e))
+            PhysicsOperationResult.Error(PhysicsException.ShapeCreationFailed("Failed to update child transform", e))
         }
     }
 

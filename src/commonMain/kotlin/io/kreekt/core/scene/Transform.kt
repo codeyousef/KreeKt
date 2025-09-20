@@ -1,7 +1,10 @@
 package io.kreekt.core.scene
+import io.kreekt.core.math.Box3
 
 import io.kreekt.core.math.*
+import io.kreekt.core.platform.platformClone
 import kotlin.math.*
+import io.kreekt.core.platform.platformClone
 
 /**
  * Transform system for managing object transformations.
@@ -601,7 +604,7 @@ class TransformAnimator {
             return false
         }
 
-        elapsed += deltaTime
+        elapsed = elapsed + deltaTime
         val t = (elapsed / duration).coerceIn(0f, 1f)
 
         // Interpolate transforms

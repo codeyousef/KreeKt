@@ -356,7 +356,7 @@ class ARCoreXRSession(
     }
 
     private fun generateAnchorId(): String {
-        return "anchor_${System.currentTimeMillis()}_${anchors.size}"
+        return "anchor_${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}_${anchors.size}"
     }
 
     fun createHitTestSource(options: XRHitTestSourceOptions): ARCoreHitTestSource {
@@ -581,7 +581,7 @@ class ARCoreHitTestResult(
     override fun createAnchor(): XRAnchor? {
         val anchor = hitResult.createAnchor()
         return ARCoreAnchor(
-            "hit_anchor_${System.currentTimeMillis()}",
+            "hit_anchor_${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}",
             anchor,
             object : XRSpace {}
         )

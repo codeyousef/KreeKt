@@ -1,48 +1,41 @@
 plugins {
-    kotlin("multiplatform")
+    kotlin("jvm")
     kotlin("plugin.serialization")
 }
 
 kotlin {
-    jvm {
-        withJava()
-    }
+    jvmToolchain(11)
+}
 
-    sourceSets {
-        commonMain {
-            dependencies {
-                implementation(project(":"))
-                implementation(libs.kotlinx.coroutines.core)
-                implementation(libs.kotlinx.serialization.json)
-                implementation(libs.kotlinx.datetime)
-            }
-        }
+repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+}
 
-        commonTest {
-            dependencies {
-                implementation(kotlin("test"))
-                implementation(libs.kotlinx.coroutines.test)
-            }
-        }
+dependencies {
+    implementation(project(":"))
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.datetime)
 
-        jvmMain {
-            dependencies {
-                // GitHub API
-                implementation("org.kohsuke:github-api:1.317")
+    // GitHub API
+    implementation("org.kohsuke:github-api:1.317")
 
-                // GitLab API
-                implementation("org.gitlab4j:gitlab4j-api:5.2.0")
+    // GitLab API
+    implementation("org.gitlab4j:gitlab4j-api:5.2.0")
 
-                // Docker/Container support
-                implementation("com.github.docker-java:docker-java:3.3.3")
+    // Docker/Container support
+    implementation("com.github.docker-java:docker-java:3.3.3")
 
-                // Build tools
-                implementation("org.gradle:gradle-tooling-api:8.3")
+    // Build tools - Gradle Tooling API removed for now
+    // implementation("org.gradle:gradle-tooling-api:8.14.3")
 
-                // Logging
-                implementation("org.slf4j:slf4j-api:2.0.9")
-                implementation("ch.qos.logback:logback-classic:1.4.11")
-            }
-        }
-    }
+    // Logging
+    implementation("org.slf4j:slf4j-api:2.0.9")
+    implementation("ch.qos.logback:logback-classic:1.4.11")
+
+    // Testing
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

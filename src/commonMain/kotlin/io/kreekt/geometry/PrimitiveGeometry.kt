@@ -6,6 +6,9 @@ package io.kreekt.geometry
 
 import io.kreekt.core.math.*
 import kotlin.math.*
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Base class for all primitive geometries
@@ -39,7 +42,7 @@ abstract class PrimitiveGeometry : BufferGeometry() {
     fun getMemoryUsage(): Int {
         var usage = 0
         attributes.forEach { (_, attribute) ->
-            usage += attribute.array.size * when (attribute.itemSize) {
+            usage = usage + attribute.array.size * when (attribute.itemSize) {
                 1 -> 4  // Float32
                 2 -> 8  // Vector2
                 3 -> 12 // Vector3
@@ -47,7 +50,7 @@ abstract class PrimitiveGeometry : BufferGeometry() {
                 else -> attribute.itemSize * 4
             }
         }
-        index?.let { usage += it.array.size * 4 }
+        index?.let { usage = usage + it.array.size * 4 }
         return usage
     }
 }
@@ -169,7 +172,7 @@ class SphereGeometry(
                 vertices.addAll(listOf(x, y, z))
 
                 // Normal (normalized position vector for sphere)
-                val length = sqrt(x * x + y * y + z * z)
+                val length = sqrt(x * x + y * y + (z * z))
                 normals.addAll(listOf(x / length, y / length, z / length))
 
                 // UV coordinates
@@ -202,7 +205,7 @@ class SphereGeometry(
         setAttribute("position", BufferAttribute(vertices.toFloatArray(), 3))
         setAttribute("normal", BufferAttribute(normals.toFloatArray(), 3))
         setAttribute("uv", BufferAttribute(uvs.toFloatArray(), 2))
-        setIndex(BufferAttribute(indices.toIntArray(), 1))
+        setIndex(BufferAttribute(indices.map { it.toFloat() }.toFloatArray(), 1))
 
         computeBoundingSphere()
     }
@@ -344,7 +347,7 @@ class BoxGeometry(
                 }
             }
 
-            numberOfVertices += vertexCounter
+            numberOfVertices = numberOfVertices + vertexCounter
         }
 
         // Build all six faces
@@ -359,7 +362,7 @@ class BoxGeometry(
         setAttribute("position", BufferAttribute(vertices.toFloatArray(), 3))
         setAttribute("normal", BufferAttribute(normals.toFloatArray(), 3))
         setAttribute("uv", BufferAttribute(uvs.toFloatArray(), 2))
-        setIndex(BufferAttribute(indices.toIntArray(), 1))
+        setIndex(BufferAttribute(indices.map { it.toFloat() }.toFloatArray(), 1))
 
         computeBoundingSphere()
     }
@@ -513,7 +516,7 @@ class CylinderGeometry(
             val sign = if (top) 1f else -1f
 
             // Generate center vertex
-            vertices.addAll(listOf(0f, halfHeight * sign, 0f))
+            vertices.addAll(listOf(0f, (halfHeight * sign), 0f))
             normals.addAll(listOf(0f, sign, 0f))
             uvs.addAll(listOf(0.5f, 0.5f))
             index++
@@ -527,7 +530,7 @@ class CylinderGeometry(
                 val sinTheta = sin(theta)
 
                 // Vertex
-                vertices.addAll(listOf(radius * sinTheta, halfHeight * sign, radius * cosTheta))
+                vertices.addAll(listOf((radius * sinTheta), (halfHeight * sign), (radius * cosTheta)))
 
                 // Normal
                 normals.addAll(listOf(0f, sign, 0f))
@@ -562,7 +565,7 @@ class CylinderGeometry(
         setAttribute("position", BufferAttribute(vertices.toFloatArray(), 3))
         setAttribute("normal", BufferAttribute(normals.toFloatArray(), 3))
         setAttribute("uv", BufferAttribute(uvs.toFloatArray(), 2))
-        setIndex(BufferAttribute(indices.toIntArray(), 1))
+        setIndex(BufferAttribute(indices.map { it.toFloat() }.toFloatArray(), 1))
 
         computeBoundingSphere()
     }
@@ -675,7 +678,7 @@ class PlaneGeometry(
         setAttribute("position", BufferAttribute(vertices.toFloatArray(), 3))
         setAttribute("normal", BufferAttribute(normals.toFloatArray(), 3))
         setAttribute("uv", BufferAttribute(uvs.toFloatArray(), 2))
-        setIndex(BufferAttribute(indices.toIntArray(), 1))
+        setIndex(BufferAttribute(indices.map { it.toFloat() }.toFloatArray(), 1))
 
         computeBoundingSphere()
     }
@@ -801,7 +804,7 @@ class RingGeometry(
         setAttribute("position", BufferAttribute(vertices.toFloatArray(), 3))
         setAttribute("normal", BufferAttribute(normals.toFloatArray(), 3))
         setAttribute("uv", BufferAttribute(uvs.toFloatArray(), 2))
-        setIndex(BufferAttribute(indices.toIntArray(), 1))
+        setIndex(BufferAttribute(indices.map { it.toFloat() }.toFloatArray(), 1))
 
         computeBoundingSphere()
     }
@@ -896,7 +899,7 @@ class TorusGeometry(
                 // Normal
                 center.x = params.radius * cos(u)
                 center.y = params.radius * sin(u)
-                normal.subVectors(vertex, center).normalize()
+                normal.copy(vertex).subtract(center).normalize()
 
                 normals.addAll(listOf(normal.x, normal.y, normal.z))
 
@@ -922,7 +925,7 @@ class TorusGeometry(
         setAttribute("position", BufferAttribute(vertices.toFloatArray(), 3))
         setAttribute("normal", BufferAttribute(normals.toFloatArray(), 3))
         setAttribute("uv", BufferAttribute(uvs.toFloatArray(), 2))
-        setIndex(BufferAttribute(indices.toIntArray(), 1))
+        setIndex(BufferAttribute(indices.map { it.toFloat() }.toFloatArray(), 1))
 
         computeBoundingSphere()
     }

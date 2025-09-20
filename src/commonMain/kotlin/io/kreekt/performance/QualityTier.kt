@@ -3,8 +3,10 @@
  * Based on research findings for multi-tier performance targets
  */
 package io.kreekt.performance
+import io.kreekt.renderer.Texture
 
 import kotlinx.serialization.Serializable
+import io.kreekt.core.platform.currentTimeMillis
 
 /**
  * Quality tiers for adaptive performance system
@@ -143,22 +145,25 @@ data class HardwareCapabilities(
  * Performance metrics tracking
  */
 data class PerformanceMetrics(
-    val averageFPS: Float,
-    val averageFrameTimeMs: Float,
-    val trianglesRendered: Int,
+    val fps: Float,
+    val frameTime: Float,
+    val cpuTime: Float,
+    val gpuTime: Float,
     val drawCalls: Int,
-    val gpuMemoryUsedMB: Int,
-    val totalMemoryUsedMB: Int,
-    val culledObjects: Int,
-    val timestamp: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+    val triangles: Int,
+    val memoryUsage: Float,
+    val vramUsage: Float,
+    val temperature: Float,
+    val powerUsage: Float,
+    val timestamp: Long = currentTimeMillis()
 ) {
     /**
      * Check if performance is meeting the target budget
      */
     fun meetsTarget(budget: PerformanceBudget): Boolean {
-        return averageFPS >= budget.targetFPS * 0.9f && // Allow 10% tolerance
-                trianglesRendered <= budget.maxTriangles &&
-                gpuMemoryUsedMB <= budget.gpuMemoryMB
+        return fps >= budget.targetFPS * 0.9f && // Allow 10% tolerance
+                triangles <= budget.maxTriangles &&
+                vramUsage <= budget.gpuMemoryMB
     }
 
     /**
@@ -169,7 +174,7 @@ data class PerformanceMetrics(
 
         return when {
             // Performance is significantly above target - can increase quality
-            averageFPS > currentBudget.targetFPS * 1.3f && currentTier != QualityTier.ULTRA -> {
+            fps > currentBudget.targetFPS * 1.3f && currentTier != QualityTier.ULTRA -> {
                 when (currentTier) {
                     QualityTier.MOBILE -> QualityTier.STANDARD
                     QualityTier.STANDARD -> QualityTier.HIGH

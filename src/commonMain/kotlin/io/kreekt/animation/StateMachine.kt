@@ -1,8 +1,11 @@
 package io.kreekt.animation
 
 import kotlinx.serialization.Contextual
+import io.kreekt.core.platform.currentTimeMillis
 import kotlinx.serialization.Serializable
+import io.kreekt.core.platform.currentTimeMillis
 import kotlin.math.abs
+import io.kreekt.core.platform.currentTimeMillis
 
 /**
  * Advanced Animation State Machine for complex animation flow management.
@@ -66,7 +69,7 @@ class StateMachine(
         fun update(deltaTime: Float) {
             if (!isActive) return
 
-            currentTime += deltaTime * speed
+            currentTime = currentTime + deltaTime * speed
 
             // Calculate normalized time
             val totalDuration = animations.maxOfOrNull { it.duration } ?: 0f
@@ -184,12 +187,12 @@ class StateMachine(
         fun getBlendWeight(curve: TransitionCurve): Float {
             return when (curve) {
                 TransitionCurve.LINEAR -> progress
-                TransitionCurve.SMOOTH -> progress * progress * (3f - 2f * progress)
+                TransitionCurve.SMOOTH -> progress * progress * (3f - (2f * progress))
                 TransitionCurve.EASE_IN -> progress * progress
                 TransitionCurve.EASE_OUT -> 1f - (1f - progress) * (1f - progress)
                 TransitionCurve.EASE_IN_OUT -> {
                     if (progress < 0.5f) {
-                        2f * progress * progress
+                        2f * (progress * progress)
                     } else {
                         1f - 2f * (1f - progress) * (1f - progress)
                     }
@@ -418,7 +421,7 @@ class StateMachine(
         // Add to debug history
         if (debugMode) {
             debugHistory.add(StateChangeEvent(
-                timestamp = System.currentTimeMillis(),
+                timestamp = currentTimeMillis(),
                 fromState = oldState?.name,
                 toState = stateName,
                 parameters = parameters.mapValues { (_, param) ->
@@ -439,14 +442,14 @@ class StateMachine(
      */
     fun update(deltaTime: Float) {
         this.deltaTime = deltaTime
-        val currentTime = System.currentTimeMillis()
+        val currentTime = currentTimeMillis()
 
         // Update current state
         currentState?.update(deltaTime)
 
         // Update transition if active
         transitionState?.let { transition ->
-            transition.currentTime += deltaTime
+            transition.currentTime = currentTime + deltaTime
 
             if (transition.isComplete) {
                 // Complete transition
@@ -500,7 +503,7 @@ class StateMachine(
 
         transitionState = TransitionState(
             transition = transition,
-            startTime = System.currentTimeMillis().toFloat()
+            startTime = currentTimeMillis().toFloat()
         )
 
         transition.onTransitionStart?.invoke()
@@ -513,7 +516,7 @@ class StateMachine(
         // Add to debug history
         if (debugMode) {
             debugHistory.add(StateChangeEvent(
-                timestamp = System.currentTimeMillis(),
+                timestamp = currentTimeMillis(),
                 fromState = currentState?.name,
                 toState = transition.toState,
                 parameters = parameters.mapValues { (_, param) ->

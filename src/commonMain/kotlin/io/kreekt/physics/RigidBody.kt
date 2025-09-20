@@ -11,22 +11,52 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.*
 
 /**
- * Rigid body implementation with complete physics simulation support
- * Supports all major physics features: forces, impulses, constraints, collision response
+ * Contact point data structure
  */
-class RigidBodyImpl(
+data class ContactPoint(
+    val pointA: Vector3,
+    val pointB: Vector3,
+    val normal: Vector3,
+    val distance: Float,
+    val impulse: Float = 0f
+)
+
+/**
+ * Contact manifold representing collision data
+ */
+data class ContactManifold(
+    val bodyA: CollisionObject,
+    val bodyB: CollisionObject,
+    val points: List<ContactPoint>
+)
+
+
+
+// RigidBodyType and ActivationState are imported from PhysicsTypes.kt
+
+/**
+ * Physics result wrapper for error handling
+ */
+
+/**
+ * Default rigid body implementation
+ */
+class DefaultRigidBody(
     override val id: String,
     initialShape: CollisionShape,
     initialMass: Float = 1.0f,
     initialTransform: Matrix4 = Matrix4.identity()
 ) : RigidBody {
 
-    // CollisionObject properties
+    // Transform state
     private val _transform = MutableStateFlow(initialTransform)
     override var transform: Matrix4
         get() = _transform.value
         set(value) { _transform.value = value }
 
+    val transformFlow: StateFlow<Matrix4> = _transform.asStateFlow()
+
+    // Collision properties
     override var collisionShape: CollisionShape = initialShape
     override var collisionGroups: Int = 1
     override var collisionMask: Int = -1 // Collide with everything by default
@@ -35,7 +65,7 @@ class RigidBodyImpl(
     override var collisionFlags: Int = 0
     override var isTrigger: Boolean = false
 
-    // RigidBody specific properties
+    // Mass properties
     private val _mass = MutableStateFlow(initialMass)
     override var mass: Float
         get() = _mass.value
@@ -53,37 +83,22 @@ class RigidBodyImpl(
             mass = collisionShape.getVolume() * value
         }
 
-    override var restitution: Float = 0.0f
+    override var restitution: Float = 0.5f
         set(value) {
-            require(value in 0f..1f) { "Restitution must be between 0 and 1" }
-            field = value
+            field = value.coerceIn(0f, 1f)
         }
 
     override var friction: Float = 0.5f
         set(value) {
-            require(value >= 0f) { "Friction cannot be negative" }
-            field = value
+            field = value.coerceAtLeast(0f)
         }
 
     override var rollingFriction: Float = 0.0f
         set(value) {
-            require(value >= 0f) { "Rolling friction cannot be negative" }
-            field = value
+            field = value.coerceAtLeast(0f)
         }
 
-    override var linearDamping: Float = 0.04f
-        set(value) {
-            require(value in 0f..1f) { "Linear damping must be between 0 and 1" }
-            field = value
-        }
-
-    override var angularDamping: Float = 0.05f
-        set(value) {
-            require(value in 0f..1f) { "Angular damping must be between 0 and 1" }
-            field = value
-        }
-
-    // Motion state
+    // Motion properties
     private val _linearVelocity = MutableStateFlow(Vector3.ZERO)
     override var linearVelocity: Vector3
         get() = _linearVelocity.value
@@ -94,15 +109,23 @@ class RigidBodyImpl(
         get() = _angularVelocity.value
         set(value) { _angularVelocity.value = value }
 
+    override var linearDamping: Float = 0.0f
+        set(value) {
+            field = value.coerceIn(0f, 1f)
+        }
+
+    override var angularDamping: Float = 0.0f
+        set(value) {
+            field = value.coerceIn(0f, 1f)
+        }
+
     override var linearFactor: Vector3 = Vector3.ONE
     override var angularFactor: Vector3 = Vector3.ONE
 
-    // Body type and state
-    private val _bodyType = MutableStateFlow(RigidBodyType.DYNAMIC)
-    override var bodyType: RigidBodyType
-        get() = _bodyType.value
+    // Body type and activation
+    override var bodyType: RigidBodyType = RigidBodyType.DYNAMIC
         set(value) {
-            _bodyType.value = value
+            field = value
             when (value) {
                 RigidBodyType.STATIC -> {
                     mass = 0f
@@ -111,7 +134,7 @@ class RigidBodyImpl(
                 }
                 RigidBodyType.KINEMATIC -> {
                     mass = 0f
-                    // Kinematic bodies can have velocity but are not affected by forces
+                    activationState = ActivationState.DISABLE_DEACTIVATION
                 }
                 RigidBodyType.DYNAMIC -> {
                     if (mass <= 0f) mass = 1f
@@ -119,102 +142,120 @@ class RigidBodyImpl(
             }
         }
 
-    private val _activationState = MutableStateFlow(ActivationState.ACTIVE)
-    override var activationState: ActivationState
-        get() = _activationState.value
-        set(value) { _activationState.value = value }
-
+    override var activationState: ActivationState = ActivationState.ACTIVE
     override var sleepThreshold: Float = 0.8f
+
+    // Continuous collision detection
     override var ccdMotionThreshold: Float = 0f
     override var ccdSweptSphereRadius: Float = 0f
 
-    // Internal physics state
-    private var _inertia = Matrix3.IDENTITY
-    private var _inverseInertia = Matrix3.IDENTITY
-    private val _totalForce = MutableStateFlow(Vector3.ZERO)
-    private val _totalTorque = MutableStateFlow(Vector3.ZERO)
-    private var _sleepTimer = 0f
-    private var _lastPosition = Vector3.ZERO
-    private var _lastRotation = Quaternion.IDENTITY
+    // Internal state
+    private var inverseMass: Float = if (initialMass > 0f) 1f / initialMass else 0f
+    private var localInertia: Vector3 = Vector3.ZERO
+    private var inverseInertia: Matrix3 = Matrix3.identity()
+    private var totalForce: Vector3 = Vector3.ZERO
+    private var totalTorque: Vector3 = Vector3.ZERO
 
     init {
         updateInertia()
     }
 
-    // Force and impulse application
+    override fun setCollisionShape(shape: CollisionShape): PhysicsResult<Unit> {
+        return try {
+            collisionShape = shape
+            updateInertia()
+            PhysicsOperationResult.Success(Unit)
+        } catch (e: Exception) {
+            PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Failed to set collision shape: ${e.message}"))
+        }
+    }
+
+    override fun getCollisionShape(): CollisionShape = collisionShape
+
+    override fun setWorldTransform(transform: Matrix4) {
+        this.transform = transform
+    }
+
+    override fun getWorldTransform(): Matrix4 = transform
+
+    override fun translate(offset: Vector3) {
+        transform = transform.translate(offset)
+    }
+
+    override fun rotate(rotation: Quaternion) {
+        transform = transform.rotate(rotation)
+    }
+
     override fun applyForce(force: Vector3, relativePosition: Vector3): PhysicsResult<Unit> {
         return try {
-            if (!isActive() || bodyType == RigidBodyType.STATIC) {
-                return PhysicsResult.Success(Unit)
+            if (bodyType != RigidBodyType.DYNAMIC) {
+                return PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Cannot apply force to non-dynamic body"))
             }
 
-            // Apply central force
-            _totalForce.value = _totalForce.value + (force * linearFactor)
+            totalForce = totalForce + (force * linearFactor)
 
-            // Apply torque from offset
             if (relativePosition != Vector3.ZERO) {
                 val torque = relativePosition.cross(force) * angularFactor
-                _totalTorque.value = _totalTorque.value + torque
+                totalTorque = totalTorque + torque
             }
 
-            // Wake up the body
             activate()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationFailed("Failed to apply force", e))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError("Failed to apply force: ${e.message}"))
         }
     }
 
     override fun applyImpulse(impulse: Vector3, relativePosition: Vector3): PhysicsResult<Unit> {
         return try {
-            if (!isActive() || bodyType == RigidBodyType.STATIC) {
-                return PhysicsResult.Success(Unit)
+            if (bodyType != RigidBodyType.DYNAMIC) {
+                return PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Cannot apply impulse to non-dynamic body"))
             }
 
-            // Apply linear impulse
-            val deltaVelocity = (impulse * linearFactor) / mass
-            linearVelocity = linearVelocity + deltaVelocity
+            // Linear impulse
+            val deltaV = (impulse * inverseMass) * linearFactor
+            linearVelocity = linearVelocity + deltaV
 
-            // Apply angular impulse from offset
+            // Angular impulse
             if (relativePosition != Vector3.ZERO) {
                 val angularImpulse = relativePosition.cross(impulse) * angularFactor
-                val deltaAngularVelocity = _inverseInertia * angularImpulse
-                angularVelocity = angularVelocity + deltaAngularVelocity
+                val deltaW = inverseInertia * angularImpulse
+                angularVelocity = angularVelocity + deltaW
             }
 
             activate()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationFailed("Failed to apply impulse", e))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError("Failed to apply impulse: ${e.message}"))
         }
     }
 
     override fun applyTorque(torque: Vector3): PhysicsResult<Unit> {
         return try {
-            if (!isActive() || bodyType == RigidBodyType.STATIC) {
-                return PhysicsResult.Success(Unit)
+            if (bodyType != RigidBodyType.DYNAMIC) {
+                return PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Cannot apply torque to non-dynamic body"))
             }
 
-            _totalTorque.value = _totalTorque.value + (torque * angularFactor)
+            totalTorque = totalTorque + (torque * angularFactor)
             activate()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationFailed("Failed to apply torque", e))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError("Failed to apply torque: ${e.message}"))
         }
     }
 
     override fun applyTorqueImpulse(torque: Vector3): PhysicsResult<Unit> {
         return try {
-            if (!isActive() || bodyType == RigidBodyType.STATIC) {
-                return PhysicsResult.Success(Unit)
+            if (bodyType != RigidBodyType.DYNAMIC) {
+                return PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Cannot apply torque impulse to non-dynamic body"))
             }
 
-            val deltaAngularVelocity = _inverseInertia * (torque * angularFactor)
-            angularVelocity = angularVelocity + deltaAngularVelocity
+            val deltaW = inverseInertia * (torque * angularFactor)
+            angularVelocity = angularVelocity + deltaW
             activate()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationFailed("Failed to apply torque impulse", e))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError("Failed to apply torque impulse: ${e.message}"))
         }
     }
 
@@ -226,182 +267,162 @@ class RigidBodyImpl(
         return applyImpulse(impulse, Vector3.ZERO)
     }
 
-    // State queries
     override fun isActive(): Boolean {
-        return activationState == ActivationState.ACTIVE ||
-               activationState == ActivationState.WANTS_DEACTIVATION
+        return activationState == ActivationState.ACTIVE
     }
 
-    override fun isKinematic(): Boolean = bodyType == RigidBodyType.KINEMATIC
-    override fun isStatic(): Boolean = bodyType == RigidBodyType.STATIC
+    override fun isKinematic(): Boolean {
+        return bodyType == RigidBodyType.KINEMATIC
+    }
 
-    override fun getInertia(): Matrix3 = _inertia
-    override fun getInverseInertia(): Matrix3 = _inverseInertia
-    override fun getTotalForce(): Vector3 = _totalForce.value
-    override fun getTotalTorque(): Vector3 = _totalTorque.value
+    override fun isStatic(): Boolean {
+        return bodyType == RigidBodyType.STATIC
+    }
 
-    // Transformation
+    override fun getInertia(): Matrix3 {
+        return if (mass > 0f) {
+            Matrix3.diagonal(localInertia)
+        } else {
+            Matrix3.zero()
+        }
+    }
+
+    override fun getInverseInertia(): Matrix3 {
+        return inverseInertia
+    }
+
+    override fun getTotalForce(): Vector3 = totalForce
+
+    override fun getTotalTorque(): Vector3 = totalTorque
+
     override fun setTransform(position: Vector3, rotation: Quaternion) {
         transform = Matrix4.fromTranslationRotation(position, rotation)
     }
 
-    override fun getWorldTransform(): Matrix4 = transform
+    override fun getCenterOfMassTransform(): Matrix4 = transform
 
-    override fun getCenterOfMassTransform(): Matrix4 {
-        // For now, assume center of mass is at the origin of the body
-        return transform
-    }
-
-    // CollisionObject interface implementation
-    override fun setCollisionShape(shape: CollisionShape): PhysicsResult<Unit> {
-        return try {
-            collisionShape = shape
-            updateInertia()
-            PhysicsResult.Success(Unit)
-        } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.ShapeCreationFailed("Failed to set collision shape", e))
-        }
-    }
-
-    override fun getCollisionShape(): CollisionShape = collisionShape
-
-    override fun setWorldTransform(transform: Matrix4) {
-        this.transform = transform
-    }
-
-    override fun translate(offset: Vector3) {
-        val currentPos = transform.getTranslation()
-        val newTransform = Matrix4.fromTranslationRotationScale(
-            currentPos + offset,
-            transform.getRotation(),
-            transform.getScale()
-        )
-        transform = newTransform
-    }
-
-    override fun rotate(rotation: Quaternion) {
-        val currentRot = transform.getRotation()
-        val newTransform = Matrix4.fromTranslationRotationScale(
-            transform.getTranslation(),
-            currentRot * rotation,
-            transform.getScale()
-        )
-        transform = newTransform
-    }
-
-    // Internal physics integration
-    internal fun integrateVelocity(deltaTime: Float, gravity: Vector3) {
-        if (!isActive() || bodyType != RigidBodyType.DYNAMIC) return
-
-        // Apply gravity
-        if (mass > 0f) {
-            _totalForce.value = _totalForce.value + (gravity * mass)
-        }
-
-        // Integrate linear velocity
-        if (mass > 0f) {
-            val acceleration = _totalForce.value / mass
-            linearVelocity = (linearVelocity + acceleration * deltaTime) * (1f - linearDamping)
-        }
-
-        // Integrate angular velocity
-        val angularAcceleration = _inverseInertia * _totalTorque.value
-        angularVelocity = (angularVelocity + angularAcceleration * deltaTime) * (1f - angularDamping)
-
-        // Clear forces
-        _totalForce.value = Vector3.ZERO
-        _totalTorque.value = Vector3.ZERO
-    }
-
-    internal fun integratePosition(deltaTime: Float) {
-        if (!isActive()) return
-
-        val currentPos = transform.getTranslation()
-        val currentRot = transform.getRotation()
-
-        // Integrate position
-        val newPos = currentPos + linearVelocity * deltaTime
-
-        // Integrate rotation using quaternion angular velocity
-        val angularVelMagnitude = angularVelocity.length()
-        val newRot = if (angularVelMagnitude > 0f) {
-            val axis = angularVelocity / angularVelMagnitude
-            val angle = angularVelMagnitude * deltaTime
-            val deltaRot = Quaternion.fromAxisAngle(axis, angle)
-            currentRot * deltaRot
-        } else {
-            currentRot
-        }
-
-        // Update transform
-        transform = Matrix4.fromTranslationRotationScale(
-            newPos,
-            newRot,
-            transform.getScale()
-        )
-
-        // Check for sleep
-        checkSleep(deltaTime, newPos, newRot)
-    }
-
-    private fun updateInertia() {
-        if (mass <= 0f || bodyType == RigidBodyType.STATIC) {
-            _inertia = Matrix3.ZERO
-            _inverseInertia = Matrix3.ZERO
-        } else {
-            _inertia = collisionShape.calculateInertia(mass)
-            _inverseInertia = _inertia.inverse()
-        }
-    }
-
+    /**
+     * Activate the rigid body (wake it up)
+     */
     private fun activate() {
         if (activationState == ActivationState.DEACTIVATED) {
             activationState = ActivationState.ACTIVE
         }
-        _sleepTimer = 0f
     }
 
-    private fun checkSleep(deltaTime: Float, newPos: Vector3, newRot: Quaternion) {
-        val linearThreshold = sleepThreshold * 0.1f
+    /**
+     * Update inertia tensor based on current mass and shape
+     */
+    private fun updateInertia() {
+        inverseMass = if (mass > 0f) 1f / mass else 0f
+
+        if (mass > 0f && bodyType == RigidBodyType.DYNAMIC) {
+            localInertia = collisionShape.calculateLocalInertia(mass)
+
+            // Calculate inverse inertia tensor
+            val invIx = if (localInertia.x > 0f) 1f / localInertia.x else 0f
+            val invIy = if (localInertia.y > 0f) 1f / localInertia.y else 0f
+            val invIz = if (localInertia.z > 0f) 1f / localInertia.z else 0f
+
+            inverseInertia = Matrix3.diagonal(Vector3(invIx, invIy, invIz))
+        } else {
+            localInertia = Vector3.ZERO
+            inverseInertia = Matrix3.zero()
+        }
+    }
+
+    /**
+     * Integrate motion for one time step
+     */
+    fun integrateVelocities(deltaTime: Float) {
+        if (bodyType != RigidBodyType.DYNAMIC || !isActive()) return
+
+        // Apply accumulated forces
+        if (inverseMass > 0f) {
+            val acceleration = totalForce * inverseMass
+            linearVelocity = linearVelocity + (acceleration * deltaTime)
+        }
+
+        // Apply accumulated torques
+        val angularAcceleration = inverseInertia * totalTorque
+        angularVelocity = angularVelocity + (angularAcceleration * deltaTime)
+
+        // Apply damping
+        linearVelocity = linearVelocity * max(0f, 1f - linearDamping * deltaTime)
+        angularVelocity = angularVelocity * max(0f, 1f - angularDamping * deltaTime)
+
+        // Clear accumulated forces
+        totalForce = Vector3.ZERO
+        totalTorque = Vector3.ZERO
+    }
+
+    /**
+     * Integrate positions for one time step
+     */
+    fun integratePositions(deltaTime: Float) {
+        if (bodyType == RigidBodyType.STATIC || !isActive()) return
+
+        val translation = transform.getTranslation()
+        val rotation = transform.getRotation()
+
+        // Integrate linear motion
+        if (bodyType == RigidBodyType.DYNAMIC) {
+            val newTranslation = translation + (linearVelocity * deltaTime)
+
+            // Integrate angular motion
+            val angularVelocityLength = angularVelocity.length()
+            val newRotation = if (angularVelocityLength > 0f) {
+                val axis = angularVelocity.normalize()
+                val angle = angularVelocityLength * deltaTime
+                val deltaRotation = Quaternion.fromAxisAngle(axis, angle)
+                rotation.multiply(deltaRotation).normalize()
+            } else {
+                rotation
+            }
+
+            transform = Matrix4.fromTranslationRotation(newTranslation, newRotation)
+        }
+
+        // Check for sleep conditions
+        checkSleepConditions()
+    }
+
+    /**
+     * Check if body should go to sleep
+     */
+    private fun checkSleepConditions() {
+        if (bodyType != RigidBodyType.DYNAMIC ||
+            activationState == ActivationState.DISABLE_DEACTIVATION) return
+
+        val velocityThreshold = sleepThreshold
         val angularThreshold = sleepThreshold * 0.1f
 
-        val linearSpeed = linearVelocity.length()
-        val angularSpeed = angularVelocity.length()
+        if (linearVelocity.lengthSquared() < velocityThreshold * velocityThreshold &&
+            angularVelocity.lengthSquared() < angularThreshold * angularThreshold) {
 
-        if (linearSpeed < linearThreshold && angularSpeed < angularThreshold) {
-            _sleepTimer += deltaTime
-            if (_sleepTimer > 2f) { // Sleep after 2 seconds of low activity
+            if (activationState == ActivationState.ACTIVE) {
+                activationState = ActivationState.WANTS_DEACTIVATION
+            } else if (activationState == ActivationState.WANTS_DEACTIVATION) {
                 activationState = ActivationState.DEACTIVATED
                 linearVelocity = Vector3.ZERO
                 angularVelocity = Vector3.ZERO
             }
         } else {
-            _sleepTimer = 0f
-            if (activationState == ActivationState.DEACTIVATED) {
-                activationState = ActivationState.ACTIVE
-            }
+            activationState = ActivationState.ACTIVE
         }
-
-        _lastPosition = newPos
-        _lastRotation = newRot
     }
 }
 
 /**
- * Base collision object implementation
- * Provides foundation for all physics objects (rigid bodies, triggers, character controllers)
+ * Simple collision object implementation
  */
-open class CollisionObjectImpl(
+class DefaultCollisionObject(
     override val id: String,
     initialShape: CollisionShape,
     initialTransform: Matrix4 = Matrix4.identity()
 ) : CollisionObject {
 
-    private val _transform = MutableStateFlow(initialTransform)
-    override var transform: Matrix4
-        get() = _transform.value
-        set(value) { _transform.value = value }
-
+    override var transform: Matrix4 = initialTransform
     override var collisionShape: CollisionShape = initialShape
     override var collisionGroups: Int = 1
     override var collisionMask: Int = -1
@@ -410,13 +431,9 @@ open class CollisionObjectImpl(
     override var collisionFlags: Int = 0
     override var isTrigger: Boolean = false
 
-    override fun setCollisionShape(shape: CollisionShape): PhysicsResult<Unit> {
-        return try {
-            collisionShape = shape
-            PhysicsResult.Success(Unit)
-        } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.ShapeCreationFailed("Failed to set collision shape", e))
-        }
+    override fun setCollisionShape(shape: CollisionShape): PhysicsOperationResult<Unit> {
+        collisionShape = shape
+        return PhysicsOperationResult.Success(Unit)
     }
 
     override fun getCollisionShape(): CollisionShape = collisionShape
@@ -428,135 +445,58 @@ open class CollisionObjectImpl(
     override fun getWorldTransform(): Matrix4 = transform
 
     override fun translate(offset: Vector3) {
-        val currentPos = transform.getTranslation()
-        val newTransform = Matrix4.fromTranslationRotationScale(
-            currentPos + offset,
-            transform.getRotation(),
-            transform.getScale()
-        )
-        transform = newTransform
+        transform = transform.translate(offset)
     }
 
     override fun rotate(rotation: Quaternion) {
-        val currentRot = transform.getRotation()
-        val newTransform = Matrix4.fromTranslationRotationScale(
-            transform.getTranslation(),
-            currentRot * rotation,
-            transform.getScale()
-        )
-        transform = newTransform
+        transform = transform.rotate(rotation)
     }
 }
 
 /**
- * Physics material properties for combining material behaviors
+ * Factory functions for creating physics objects
  */
-class PhysicsMaterialImpl(
-    val friction: Float = 0.5f,
-    val restitution: Float = 0.0f,
-    val rollingFriction: Float = 0.0f,
-    val spinningFriction: Float = 0.0f,
-    val frictionCombineMode: CombineMode = CombineMode.AVERAGE,
-    val restitutionCombineMode: CombineMode = CombineMode.AVERAGE
-) {
+object RigidBodyFactory {
 
-    /**
-     * Combine two physics materials using the specified combine mode
-     */
-    fun combineWith(other: PhysicsMaterialImpl): PhysicsMaterialImpl {
-        return PhysicsMaterialImpl(
-            friction = combineMaterialProperty(friction, other.friction, frictionCombineMode, other.frictionCombineMode),
-            restitution = combineMaterialProperty(restitution, other.restitution, restitutionCombineMode, other.restitutionCombineMode),
-            rollingFriction = combineMaterialProperty(rollingFriction, other.rollingFriction, frictionCombineMode, other.frictionCombineMode),
-            spinningFriction = combineMaterialProperty(spinningFriction, other.spinningFriction, frictionCombineMode, other.frictionCombineMode)
-        )
-    }
-
-    private fun combineMaterialProperty(value1: Float, value2: Float, mode1: CombineMode, mode2: CombineMode): Float {
-        // Use the most restrictive combine mode
-        val mode = if (mode1.ordinal > mode2.ordinal) mode1 else mode2
-
-        return when (mode) {
-            CombineMode.AVERAGE -> (value1 + value2) * 0.5f
-            CombineMode.MINIMUM -> minOf(value1, value2)
-            CombineMode.MAXIMUM -> maxOf(value1, value2)
-            CombineMode.MULTIPLY -> value1 * value2
+    fun createStaticBody(
+        id: String,
+        shape: CollisionShape,
+        transform: Matrix4 = Matrix4.identity()
+    ): RigidBody {
+        return DefaultRigidBody(id, shape, 0f, transform).apply {
+            bodyType = RigidBodyType.STATIC
         }
     }
-}
 
-/**
- * Body type management utilities
- */
-object RigidBodyTypeUtils {
-
-    /**
-     * Check if body type allows motion from forces
-     */
-    fun allowsForces(type: RigidBodyType): Boolean {
-        return type == RigidBodyType.DYNAMIC
-    }
-
-    /**
-     * Check if body type allows kinematic motion
-     */
-    fun allowsKinematicMotion(type: RigidBodyType): Boolean {
-        return type == RigidBodyType.KINEMATIC || type == RigidBodyType.DYNAMIC
-    }
-
-    /**
-     * Check if body type participates in collision response
-     */
-    fun participatesInCollisionResponse(type: RigidBodyType): Boolean {
-        return type != RigidBodyType.STATIC
-    }
-
-    /**
-     * Get default mass for body type
-     */
-    fun getDefaultMass(type: RigidBodyType): Float {
-        return when (type) {
-            RigidBodyType.STATIC, RigidBodyType.KINEMATIC -> 0f
-            RigidBodyType.DYNAMIC -> 1f
+    fun createKinematicBody(
+        id: String,
+        shape: CollisionShape,
+        transform: Matrix4 = Matrix4.identity()
+    ): RigidBody {
+        return DefaultRigidBody(id, shape, 0f, transform).apply {
+            bodyType = RigidBodyType.KINEMATIC
         }
     }
-}
 
-/**
- * Activation state management utilities
- */
-object ActivationStateUtils {
-
-    /**
-     * Check if activation state allows physics simulation
-     */
-    fun allowsSimulation(state: ActivationState): Boolean {
-        return state != ActivationState.DISABLE_SIMULATION
+    fun createDynamicBody(
+        id: String,
+        shape: CollisionShape,
+        mass: Float,
+        transform: Matrix4 = Matrix4.identity()
+    ): RigidBody {
+        require(mass > 0f) { "Dynamic bodies must have positive mass" }
+        return DefaultRigidBody(id, shape, mass, transform).apply {
+            bodyType = RigidBodyType.DYNAMIC
+        }
     }
 
-    /**
-     * Check if activation state allows deactivation/sleeping
-     */
-    fun allowsDeactivation(state: ActivationState): Boolean {
-        return state != ActivationState.DISABLE_DEACTIVATION
-    }
-
-    /**
-     * Get next activation state for sleeping logic
-     */
-    fun getNextSleepState(current: ActivationState, shouldSleep: Boolean): ActivationState {
-        return when (current) {
-            ActivationState.ACTIVE -> {
-                if (shouldSleep) ActivationState.WANTS_DEACTIVATION else ActivationState.ACTIVE
-            }
-            ActivationState.WANTS_DEACTIVATION -> {
-                if (shouldSleep) ActivationState.DEACTIVATED else ActivationState.ACTIVE
-            }
-            ActivationState.DEACTIVATED -> {
-                if (!shouldSleep) ActivationState.ACTIVE else ActivationState.DEACTIVATED
-            }
-            ActivationState.DISABLE_DEACTIVATION -> ActivationState.ACTIVE
-            ActivationState.DISABLE_SIMULATION -> current
+    fun createTrigger(
+        id: String,
+        shape: CollisionShape,
+        transform: Matrix4 = Matrix4.identity()
+    ): CollisionObject {
+        return DefaultCollisionObject(id, shape, transform).apply {
+            isTrigger = true
         }
     }
 }

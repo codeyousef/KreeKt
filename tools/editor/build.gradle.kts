@@ -2,26 +2,29 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
     kotlin("multiplatform")
+    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.compose)
     kotlin("plugin.serialization")
 }
 
 kotlin {
     jvm {
-        withJava()
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
     }
 
     js(IR) {
         browser {
-            webpackTask {
+            webpackTask(Action {
                 mainOutputFileName = "scene-editor.js"
-            }
+            })
         }
         binaries.executable()
     }
 
     sourceSets {
-        commonMain {
+        val commonMain by getting {
             dependencies {
                 implementation(project(":"))
                 implementation(libs.kotlinx.coroutines.core)
@@ -33,23 +36,35 @@ kotlin {
             }
         }
 
-        commonTest {
+        val commonTest by getting {
             dependencies {
-                implementation(kotlin("test"))
+                implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
             }
         }
 
-        jvmMain {
+        val jvmMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
             }
         }
 
-        jsMain {
+        val jvmTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+            }
+        }
+
+        val jsMain by getting {
             dependencies {
                 implementation(npm("@webgpu/types", "0.1.40"))
                 implementation(libs.kotlinx.browser)
+            }
+        }
+
+        val jsTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
             }
         }
     }

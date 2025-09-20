@@ -451,7 +451,7 @@ class CrossFeatureIntegrationTest {
         val deltaTime = 1f / 60f
 
         repeat(600) { frameIndex -> // 10 seconds
-            val frameStart = System.currentTimeMillis()
+            val frameStart = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
 
             // Update all systems in coordinated manner
             val optimizationResult = optimizationPipeline.optimizeFrame(scene, camera, performanceMonitor)
@@ -499,7 +499,7 @@ class CrossFeatureIntegrationTest {
                 is OptimizationResult.Error -> fail("Optimization should not fail: ${optimizationResult.exception.message}")
             }
 
-            val frameTime = System.currentTimeMillis() - frameStart
+            val frameTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - frameStart
             performanceMonitor.recordFrameTime(frameTime.toFloat())
 
             // Simulate varying workload
@@ -610,7 +610,7 @@ class CrossFeatureIntegrationTest {
             }
 
             // Test performance impact of coordinated systems
-            val frameStart = System.currentTimeMillis()
+            val frameStart = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
 
             // Update geometry from animation
             baseMesh.updateMorphTargets()
@@ -619,7 +619,7 @@ class CrossFeatureIntegrationTest {
             // Update material
             animatedMaterial.updateUniforms()
 
-            val updateTime = System.currentTimeMillis() - frameStart
+            val updateTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - frameStart
 
             assertTrue(updateTime < 5, "Coordinated updates should be fast (< 5ms)")
         }
@@ -669,7 +669,7 @@ class CrossFeatureIntegrationTest {
 
         repeat(simulationDuration) { frameIndex ->
             val currentTime = frameIndex * deltaTime
-            val frameStart = System.currentTimeMillis()
+            val frameStart = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
 
             // Update all systems in proper order
             val systemUpdateResult = updateAllSystems(
@@ -707,7 +707,7 @@ class CrossFeatureIntegrationTest {
             val renderResult = renderer.render(scene, scene.activeCamera!!)
             assertTrue(renderResult is RenderResult.Success, "Rendering should succeed")
 
-            val frameTime = System.currentTimeMillis() - frameStart
+            val frameTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - frameStart
             performanceMonitor.recordFrameTime(frameTime.toFloat())
 
             // Verify performance targets

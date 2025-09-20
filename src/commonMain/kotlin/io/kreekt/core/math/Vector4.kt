@@ -35,50 +35,50 @@ data class Vector4(
 
     // Arithmetic operations
     fun add(other: Vector4): Vector4 {
-        x += other.x
-        y += other.y
-        z += other.z
-        w += other.w
+        x = x + other.x
+        y = y + other.y
+        z = z + other.z
+        w = w + other.w
         return this
     }
 
     fun add(scalar: Float): Vector4 {
-        x += scalar
-        y += scalar
-        z += scalar
-        w += scalar
+        x = x + scalar
+        y = y + scalar
+        z = z + scalar
+        w = w + scalar
         return this
     }
 
     fun subtract(other: Vector4): Vector4 {
-        x -= other.x
-        y -= other.y
-        z -= other.z
-        w -= other.w
+        x = x - other.x
+        y = y - other.y
+        z = z - other.z
+        w = w - other.w
         return this
     }
 
     fun subtract(scalar: Float): Vector4 {
-        x -= scalar
-        y -= scalar
-        z -= scalar
-        w -= scalar
+        x = x - scalar
+        y = y - scalar
+        z = z - scalar
+        w = w - scalar
         return this
     }
 
     fun multiply(other: Vector4): Vector4 {
-        x *= other.x
-        y *= other.y
-        z *= other.z
-        w *= other.w
+        x = x * other.x
+        y = y * other.y
+        z = z * other.z
+        w = w * other.w
         return this
     }
 
     fun multiply(scalar: Float): Vector4 {
-        x *= scalar
-        y *= scalar
-        z *= scalar
-        w *= scalar
+        x = x * scalar
+        y = y * scalar
+        z = z * scalar
+        w = w * scalar
         return this
     }
 
@@ -98,10 +98,47 @@ data class Vector4(
         return this
     }
 
+    // Operator overloading for arithmetic
+    operator fun plus(other: Vector4): Vector4 = Vector4(x + other.x, y + other.y, z + other.z, w + other.w)
+    operator fun plus(scalar: Float): Vector4 = Vector4(x + scalar, y + scalar, z + scalar, w + scalar)
+    operator fun minus(other: Vector4): Vector4 = Vector4(x - other.x, y - other.y, z - other.z, w - other.w)
+    operator fun minus(scalar: Float): Vector4 = Vector4(x - scalar, y - scalar, z - scalar, w - scalar)
+    operator fun times(other: Vector4): Vector4 = Vector4(x * other.x, y * other.y, z * other.z, w * other.w)
+    operator fun times(scalar: Float): Vector4 = Vector4((x * scalar), (y * scalar), (z * scalar), (w * scalar))
+    operator fun div(other: Vector4): Vector4 = Vector4(x / other.x, y / other.y, z / other.z, w / other.w)
+    operator fun div(scalar: Float): Vector4 = Vector4(x / scalar, y / scalar, z / scalar, w / scalar)
+    operator fun unaryMinus(): Vector4 = Vector4(-x, -y, -z, -w)
+
+    // Extension property for normalized vector
+    val normalized: Vector4
+        get() = clone().normalize()
+
+    // Mutable operators
+    operator fun plusAssign(other: Vector4) {
+        x = x + other.x
+        y = y + other.y
+        z = z + other.z
+        w = w + other.w
+    }
+
+    operator fun minusAssign(other: Vector4) {
+        x = x - other.x
+        y = y - other.y
+        z = z - other.z
+        w = w - other.w
+    }
+
+    operator fun timesAssign(scalar: Float) {
+        x = x * scalar
+        y = y * scalar
+        z = z * scalar
+        w = w * scalar
+    }
+
     // Vector operations
     fun dot(other: Vector4): Float = x * other.x + y * other.y + z * other.z + w * other.w
 
-    fun length(): Float = sqrt(x * x + y * y + z * z + w * w)
+    fun length(): Float = sqrt(x * x + y * y + z * z + (w * w))
     fun lengthSquared(): Float = x * x + y * y + z * z + w * w
 
     fun normalize(): Vector4 {
@@ -115,7 +152,7 @@ data class Vector4(
         val dy = y - other.y
         val dz = z - other.z
         val dw = w - other.w
-        return dx * dx + dy * dy + dz * dz + dw * dw
+        return dx * dx + dy * dy + dz * dz + (dw * dw)
     }
 
     fun lerp(other: Vector4, t: Float): Vector4 {

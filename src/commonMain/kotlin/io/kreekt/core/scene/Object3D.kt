@@ -2,13 +2,13 @@ package io.kreekt.core.scene
 
 import io.kreekt.core.math.*
 import kotlin.random.Random
+import kotlin.math.PI
 
 /**
  * Base class for all objects in the 3D scene.
  * Compatible with Three.js Object3D API.
  *
- * Object3D provides the foundation for all 3D objects including
- * meshes, lights, cameras, and groups. It manages transformation,
+ * Object3D provides the foundation for all 3D objects (including * meshes), lights, cameras, and groups. It manages transformation,
  * hierarchy, and common properties.
  */
 abstract class Object3D {
@@ -578,9 +578,9 @@ fun Matrix4.compose(position: Vector3, quaternion: Quaternion, scale: Vector3): 
 
     val x = quaternion.x; val y = quaternion.y; val z = quaternion.z; val w = quaternion.w
     val x2 = x + x; val y2 = y + y; val z2 = z + z
-    val xx = x * x2; val xy = x * y2; val xz = x * z2
-    val yy = y * y2; val yz = y * z2; val zz = z * z2
-    val wx = w * x2; val wy = w * y2; val wz = w * z2
+    val xx = (x * x2); val xy = (x * y2); val xz = x * z2
+    val yy = (y * y2); val yz = (y * z2); val zz = z * z2
+    val wx = (w * x2); val wy = (w * y2); val wz = w * z2
 
     val sx = scale.x; val sy = scale.y; val sz = scale.z
 
@@ -705,9 +705,9 @@ fun Matrix4.lookAt(eye: Vector3, target: Vector3, up: Vector3): Matrix4 {
     if (x.lengthSq() == 0f) {
         // up and z are parallel
         if (kotlin.math.abs(up.z) == 1f) {
-            z.x += 0.0001f
+            z.x = z.x + 0.0001f
         } else {
-            z.z += 0.0001f
+            z.z = z.z + 0.0001f
         }
         z.normalize()
         x.copy(up).cross(z)

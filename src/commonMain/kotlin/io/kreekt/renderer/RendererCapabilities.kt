@@ -1,4 +1,6 @@
 package io.kreekt.renderer
+import io.kreekt.renderer.TextureFormat
+import kotlin.math.PI
 
 /**
  * Describes the capabilities and limits of a renderer.
@@ -392,7 +394,7 @@ enum class CompressedTextureFormat {
     // Mobile compression
     ETC1,
     ETC2_RGB,
-    ETC2_RGBA,
+    ETC2_RGBA8,
     EAC_R11,
     EAC_RG11,
 

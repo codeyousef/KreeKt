@@ -3,8 +3,11 @@
  * Contains enums, data classes, and interfaces referenced by physics implementations
  */
 package io.kreekt.physics
+import io.kreekt.core.scene.Material
 
 import io.kreekt.core.math.*
+import kotlin.math.*
+import io.kreekt.core.math.Box3
 
 /**
  * Enums for physics system
@@ -24,7 +27,7 @@ enum class ShapeType {
 }
 
 enum class BroadphaseType {
-    SIMPLE, AXIS_SWEEP_3, DBVT
+    SIMPLE, AXIS_SWEEP_3, DBVT, SAP
 }
 
 enum class ConstraintParam {
@@ -121,10 +124,13 @@ data class PhysicsMaterial(
 /**
  * Result types for physics operations
  */
-sealed class PhysicsResult<T> {
-    data class Success<T>(val value: T) : PhysicsResult<T>()
-    data class Error<T>(val exception: PhysicsException) : PhysicsResult<T>()
+sealed class PhysicsOperationResult<T> {
+    data class Success<T>(val value: T) : PhysicsOperationResult<T>()
+    data class Error<T>(val exception: PhysicsException) : PhysicsOperationResult<T>()
 }
+
+// Typealias for backward compatibility
+typealias PhysicsResult<T> = PhysicsOperationResult<T>
 
 /**
  * Exception types for physics system
@@ -138,6 +144,8 @@ sealed class PhysicsException(message: String, cause: Throwable? = null) : Excep
     class InvalidParameters(message: String) : PhysicsException(message)
     class UnsupportedOperation(operation: String) : PhysicsException("Unsupported operation: $operation")
     class EngineNotInitialized() : PhysicsException("Physics engine not initialized")
+    class InvalidOperation(message: String) : PhysicsException(message)
+    class SimulationError(message: String, cause: Throwable? = null) : PhysicsException(message, cause)
 }
 
 /**
@@ -162,34 +170,10 @@ fun Vector3.coerceLength(minLength: Float, maxLength: Float): Vector3 {
 }
 
 /**
- * Extension functions for Matrix3 to support physics operations
- */
-fun Matrix3.Companion.fromQuaternion(q: Quaternion): Matrix3 {
-    val x2 = q.x + q.x
-    val y2 = q.y + q.y
-    val z2 = q.z + q.z
-    val xx = q.x * x2
-    val xy = q.x * y2
-    val xz = q.x * z2
-    val yy = q.y * y2
-    val yz = q.y * z2
-    val zz = q.z * z2
-    val wx = q.w * x2
-    val wy = q.w * y2
-    val wz = q.w * z2
-
-    return Matrix3(
-        1f - (yy + zz), xy - wz, xz + wy,
-        xy + wz, 1f - (xx + zz), yz - wx,
-        xz - wy, yz + wx, 1f - (xx + yy)
-    )
-}
-
-/**
  * Extension functions for Quaternion to support physics operations
  */
 fun Quaternion.toAxisAngle(): Pair<Vector3, Float> {
-    val length = sqrt(x * x + y * y + z * z)
+    val length = sqrt(x * x + y * y + (z * z))
     return if (length > 0.001f) {
         val angle = 2f * acos(w.coerceIn(-1f, 1f))
         val axis = Vector3(x / length, y / length, z / length)
@@ -203,19 +187,19 @@ fun Quaternion.toEulerAngles(): Vector3 {
     // Convert quaternion to Euler angles (in radians)
     // Order: XYZ (Tait-Bryan angles)
 
-    val sinr_cosp = 2f * (w * x + y * z)
-    val cosr_cosp = 1f - 2f * (x * x + y * y)
+    val sinr_cosp = 2f * (w * x + (y * z))
+    val cosr_cosp = 1f - 2f * (x * x + (y * y))
     val roll = atan2(sinr_cosp, cosr_cosp)
 
-    val sinp = 2f * (w * y - z * x)
+    val sinp = 2f * (w * y - (z * x))
     val pitch = if (abs(sinp) >= 1f) {
         if (sinp > 0f) PI.toFloat() / 2f else -PI.toFloat() / 2f
     } else {
         asin(sinp)
     }
 
-    val siny_cosp = 2f * (w * z + x * y)
-    val cosy_cosp = 1f - 2f * (y * y + z * z)
+    val siny_cosp = 2f * (w * z + (x * y))
+    val cosy_cosp = 1f - 2f * (y * y + (z * z))
     val yaw = atan2(siny_cosp, cosy_cosp)
 
     return Vector3(roll, pitch, yaw)
@@ -253,18 +237,22 @@ object PhysicsUtils {
     fun calculateBoxInertia(mass: Float, dimensions: Vector3): Matrix3 {
         val factor = mass / 12f
         return Matrix3(
-            factor * (dimensions.y * dimensions.y + dimensions.z * dimensions.z), 0f, 0f,
-            0f, factor * (dimensions.x * dimensions.x + dimensions.z * dimensions.z), 0f,
-            0f, 0f, factor * (dimensions.x * dimensions.x + dimensions.y * dimensions.y)
+            floatArrayOf(
+                factor * (dimensions.y * dimensions.y + dimensions.z * dimensions.z), 0f, 0f,
+                0f, factor * (dimensions.x * dimensions.x + dimensions.z * dimensions.z), 0f,
+                0f, 0f, factor * (dimensions.x * dimensions.x + dimensions.y * dimensions.y)
+            )
         )
     }
 
     fun calculateSphereInertia(mass: Float, radius: Float): Matrix3 {
         val inertia = 0.4f * mass * radius * radius
         return Matrix3(
-            inertia, 0f, 0f,
-            0f, inertia, 0f,
-            0f, 0f, inertia
+            floatArrayOf(
+                inertia, 0f, 0f,
+                0f, inertia, 0f,
+                0f, 0f, inertia
+            )
         )
     }
 
@@ -273,9 +261,11 @@ object PhysicsUtils {
         val heightSquared = height * height
 
         return Matrix3(
-            mass * (radiusSquared * 0.25f + heightSquared / 12f), 0f, 0f,
-            0f, mass * radiusSquared * 0.5f, 0f,
-            0f, 0f, mass * (radiusSquared * 0.25f + heightSquared / 12f)
+            floatArrayOf(
+                mass * (radiusSquared * 0.25f + heightSquared / 12f), 0f, 0f,
+                0f, mass * radiusSquared * 0.5f, 0f,
+                0f, 0f, mass * (radiusSquared * 0.25f + heightSquared / 12f)
+            )
         )
     }
 
@@ -284,8 +274,8 @@ object PhysicsUtils {
      */
     fun normalizeAngle(angle: Float): Float {
         var result = angle
-        while (result > PI) result -= 2f * PI.toFloat()
-        while (result < -PI) result += 2f * PI.toFloat()
+        while (result > PI) result = result - 2f * PI.toFloat()
+        while (result < -PI) result = result + 2f * PI.toFloat()
         return result
     }
 
