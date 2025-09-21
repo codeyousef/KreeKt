@@ -1,16 +1,57 @@
+# Gradle files
 *.iml
 .gradle
-.idea
-.DS_Store
 build
 captures
+.kotlin
+
+# IDE files
+.idea
+.vscode
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Platform specific
+local.properties
 .externalNativeBuild
 .cxx
-local.properties
 xcuserdata
-.kotlin
+
+# Private/temp files
 #So we don't accidentally commit our private keys
 *.gpg
-/.claude/
-/kotlin-js-store/
+*.log
+*.tmp
+*.bak
+*.orig
+.claude/
+.specify/
+docs/private/
+
+# Specs directory (planning docs not for version control)
 /specs/
+
+# Node.js (for JS target dependencies)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts
+*.jar
+*.class
+*.dex
+*.apk
+*.aab
+*.ipa
+
+# Performance and profiling
+*.hprof
+*.jfr
+
+# OS generated files
+Thumbs.db
+.directory
+*.pid

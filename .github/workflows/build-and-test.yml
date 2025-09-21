@@ -1,0 +1,613 @@
+name: KreeKt Tools - Build, Test & Deploy
+
+on:
+  push:
+    branches: [ main, develop, 'release/*', 'feature/*' ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [ published ]
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly Sunday 2 AM UTC
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2"
+  JAVA_VERSION: "17"
+  NODE_VERSION: "18"
+
+jobs:
+  # ===========================================
+  # PHASE 1: Quality Gates & Security
+  # ===========================================
+
+  quality-gates:
+    name: Quality Gates & Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    outputs:
+      should-deploy: ${{ steps.quality-check.outputs.deploy }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+
+    - name: Code quality analysis
+      run: |
+        ./gradlew detekt
+        ./gradlew ktlintCheck
+
+    - name: Security scan with CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: java
+
+    - name: Run security analysis
+      uses: github/codeql-action/analyze@v2
+
+    - name: OWASP Dependency Check
+      run: ./gradlew dependencyCheckAnalyze
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-reports
+        path: |
+          build/reports/detekt/
+          build/reports/dependency-check-report.html
+
+    - name: Quality gate decision
+      id: quality-check
+      run: |
+        # Check if this should trigger deployment
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.event_name }}" == "release" ]]; then
+          echo "deploy=true" >> $GITHUB_OUTPUT
+        else
+          echo "deploy=false" >> $GITHUB_OUTPUT
+        fi
+
+  # ===========================================
+  # PHASE 2: Multi-Platform Testing
+  # ===========================================
+
+  test-matrix:
+    name: Test Matrix (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    needs: quality-gates
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            package: true
+          - os: windows-latest
+            platform: windows
+            package: true
+          - os: macos-latest
+            platform: macos
+            package: true
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: 'tools/web-host/package-lock.json'
+
+    - name: Install system dependencies (Linux)
+      if: matrix.platform == 'linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2 libxi6 libxtst6
+
+    - name: Cache Gradle packages
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Install web dependencies
+      run: |
+        cd tools/web-host && npm ci
+        cd ../editor/web && npm ci
+
+    # Contract Tests (API Validation)
+    - name: Run contract tests
+      run: ./gradlew test --tests "*contract*"
+
+    # Core Library Tests
+    - name: Run unit tests
+      run: ./gradlew test
+
+    # Integration Tests
+    - name: Run integration tests
+      run: ./gradlew integrationTest
+
+    # Visual Regression Tests (Linux only for consistency)
+    - name: Run visual tests
+      if: matrix.platform == 'linux'
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+        sleep 3
+        ./gradlew visualTest
+
+    # Performance Benchmarks
+    - name: Run performance tests
+      run: ./gradlew performanceTest
+
+    # Tool-specific Tests
+    - name: Test scene editor
+      run: ./gradlew :tools:editor:test
+
+    - name: Test material editor
+      run: ./gradlew :tools:editor:testMaterialEditor
+
+    - name: Test animation system
+      run: ./gradlew :tools:editor:testAnimationSystem
+
+    - name: Test performance profiler
+      run: ./gradlew :tools:profiler:test
+
+    - name: Test documentation tools
+      run: ./gradlew :tools:docs:test
+
+    - name: Test API server
+      run: ./gradlew :tools:api-server:test
+
+    # Cross-platform Build Verification
+    - name: Build all platforms
+      run: ./gradlew assemble
+
+    - name: Build tools
+      run: |
+        ./gradlew :tools:editor:assemble
+        ./gradlew :tools:profiler:assemble
+        ./gradlew :tools:docs:assemble
+        ./gradlew :tools:api-server:shadowJar
+
+    # Web Tools Build
+    - name: Build web tools
+      run: |
+        cd tools/web-host && npm run build
+        cd ../editor/web && npm run build
+
+    # Generate Coverage Reports
+    - name: Generate coverage report
+      run: ./gradlew koverXmlReport koverHtmlReport
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./build/reports/kover/report.xml
+        flags: ${{ matrix.platform }}
+        name: coverage-${{ matrix.platform }}
+
+    # Desktop Packaging (if enabled for platform)
+    - name: Package desktop tools
+      if: matrix.package
+      run: |
+        case "${{ matrix.platform }}" in
+          linux)
+            cd tools/packaging/linux && chmod +x package.sh && ./package.sh
+            ;;
+          windows)
+            cd tools/packaging/windows && ./package.bat
+            ;;
+          macos)
+            cd tools/packaging/macos && chmod +x package.sh && ./package.sh
+            ;;
+        esac
+
+    # Upload Build Artifacts
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-artifacts-${{ matrix.platform }}
+        path: |
+          build/libs/
+          tools/*/build/libs/
+          tools/*/build/distributions/
+          tools/packaging/*/dist/
+        retention-days: 7
+
+    # Upload Test Results
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-${{ matrix.platform }}
+        path: |
+          build/reports/tests/
+          build/test-results/
+          tools/*/build/reports/tests/
+        retention-days: 7
+
+    # Upload Coverage Reports
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-${{ matrix.platform }}
+        path: |
+          build/reports/kover/
+        retention-days: 7
+
+  # ===========================================
+  # PHASE 3: Web Tools & API Server
+  # ===========================================
+
+  web-tools-test:
+    name: Web Tools & API Server
+    runs-on: ubuntu-latest
+    needs: quality-gates
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: 'tools/web-host/package-lock.json'
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+
+    - name: Install web host dependencies
+      working-directory: tools/web-host
+      run: npm ci
+
+    - name: Install editor web dependencies
+      working-directory: tools/editor/web
+      run: npm ci
+
+    - name: Run web host tests
+      working-directory: tools/web-host
+      run: npm test
+
+    - name: Run web component tests
+      working-directory: tools/editor/web
+      run: npm test
+
+    - name: Build API server
+      run: ./gradlew :tools:api-server:shadowJar
+
+    - name: Start API server for integration tests
+      run: |
+        java -jar tools/api-server/build/libs/*-all.jar &
+        API_PID=$!
+        echo "API_PID=$API_PID" >> $GITHUB_ENV
+        sleep 10
+
+    - name: Build web tools
+      run: |
+        cd tools/web-host && npm run build
+        cd ../editor/web && npm run build
+
+    - name: Run web integration tests
+      working-directory: tools/web-host
+      run: npm run test:integration
+
+    - name: Stop API server
+      if: always()
+      run: |
+        if [ -n "$API_PID" ]; then
+          kill $API_PID || true
+        fi
+
+    - name: Upload web tool artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: web-tools
+        path: |
+          tools/web-host/dist/
+          tools/editor/web/dist/
+        retention-days: 7
+
+  # ===========================================
+  # PHASE 4: Deployment & Publishing
+  # ===========================================
+
+  deploy-web-tools:
+    name: Deploy Web Tools
+    runs-on: ubuntu-latest
+    needs: [test-matrix, web-tools-test]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'release'
+    environment: production
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download web tools artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: web-tools
+        path: dist/
+
+    - name: Deploy to production
+      run: |
+        # Deploy web tools to hosting platform
+        echo "Deploying web tools to production..."
+        # This would typically deploy to AWS S3, Netlify, Vercel, etc.
+
+    - name: Update deployment status
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: context.payload.deployment.id,
+            state: 'success',
+            environment_url: 'https://tools.kreekt.dev'
+          });
+
+  publish-packages:
+    name: Publish Packages
+    runs-on: ubuntu-latest
+    needs: [test-matrix]
+    if: github.event_name == 'release'
+    environment: publishing
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+
+    - name: Download all build artifacts
+      uses: actions/download-artifact@v3
+
+    - name: Publish to Maven Central
+      env:
+        MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+        MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+        SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+      run: ./gradlew publishToMavenCentral
+
+    - name: Publish desktop packages to GitHub Releases
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          build-artifacts-*/
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  documentation:
+    name: Generate & Deploy Documentation
+    runs-on: ubuntu-latest
+    needs: [test-matrix]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'release'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Generate Dokka documentation
+      run: ./gradlew dokkaHtml
+
+    - name: Generate enhanced documentation
+      run: ./gradlew :tools:docs:generateDocs
+
+    - name: Build documentation site
+      working-directory: tools/docs/web
+      run: |
+        npm ci
+        npm run build
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: tools/docs/web/dist
+        cname: docs.kreekt.dev
+
+  # ===========================================
+  # PHASE 5: Performance & Quality Monitoring
+  # ===========================================
+
+  performance-monitoring:
+    name: Performance Monitoring
+    runs-on: ubuntu-latest
+    needs: [test-matrix]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+
+    - name: Download performance test results
+      uses: actions/download-artifact@v3
+      with:
+        name: test-results-linux
+
+    - name: Run performance regression analysis
+      run: ./gradlew performanceRegressionCheck
+
+    - name: Generate performance report
+      run: ./gradlew generatePerformanceReport
+
+    - name: Upload performance report
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-report
+        path: build/reports/performance/
+
+    - name: Comment performance results on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const reportPath = 'build/reports/performance/summary.json';
+          if (fs.existsSync(reportPath)) {
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            const comment = `
+            ## Performance Test Results 📊
+
+            | Metric | Current | Previous | Change |
+            |--------|---------|----------|--------|
+            | Build Time | ${report.buildTime}s | ${report.previousBuildTime}s | ${report.buildTimeChange} |
+            | Test Execution | ${report.testTime}s | ${report.previousTestTime}s | ${report.testTimeChange} |
+            | Memory Usage | ${report.memoryUsage}MB | ${report.previousMemoryUsage}MB | ${report.memoryChange} |
+
+            ${report.recommendation ? '**Recommendation:** ' + report.recommendation : ''}
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          }
+
+  # ===========================================
+  # PHASE 6: Notification & Cleanup
+  # ===========================================
+
+  notify-completion:
+    name: Notify Build Completion
+    runs-on: ubuntu-latest
+    needs: [test-matrix, web-tools-test, documentation]
+    if: always()
+
+    steps:
+    - name: Determine build status
+      id: status
+      run: |
+        if [[ "${{ needs.test-matrix.result }}" == "success" ]] && [[ "${{ needs.web-tools-test.result }}" == "success" ]]; then
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "color=28a745" >> $GITHUB_OUTPUT
+        else
+          echo "status=failure" >> $GITHUB_OUTPUT
+          echo "color=d73a49" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Send Slack notification
+      if: github.ref == 'refs/heads/main'
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ steps.status.outputs.status }}
+        color: ${{ steps.status.outputs.color }}
+        text: |
+          KreeKt Tools Build ${{ steps.status.outputs.status }}
+          Branch: ${{ github.ref }}
+          Commit: ${{ github.sha }}
+          Author: ${{ github.actor }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: Update project status
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const status = '${{ steps.status.outputs.status }}';
+          const emoji = status === 'success' ? '✅' : '❌';
+
+          github.rest.repos.createCommitStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            sha: context.sha,
+            state: status,
+            target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            description: `KreeKt Tools CI ${emoji}`,
+            context: 'ci/kreekt-tools'
+          });
+
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [test-matrix, web-tools-test, documentation]
+    if: always()
+
+    steps:
+    - name: Delete old artifacts
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+
+          // Keep only the last 10 workflow runs' artifacts
+          const runs = await github.rest.actions.listWorkflowRuns({
+            owner,
+            repo,
+            workflow_id: 'build-and-test.yml',
+            per_page: 100
+          });
+
+          const oldRuns = runs.data.workflow_runs.slice(10);
+
+          for (const run of oldRuns) {
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner,
+              repo,
+              run_id: run.id
+            });
+
+            for (const artifact of artifacts.data.artifacts) {
+              await github.rest.actions.deleteArtifact({
+                owner,
+                repo,
+                artifact_id: artifact.id
+              });
+            }
+          }
