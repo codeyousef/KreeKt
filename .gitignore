@@ -11,3 +11,6 @@ xcuserdata
 .kotlin
 #So we don't accidentally commit our private keys
 *.gpg
+/.claude/
+/kotlin-js-store/
+/specs/
