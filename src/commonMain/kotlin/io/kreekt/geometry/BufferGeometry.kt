@@ -78,8 +78,6 @@ open class BufferGeometry {
         return this
     }
 
-    fun getIndex(): BufferAttribute? = _index
-
     val index: BufferAttribute? get() = _index
 
     /**

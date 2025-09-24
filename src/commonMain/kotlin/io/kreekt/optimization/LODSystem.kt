@@ -262,7 +262,7 @@ class LODSystem(
         // Basic reduction (production would use quadric error metrics)
         if (targetRatio < 0.5f) {
             // Aggressive simplification - note: this is a placeholder implementation
-            val indexAttribute = simplified.getIndex()
+            val indexAttribute = simplified.index
             if (indexAttribute != null) {
                 val skipFactor = (1.0f / targetRatio).toInt()
                 val newIndices = mutableListOf<Int>()

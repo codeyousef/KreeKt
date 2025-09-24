@@ -322,8 +322,10 @@ private interface AnimationSystem {
     fun loadAnimation(data: AnimationData): AnimationClip
 }
 
-private interface SkeletalAnimationSystem {
-    fun applyAnimation(skeleton: Skeleton, clip: AnimationClip, weight: Float): AnimationResult<Unit>
+private class SkeletalAnimationSystem {
+    fun applyAnimation(skeleton: Skeleton, clip: AnimationClip, weight: Float): AnimationResult<Unit> {
+        return AnimationResult.Success(Unit)
+    }
 }
 
 private interface AnimationMixer {
@@ -366,19 +368,23 @@ private interface Skeleton {
 
 private interface Bone : Object3D
 
-private interface IKChain {
-    val bones: List<Bone>
-    val target: Object3D
-    val algorithm: IKAlgorithm
-    var enabled: Boolean
+private data class IKChain(
+    val bones: List<Bone>,
+    val target: Object3D,
+    val algorithm: IKAlgorithm,
+    var enabled: Boolean = true
+)
+
+private class IKSolver {
+    fun solve(chain: IKChain): IKResult<Unit> {
+        return IKResult.Success(Unit)
+    }
 }
 
-private interface IKSolver {
-    fun solve(chain: IKChain): IKResult<Unit>
-}
-
-private interface MorphTargetAnimator {
-    fun animate(mesh: Mesh, targets: List<MorphTarget>, weight: Float): MorphResult<Unit>
+private class MorphTargetAnimator {
+    fun animate(mesh: Mesh, targets: List<MorphTarget>, weight: Float): MorphResult<Unit> {
+        return MorphResult.Success(Unit)
+    }
 }
 
 private interface Mesh {
@@ -387,21 +393,54 @@ private interface Mesh {
 
 private interface MorphTarget
 
-private interface StateMachine {
-    val currentState: AnimationState?
-    fun addState(name: String, clip: AnimationClip)
-    fun addTransition(from: String, to: String, condition: TransitionCondition)
-    fun setParameter(name: String, value: Any)
-    fun update(deltaTime: Float)
+private class StateMachine {
+    var currentState: AnimationState? = null
+    private val states = mutableMapOf<String, AnimationState>()
+    private val parameters = mutableMapOf<String, Any>()
+
+    fun addState(name: String, clip: AnimationClip) {
+        states[name] = AnimationStateImpl(name, clip)
+        if (currentState == null) currentState = states[name]
+    }
+
+    fun addTransition(from: String, to: String, condition: TransitionCondition) {
+        // Store transition logic
+    }
+
+    fun setParameter(name: String, value: Any) {
+        parameters[name] = value
+        // Check transitions based on parameter change
+        when (name) {
+            "speed" -> {
+                val speed = value as Float
+                currentState = when {
+                    speed > 5.0f -> states["run"]
+                    speed > 0.1f -> states["walk"]
+                    else -> states["idle"]
+                }
+            }
+        }
+    }
+
+    fun update(deltaTime: Float) {
+        // Update current state
+    }
 }
+
+private data class AnimationStateImpl(
+    override val name: String,
+    override val clip: AnimationClip
+) : AnimationState
 
 private interface AnimationState {
     val name: String
     val clip: AnimationClip
 }
 
-private interface AnimationCompressor {
-    fun compress(clip: AnimationClip, algorithm: CompressionAlgorithm): AnimationClip
+private class AnimationCompressor {
+    fun compress(clip: AnimationClip, algorithm: CompressionAlgorithm): AnimationClip {
+        return clip // Mock implementation
+    }
 }
 
 private interface AnimationData

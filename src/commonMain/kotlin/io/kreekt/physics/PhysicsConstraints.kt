@@ -52,9 +52,6 @@ abstract class PhysicsConstraintImpl(
 
     override fun getAppliedImpulse(): Float = _appliedImpulse.value
     override fun isEnabled(): Boolean = _enabled.value
-    override fun setEnabled(enabled: Boolean) {
-        this.enabled = enabled
-    }
 
     override fun getInfo(info: ConstraintInfo) {
         // Default constraint info - subclasses can override

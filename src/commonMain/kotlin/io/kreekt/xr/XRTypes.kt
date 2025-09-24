@@ -16,7 +16,7 @@ import kotlin.math.PI
 data class XRDevice(
     val id: String,
     val name: String,
-    val capabilities: Set<XRFeature>
+    val capabilities: XRDeviceCapabilities
 )
 
 /**
@@ -111,19 +111,36 @@ interface XRWebGLLayer : XRLayer {
 /**
  * XR Pose interface representing position and orientation
  */
-interface XRPose {
-    val transform: Matrix4
-    val emulatedPosition: Boolean
-    val linearVelocity: Vector3?
-    val angularVelocity: Vector3?
+/**
+ * XR Pose data class
+ */
+data class XRPose(
+    val transform: Matrix4,
+    val emulatedPosition: Boolean = false,
+    val linearVelocity: Vector3? = null,
+    val angularVelocity: Vector3? = null
+)
+
+/**
+ * XR Viewer Pose data class
+ */
+data class XRViewerPose(
+    val transform: Matrix4,
+    val emulatedPosition: Boolean = false,
+    val views: List<XRView> = emptyList()
+) {
+    fun toPose() = XRPose(transform, emulatedPosition)
 }
 
 /**
- * XR Viewer Pose interface
+ * XR Viewport data class
  */
-interface XRViewerPose : XRPose {
-    val views: List<XRView>
-}
+data class XRViewport(
+    val x: Float,
+    val y: Float,
+    val width: Float,
+    val height: Float
+)
 
 /**
  * XR View interface representing a single view (eye)
@@ -133,6 +150,17 @@ interface XRView {
     val projectionMatrix: Matrix4
     val viewMatrix: Matrix4
     val recommendedViewportScale: Float?
+}
+
+/**
+ * XR Gaze interface for eye tracking
+ */
+interface XRGaze {
+    val eyeSpace: XRSpace
+    val isTracked: Boolean
+
+    fun getEyePose(frame: XRFrame, referenceSpace: XRSpace): XRPose?
+    fun getGazeDirection(): Vector3
 }
 
 /**
@@ -193,10 +221,16 @@ interface XRJointSpace : XRSpace {
 }
 
 /**
- * XR Joint Pose interface
+ * XR Joint Pose data class
  */
-interface XRJointPose : XRPose {
-    val radius: Float
+data class XRJointPose(
+    val transform: Matrix4,
+    val radius: Float,
+    val emulatedPosition: Boolean = false,
+    val linearVelocity: Vector3? = null,
+    val angularVelocity: Vector3? = null
+) {
+    fun toPose() = XRPose(transform, emulatedPosition, linearVelocity, angularVelocity)
 }
 
 /**
@@ -349,6 +383,16 @@ interface XRLightEstimate {
 }
 
 /**
+ * XR Light Probe interface
+ */
+interface XRLightProbe {
+    val probeSpace: XRSpace
+
+    fun addEventListener(type: String, listener: (Any) -> Unit)
+    fun removeEventListener(type: String, listener: (Any) -> Unit)
+}
+
+/**
  * XR Environment Probe interface
  */
 interface XREnvironmentProbe {
@@ -410,22 +454,22 @@ data class CameraIntrinsics(
 )
 
 /**
+ * XR Depth Information interface
+ */
+expect interface XRDepthInformation {
+    val width: Int
+    val height: Int
+    val rawValueToMeters: Float
+    fun getDepthInMeters(x: Float, y: Float): Float
+}
+
+/**
  * XR Depth Sensor interface
  */
 interface XRDepthSensor {
     fun getDepthInformation(view: XRView): XRDepthInformation?
 }
 
-/**
- * XR Depth Information interface
- */
-interface XRDepthInformation {
-    val width: Int
-    val height: Int
-    val normDepthBufferFromNormView: Matrix4
-    val rawValueToMeters: Float
-    fun getDepthInMeters(x: Float, y: Float): Float
-}
 
 /**
  * XR Depth Sensing Options
@@ -434,6 +478,28 @@ data class XRDepthSensingOptions(
     val usagePreference: Set<XRDepthUsage>,
     val dataFormatPreference: Set<XRDepthDataFormat>
 )
+
+/**
+ * XR Result wrapper for async operations
+ */
+sealed class XRResult<T> {
+    data class Success<T>(val data: T) : XRResult<T>()
+    data class Error<T>(val exception: XRException) : XRResult<T>()
+}
+
+/**
+ * XR Exception types
+ */
+sealed class XRException(message: String) : Exception(message) {
+    class InvalidState(message: String) : XRException(message)
+    class FeatureNotAvailable(feature: XRFeature) : XRException("Feature not available: $feature")
+    class NotSupported(message: String) : XRException(message)
+    class SessionLost(message: String) : XRException(message)
+    class SessionEnded(message: String) : XRException(message)
+    class PermissionDenied(message: String) : XRException(message)
+    class HardwareError(message: String) : XRException(message)
+    class NetworkError(message: String) : XRException(message)
+}
 
 /**
  * Enumerations
@@ -478,7 +544,9 @@ enum class XRFeature {
     EYE_TRACKING,
     DEPTH_SENSING,
     LIGHT_ESTIMATION,
-    CAMERA_ACCESS
+    CAMERA_ACCESS,
+    DOM_OVERLAY,
+    LAYERS
 }
 
 enum class PermissionState {
@@ -559,6 +627,12 @@ enum class XRHitTestEntityType {
     MESH
 }
 
+enum class XRHitTestType {
+    PLANE,
+    POINT,
+    MESH
+}
+
 enum class PlaneOrientation {
     HORIZONTAL_UP,
     HORIZONTAL_DOWN,
@@ -583,6 +657,100 @@ enum class XRDepthDataFormat {
     LUMINANCE_ALPHA,
     RGBA32F
 }
+
+/**
+ * Data classes for AR-specific functionality
+ */
+data class PlaneData(
+    val id: String,
+    val center: Vector3,
+    val extents: Vector2,
+    val polygon: List<Vector2>,
+    val orientation: PlaneOrientation,
+    val trackingState: XRTrackingState = XRTrackingState.TRACKING
+)
+
+data class ImageTrackingResult(
+    val target: XRImageTarget,
+    val pose: XRPose,
+    val trackingState: XRTrackingState = XRTrackingState.TRACKING
+)
+
+data class ObjectTrackingResult(
+    val target: XRObjectTarget,
+    val pose: XRPose,
+    val trackingState: XRTrackingState = XRTrackingState.TRACKING
+)
+
+data class EnvironmentProbeData(
+    val id: String,
+    val position: Vector3,
+    val size: Vector3,
+    val sphericalHarmonics: FloatArray,
+    val environmentMap: Any? = null
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        other as EnvironmentProbeData
+        return id == other.id &&
+                position == other.position &&
+                size == other.size &&
+                sphericalHarmonics.contentEquals(other.sphericalHarmonics) &&
+                environmentMap == other.environmentMap
+    }
+
+    override fun hashCode(): Int {
+        var result = id.hashCode()
+        result = 31 * result + position.hashCode()
+        result = 31 * result + size.hashCode()
+        result = 31 * result + sphericalHarmonics.contentHashCode()
+        result = 31 * result + (environmentMap?.hashCode() ?: 0)
+        return result
+    }
+}
+
+data class LightEstimationData(
+    val primaryLightDirection: Vector3,
+    val primaryLightIntensity: Float,
+    val ambientLightIntensity: Float,
+    val sphericalHarmonics: FloatArray? = null
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        other as LightEstimationData
+        return primaryLightDirection == other.primaryLightDirection &&
+                primaryLightIntensity == other.primaryLightIntensity &&
+                ambientLightIntensity == other.ambientLightIntensity &&
+                sphericalHarmonics.contentEquals(other.sphericalHarmonics)
+    }
+
+    override fun hashCode(): Int {
+        var result = primaryLightDirection.hashCode()
+        result = 31 * result + primaryLightIntensity.hashCode()
+        result = 31 * result + ambientLightIntensity.hashCode()
+        result = 31 * result + (sphericalHarmonics?.contentHashCode() ?: 0)
+        return result
+    }
+}
+
+data class XRDeviceCapabilities(
+    val supportedModes: Set<XRSessionMode>,
+    val supportsHandTracking: Boolean = false,
+    val supportsEyeTracking: Boolean = false,
+    val supportedControllers: Int = 0,
+    val hasPositionalTracking: Boolean = false,
+    val hasRotationalTracking: Boolean = true,
+    val fieldOfView: XRFieldOfView? = null
+)
+
+data class XRFieldOfView(
+    val upDegrees: Float,
+    val downDegrees: Float,
+    val leftDegrees: Float,
+    val rightDegrees: Float
+)
 
 
 /**

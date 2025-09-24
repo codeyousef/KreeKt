@@ -283,7 +283,7 @@ class UVGenerator {
         val positionAttribute = geometry.getAttribute("position")
             ?: return UVGenerationResult(geometry, false, "No position attribute found")
 
-        val indexAttribute = geometry.getIndex()
+        val indexAttribute = geometry.index
             ?: return UVGenerationResult(geometry, false, "Unwrapping requires indexed geometry")
 
         // Build mesh connectivity

@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.androidLibrary)
+    // alias(libs.plugins.androidLibrary) // Disabled until SDK is configured
     alias(libs.plugins.dokka)
     alias(libs.plugins.kover)
     id("maven-publish")
@@ -39,12 +39,12 @@ kotlin {
         }
     }
 
-    // Android Target
-    androidTarget {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
-        }
-    }
+    // Android Target - disabled until SDK is configured
+    // androidTarget {
+    //     compilerOptions {
+    //         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+    //     }
+    // }
 
     // iOS Targets
     iosX64()
@@ -154,6 +154,7 @@ kotlin {
             dependsOn(commonMain)
         }
 
+        /* // Android source set - disabled until SDK is configured
         val androidMain by getting {
             dependsOn(mobileMain)
             dependencies {
@@ -161,9 +162,11 @@ kotlin {
                 // implementation("com.google.ar:core:1.42.0") // TODO: Add when needed
             }
         }
+        */
     }
 }
 
+/* // Android configuration - disabled until SDK is configured
 android {
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
@@ -181,3 +184,4 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 }
+*/

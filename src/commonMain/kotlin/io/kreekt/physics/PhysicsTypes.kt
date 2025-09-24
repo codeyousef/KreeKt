@@ -27,7 +27,7 @@ enum class ShapeType {
 }
 
 enum class BroadphaseType {
-    SIMPLE, AXIS_SWEEP_3, DBVT, SAP
+    SIMPLE, AXIS_SWEEP_3, DBVT, SAP, DYNAMIC_AABB_TREE
 }
 
 enum class ConstraintParam {
@@ -100,14 +100,43 @@ interface ContactInfo {
     val restitution: Float
 }
 
-interface RaycastResult {
-    val hasHit: Boolean
-    val hitObject: CollisionObject?
-    val hitPoint: Vector3
-    val hitNormal: Vector3
-    val hitFraction: Float
-    val distance: Float
+/**
+ * Data class for collision contact information
+ */
+data class CollisionContact(
+    val bodyA: RigidBody,
+    val bodyB: RigidBody,
+    val point: Vector3,
+    val normal: Vector3,
+    val penetrationDepth: Float,
+    val impulse: Float = 0f
+)
+
+/**
+ * Data class for raycast results
+ */
+data class RaycastResult(
+    val hasHit: Boolean,
+    val hitObject: CollisionObject? = null,
+    val hitPoint: Vector3 = Vector3.ZERO,
+    val hitNormal: Vector3 = Vector3.ZERO,
+    val hitFraction: Float = 1.0f,
+    val distance: Float = Float.MAX_VALUE
+) {
+    companion object {
+        val NO_HIT = RaycastResult(false)
+    }
 }
+
+/**
+ * Additional raycast hit information
+ */
+data class RaycastHit(
+    val rigidBody: RigidBody,
+    val point: Vector3,
+    val normal: Vector3,
+    val distance: Float
+)
 
 /**
  * Physics material data class
@@ -146,6 +175,7 @@ sealed class PhysicsException(message: String, cause: Throwable? = null) : Excep
     class EngineNotInitialized() : PhysicsException("Physics engine not initialized")
     class InvalidOperation(message: String) : PhysicsException(message)
     class SimulationError(message: String, cause: Throwable? = null) : PhysicsException(message, cause)
+    class EngineError(message: String, cause: Throwable? = null) : PhysicsException(message, cause)
 }
 
 /**

@@ -5,6 +5,16 @@ import io.kreekt.core.math.Vector3
 import io.kreekt.core.math.Matrix4
 
 /**
+ * JVM implementation of XRDepthInformation
+ */
+actual interface XRDepthInformation {
+    actual val width: Int
+    actual val height: Int
+    actual val rawValueToMeters: Float
+    actual fun getDepthInMeters(x: Float, y: Float): Float
+}
+
+/**
  * JVM implementation of XR platform functions
  * Note: JVM platform does not support native XR capabilities
  */
@@ -52,10 +62,10 @@ actual fun combineTransforms(first: XRPose, second: XRPose): XRPose {
     // Simple implementation that combines transforms
     val firstTransform = first.transform
     val secondTransform = second.transform
-    val combined = firstTransform.matrix * secondTransform.matrix
+    val combined = firstTransform * secondTransform
 
-    return DefaultXRPose(
-        position = Vector3(combined.m03, combined.m13, combined.m23),
-        orientation = first.transform.orientation // Simplified - just use first orientation
+    return XRPose(
+        transform = combined,
+        emulatedPosition = first.emulatedPosition || second.emulatedPosition
     )
 }

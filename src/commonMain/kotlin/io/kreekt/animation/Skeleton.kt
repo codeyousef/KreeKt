@@ -54,11 +54,20 @@ class Skeleton(
         var rotation: Quaternion = Quaternion(),
         var scale: Vector3 = Vector3(1f, 1f, 1f),
         val constraints: BoneConstraints = BoneConstraints(),
-        var userData: Map<String, Any> = emptyMap()
+        var userData: Map<String, Any> = emptyMap(),
+        val parentIndex: Int = -1  // Index of parent bone, -1 if root
     ) {
         // Local and world matrices
         val matrix = Matrix4()
         val matrixWorld = Matrix4()
+
+        // Bind pose transform (initial transform)
+        val bindTransform = Matrix4().apply {
+            compose(position, rotation, scale)
+        }
+
+        // Inverse bind matrix for skinning
+        val inverseBindMatrix = Matrix4()
 
         // Parent-child relationships
         var parent: Bone? = null

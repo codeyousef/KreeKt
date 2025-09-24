@@ -87,9 +87,23 @@ interface IBLProcessor {
 }
 
 /**
+ * Light type enumeration
+ */
+enum class LightType {
+    DIRECTIONAL,
+    POINT,
+    SPOT,
+    AREA,
+    HEMISPHERE,
+    AMBIENT,
+    RECT_AREA
+}
+
+/**
  * Light interface
  */
 interface Light {
+    val type: LightType
     var position: Vector3
     var color: Color
     var intensity: Float

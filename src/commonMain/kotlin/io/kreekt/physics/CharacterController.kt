@@ -40,13 +40,12 @@ class CharacterControllerImpl(
         return PhysicsOperationResult.Success(Unit)
     }
 
-    override fun getCollisionShape(): CollisionShape = collisionShape
-
     override fun setWorldTransform(transform: Matrix4) {
         this.transform = transform
     }
 
     override fun getWorldTransform(): Matrix4 = transform
+
 
     override fun translate(offset: Vector3) {
         val position = transform.getPosition()
@@ -169,9 +168,6 @@ class CharacterControllerImpl(
         }
     }
 
-    override fun setWalkDirection(walkDirection: Vector3) {
-        this.walkDirection = walkDirection
-    }
 
     override fun setVelocityForTimeInterval(velocity: Vector3, timeInterval: Float) {
         this.velocityForTimeInterval = velocity

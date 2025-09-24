@@ -4,7 +4,8 @@ import io.kreekt.renderer.Renderer
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlin.math.*
-import kotlinx.datetime.*
+import kotlinx.datetime.Clock
+import io.kreekt.core.platform.currentTimeMillis
 
 /**
  * Performance metric types
@@ -327,5 +328,5 @@ class PerformanceMonitor(private val renderer: Renderer) {
  * Cross-platform implementation using kotlinx-datetime
  */
 private fun getTimeNanos(): Long {
-    return kotlinx.datetime.Clock.System.now().toEpochMilliseconds() * 1_000_000L
+    return currentTimeMillis() * 1_000_000L
 }

@@ -170,13 +170,12 @@ class DefaultRigidBody(
         }
     }
 
-    override fun getCollisionShape(): CollisionShape = collisionShape
-
     override fun setWorldTransform(transform: Matrix4) {
         this.transform = transform
     }
 
     override fun getWorldTransform(): Matrix4 = transform
+
 
     override fun translate(offset: Vector3) {
         transform = transform.translate(offset)
@@ -436,13 +435,12 @@ class DefaultCollisionObject(
         return PhysicsOperationResult.Success(Unit)
     }
 
-    override fun getCollisionShape(): CollisionShape = collisionShape
-
     override fun setWorldTransform(transform: Matrix4) {
         this.transform = transform
     }
 
     override fun getWorldTransform(): Matrix4 = transform
+
 
     override fun translate(offset: Vector3) {
         transform = transform.translate(offset)

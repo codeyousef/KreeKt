@@ -82,7 +82,6 @@ interface CollisionObject {
      * Shape management
      */
     fun setCollisionShape(shape: CollisionShape): PhysicsResult<Unit>
-    fun getCollisionShape(): CollisionShape
 
     /**
      * Transform operations
@@ -293,7 +292,6 @@ interface PhysicsConstraint {
      */
     fun getAppliedImpulse(): Float
     fun isEnabled(): Boolean
-    fun setEnabled(enabled: Boolean)
     fun getInfo(info: ConstraintInfo)
 }
 
@@ -423,7 +421,6 @@ interface CharacterController : CollisionObject {
     /**
      * Movement
      */
-    fun setWalkDirection(walkDirection: Vector3)
     fun setVelocityForTimeInterval(velocity: Vector3, timeInterval: Float)
     fun warp(origin: Vector3)
     fun preStep(world: PhysicsWorld)
@@ -469,3 +466,8 @@ interface PhysicsEngine {
     fun createHingeConstraint(bodyA: RigidBody, bodyB: RigidBody?, pivotA: Vector3, pivotB: Vector3, axisA: Vector3, axisB: Vector3): HingeConstraint
     fun createSliderConstraint(bodyA: RigidBody, bodyB: RigidBody?, frameA: Matrix4, frameB: Matrix4): SliderConstraint
 }
+
+/**
+ * Platform-specific physics engine factory
+ */
+expect fun createDefaultPhysicsEngine(): PhysicsEngine

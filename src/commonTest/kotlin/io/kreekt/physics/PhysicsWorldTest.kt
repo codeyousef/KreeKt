@@ -223,7 +223,7 @@ class PhysicsWorldTest {
         // Simulate until collision
         repeat(120) { // 2 seconds at 60 FPS
             physicsWorld.step(1f / 60f)
-            if (collisionDetected) break
+            if (collisionDetected) return@repeat
         }
 
         assertTrue(collisionDetected, "Collision should be detected between falling and static bodies")
@@ -254,7 +254,7 @@ class PhysicsWorldTest {
 
         repeat(60) { // 1 second at 60 FPS
             physicsWorld.step(1f / 60f)
-            if (triggerEntered) break
+            if (triggerEntered) return@repeat
         }
 
         assertTrue(triggerEntered, "Trigger enter event should be fired")

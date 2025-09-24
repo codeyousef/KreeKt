@@ -5,6 +5,7 @@
 package io.kreekt.xr
 
 import io.kreekt.core.math.Vector3
+import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Color
 import io.kreekt.renderer.Texture
 
@@ -75,3 +76,16 @@ internal actual fun calculateSphericalHarmonics(probe: XREnvironmentProbe): Floa
 internal actual fun estimatePrimaryLightDirection(probe: XREnvironmentProbe): Vector3? = null
 
 internal actual fun estimatePrimaryLightIntensity(probe: XREnvironmentProbe): Color? = null
+
+internal actual fun performCoordinateTransform(
+    pose: XRPose,
+    fromSpace: XRReferenceSpace,
+    toSpace: XRReferenceSpace,
+    transform: Matrix4
+): XRPose = pose
+
+internal actual suspend fun getPlatformHandJointPoses(
+    inputSource: XRInputSource,
+    hand: XRHand,
+    baseSpace: XRReferenceSpace
+): List<XRJointPose> = emptyList()

@@ -9,43 +9,10 @@ import io.kreekt.core.scene.Object3D
 import kotlinx.coroutines.*
 import kotlin.math.*
 
-/**
- * Extended XR Controller interface for handling VR/AR controller input and feedback
- */
-interface XRController : XRInputSource {
-    val controllerId: String
-    val isConnected: Boolean
-    val pose: XRPose?
+// XRController interface is defined in XRTypes.kt
+// XRResult and XRException are defined in XRTypes.kt
 
-    fun vibrate(intensity: Float, duration: Float): Boolean
-    fun getButton(button: XRControllerButton): XRGamepadButton?
-    fun getAxis(axis: XRControllerAxis): Float
-
-    fun onButtonDown(button: XRControllerButton, callback: () -> Unit)
-    fun onButtonUp(button: XRControllerButton, callback: () -> Unit)
-    fun onAxisChange(axis: XRControllerAxis, callback: (Float) -> Unit)
-}
-
-/**
- * XR Result wrapper for async operations
- */
-sealed class XRResult<T> {
-    data class Success<T>(val data: T) : XRResult<T>()
-    data class Error<T>(val exception: XRException) : XRResult<T>()
-}
-
-/**
- * XR Exception types
- */
-sealed class XRException(message: String) : Exception(message) {
-    class InvalidState(message: String) : XRException(message)
-    class FeatureNotAvailable(feature: XRFeature) : XRException("Feature not available: $feature")
-    class NotSupported(message: String) : XRException(message)
-    class SecurityError(message: String) : XRException(message)
-    class NotFound(message: String) : XRException(message)
-    class NetworkError(message: String) : XRException(message)
-    class Unknown(message: String) : XRException(message)
-}
+// XRException is already defined in XRTypes.kt
 
 /**
  * Haptic Effect types
@@ -215,8 +182,9 @@ class DefaultXRController(
     }
 
     private fun checkControllerConnection(): Boolean {
-        // Check if controller is still in the session's input sources
-        return session.inputSources?.contains(inputSource) ?: false
+        // For now, just check if the controller is marked as connected
+        // Actual implementation would need to track input sources externally
+        return isConnected
     }
 
     fun dispose() {
@@ -291,11 +259,4 @@ class DefaultXRSpace(
     override val spaceId: String = "default_space"
 ) : XRSpace
 
-/**
- * Default implementation of XRJointSpace
- */
-class DefaultXRJointSpace(
-    override val joint: XRHandJoint
-) : XRJointSpace {
-    override val spaceId: String = "joint_${joint.name.lowercase()}"
-}
+// DefaultXRJointSpace is already defined in XRInput.kt
