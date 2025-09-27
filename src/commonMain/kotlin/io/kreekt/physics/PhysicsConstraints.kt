@@ -3,14 +3,17 @@
  * Provides comprehensive constraint system for realistic physics simulation
  */
 package io.kreekt.physics
-import io.kreekt.core.Result
 
-import io.kreekt.core.math.*
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Quaternion
+import io.kreekt.core.math.Vector3
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlin.math.*
 import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.sqrt
 
 /**
  * Constraint jacobian for physics solver
@@ -52,9 +55,6 @@ abstract class PhysicsConstraintImpl(
 
     override fun getAppliedImpulse(): Float = _appliedImpulse.value
     override fun isEnabled(): Boolean = _enabled.value
-    override fun setEnabled(enabled: Boolean) {
-        this.enabled = enabled
-    }
 
     override fun getInfo(info: ConstraintInfo) {
         // Default constraint info - subclasses can override

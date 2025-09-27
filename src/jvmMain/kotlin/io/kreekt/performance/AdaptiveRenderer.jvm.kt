@@ -8,7 +8,7 @@ package io.kreekt.performance
  */
 actual fun detectHardware(): HardwareInfo {
     return HardwareInfo(
-        platform = Platform.JVM,
+        platform = Platform.DESKTOP,
         cpuModel = System.getProperty("os.arch", "Unknown"),
         cpuCores = Runtime.getRuntime().availableProcessors(),
         cpuFrequency = 2.5f, // Default estimate, would need JNI for actual value

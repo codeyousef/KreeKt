@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.time.ExperimentalTime::class, kotlin.io.encoding.ExperimentalEncodingApi::class)
+
 package io.kreekt.tools.editor.serialization
 
 import io.kreekt.tools.editor.data.*
@@ -410,7 +412,7 @@ class ProjectSerializer {
         }
     }
 
-    private fun validateProject(project: SceneEditorProject): Result<Unit> {
+    internal fun validateProject(project: SceneEditorProject): Result<Unit> {
         return try {
             // Validate required fields
             require(project.name.isNotBlank()) { "Project name cannot be blank" }

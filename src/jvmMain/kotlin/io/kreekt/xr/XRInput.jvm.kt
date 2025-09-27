@@ -6,9 +6,7 @@ package io.kreekt.xr
 
 // Placeholder implementations for XR input functions on JVM
 internal actual suspend fun getPlatformHandJointPoses(
-    inputSource: XRInputSource,
-    hand: XRHand,
-    baseSpace: XRReferenceSpace
-): List<XRJointPose> = emptyList()
+    hand: DefaultXRHand
+): Map<XRHandJoint, XRJointPose> = emptyMap()
 
 internal actual suspend fun getPlatformEyeTrackingData(): EyeTrackingData? = null

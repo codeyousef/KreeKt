@@ -15,3 +15,17 @@ actual fun DoubleArray.platformClone(): DoubleArray = this.clone()
 
 @Suppress("UNCHECKED_CAST")
 actual fun <T> Array<T>.platformClone(): Array<T> = this.clone() as Array<T>
+
+@Suppress("UNCHECKED_CAST")
+actual fun <T> platformClone(obj: T): T {
+    return when (obj) {
+        is FloatArray -> obj.clone() as T
+        is IntArray -> obj.clone() as T
+        is DoubleArray -> obj.clone() as T
+        is Array<*> -> obj.clone() as T
+        is MutableList<*> -> (obj as MutableList<*>).toMutableList() as T
+        is MutableMap<*, *> -> (obj as MutableMap<*, *>).toMutableMap() as T
+        is MutableSet<*> -> (obj as MutableSet<*>).toMutableSet() as T
+        else -> obj // For immutable objects, return as-is
+    }
+}

@@ -1,8 +1,10 @@
 package io.kreekt.physics
 
-import io.kreekt.core.math.*
-import kotlin.collections.mutableListOf
-import kotlin.collections.mutableMapOf
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Quaternion
+import io.kreekt.core.math.Vector3
+import io.kreekt.physics.PhysicsOperationResult.Error
+import io.kreekt.physics.PhysicsOperationResult.Success
 
 /**
  * Default implementation of PhysicsWorld
@@ -31,7 +33,7 @@ class DefaultPhysicsWorld(
     private val collisionCallbacks = mutableListOf<(CollisionContact) -> Unit>()
 
     override fun addRigidBody(body: RigidBody): PhysicsResult<Unit> {
-        if (isDisposed) return PhysicsResult.Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
+        if (isDisposed) return Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
 
         try {
             if (!rigidBodies.contains(body)) {
@@ -39,22 +41,22 @@ class DefaultPhysicsWorld(
                 rigidBodyMap[body.id] = body
                 addCollisionObject(body)
             }
-            return PhysicsResult.Success(Unit)
+            return Success(Unit)
         } catch (e: Exception) {
-            return PhysicsResult.Error(PhysicsException.EngineError("Failed to add rigid body", e))
+            return Error(PhysicsException.EngineError("Failed to add rigid body", e))
         }
     }
 
     override fun removeRigidBody(body: RigidBody): PhysicsResult<Unit> {
-        if (isDisposed) return PhysicsResult.Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
+        if (isDisposed) return Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
 
         try {
             rigidBodies.remove(body)
             rigidBodyMap.remove(body.id)
             removeCollisionObject(body)
-            return PhysicsResult.Success(Unit)
+            return Success(Unit)
         } catch (e: Exception) {
-            return PhysicsResult.Error(PhysicsException.EngineError("Failed to remove rigid body", e))
+            return Error(PhysicsException.EngineError("Failed to remove rigid body", e))
         }
     }
 
@@ -63,52 +65,52 @@ class DefaultPhysicsWorld(
     override fun getRigidBody(id: String): RigidBody? = rigidBodyMap[id]
 
     override fun addConstraint(constraint: PhysicsConstraint): PhysicsResult<Unit> {
-        if (isDisposed) return PhysicsResult.Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
+        if (isDisposed) return Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
 
         try {
             if (!constraints.contains(constraint)) {
                 constraints.add(constraint)
             }
-            return PhysicsResult.Success(Unit)
+            return Success(Unit)
         } catch (e: Exception) {
-            return PhysicsResult.Error(PhysicsException.EngineError("Failed to add constraint", e))
+            return Error(PhysicsException.EngineError("Failed to add constraint", e))
         }
     }
 
     override fun removeConstraint(constraint: PhysicsConstraint): PhysicsResult<Unit> {
-        if (isDisposed) return PhysicsResult.Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
+        if (isDisposed) return Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
 
         try {
             constraints.remove(constraint)
-            return PhysicsResult.Success(Unit)
+            return Success(Unit)
         } catch (e: Exception) {
-            return PhysicsResult.Error(PhysicsException.EngineError("Failed to remove constraint", e))
+            return Error(PhysicsException.EngineError("Failed to remove constraint", e))
         }
     }
 
     override fun getConstraints(): List<PhysicsConstraint> = constraints.toList()
 
     override fun addCollisionObject(obj: CollisionObject): PhysicsResult<Unit> {
-        if (isDisposed) return PhysicsResult.Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
+        if (isDisposed) return Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
 
         try {
             if (!collisionObjects.contains(obj)) {
                 collisionObjects.add(obj)
             }
-            return PhysicsResult.Success(Unit)
+            return Success(Unit)
         } catch (e: Exception) {
-            return PhysicsResult.Error(PhysicsException.EngineError("Failed to add collision object", e))
+            return Error(PhysicsException.EngineError("Failed to add collision object", e))
         }
     }
 
     override fun removeCollisionObject(obj: CollisionObject): PhysicsResult<Unit> {
-        if (isDisposed) return PhysicsResult.Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
+        if (isDisposed) return Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
 
         try {
             collisionObjects.remove(obj)
-            return PhysicsResult.Success(Unit)
+            return Success(Unit)
         } catch (e: Exception) {
-            return PhysicsResult.Error(PhysicsException.EngineError("Failed to remove collision object", e))
+            return Error(PhysicsException.EngineError("Failed to remove collision object", e))
         }
     }
 
@@ -117,9 +119,9 @@ class DefaultPhysicsWorld(
     }
 
     override fun step(deltaTime: Float): PhysicsResult<Unit> {
-        if (isDisposed) return PhysicsResult.Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
-        if (isPaused) return PhysicsResult.Success(Unit)
-        if (deltaTime < 0f) return PhysicsResult.Error(PhysicsException.InvalidParameters("Delta time must be non-negative"))
+        if (isDisposed) return Error(PhysicsException.UnsupportedOperation("PhysicsWorld is disposed"))
+        if (isPaused) return Success(Unit)
+        if (deltaTime < 0f) return Error(PhysicsException.InvalidParameters("Delta time must be non-negative"))
 
         try {
             // Apply gravity to dynamic bodies
@@ -140,9 +142,9 @@ class DefaultPhysicsWorld(
             // Check for collisions
             detectCollisions()
 
-            return PhysicsResult.Success(Unit)
+            return Success(Unit)
         } catch (e: Exception) {
-            return PhysicsResult.Error(PhysicsException.EngineError("Physics step failed", e))
+            return Error(PhysicsException.EngineError("Physics step failed", e))
         }
     }
 
@@ -253,15 +255,15 @@ class DefaultPhysicsWorld(
         rigidBodies.forEach { body ->
             val hit = spherecastBody(from, direction, distance, radius, body)
             if (hit != null) {
-                return PhysicsResult.Success(hit)
+                return Success(hit)
             }
         }
 
-        return PhysicsResult.Success(null)
+        return Success(null)
     }
 
     fun overlapSphere(center: Vector3, radius: Float): PhysicsResult<List<RigidBody>> {
-        if (radius < 0f) return PhysicsResult.Error(PhysicsException.InvalidParameters("Radius must be non-negative"))
+        if (radius < 0f) return Error(PhysicsException.InvalidParameters("Radius must be non-negative"))
 
         val results = mutableListOf<RigidBody>()
 
@@ -271,7 +273,7 @@ class DefaultPhysicsWorld(
             }
         }
 
-        return PhysicsResult.Success(results)
+        return Success(results)
     }
 
     fun addCharacterController(controller: CharacterController): PhysicsResult<Unit> {
@@ -314,8 +316,7 @@ class DefaultPhysicsWorld(
                     val contact = CollisionContact(
                         bodyA = bodyA,
                         bodyB = bodyB,
-                        pointA = bodyA.getWorldTransform().getTranslation(),
-                        pointB = bodyB.getWorldTransform().getTranslation(),
+                        point = bodyA.getWorldTransform().getTranslation(),
                         normal = (bodyB.getWorldTransform().getTranslation() - bodyA.getWorldTransform().getTranslation()).normalized(),
                         distance = 0f,
                         impulse = 0f
@@ -327,7 +328,17 @@ class DefaultPhysicsWorld(
                     } else {
                         // Handle collision
                         collisionCallbacks.forEach { it(contact) }
-                        collisionCallback?.invoke(contact)
+                        collisionCallback?.onContactAdded(object : ContactInfo {
+                            override val objectA: CollisionObject = bodyA
+                            override val objectB: CollisionObject = bodyB
+                            override val worldPosA: Vector3 = contact.point
+                            override val worldPosB: Vector3 = contact.point
+                            override val normalWorldOnB: Vector3 = contact.normal
+                            override val distance: Float = contact.distance
+                            override val impulse: Float = contact.impulse
+                            override val friction: Float = 0.5f
+                            override val restitution: Float = 0.0f
+                        })
                     }
                 }
             }
@@ -362,7 +373,14 @@ class DefaultPhysicsWorld(
         if (distance <= radius) {
             val hitPoint = closestPoint
             val hitNormal = (hitPoint - bodyPos).normalized()
-            return RaycastResult(true, body, hitPoint, hitNormal, projection)
+            return object : RaycastResult {
+                override val hasHit: Boolean = true
+                override val hitObject: CollisionObject = body
+                override val hitPoint: Vector3 = hitPoint
+                override val hitNormal: Vector3 = hitNormal
+                override val hitFraction: Float = projection
+                override val distance: Float = from.distanceTo(hitPoint)
+            }
         }
 
         return null
@@ -370,8 +388,8 @@ class DefaultPhysicsWorld(
 
     private fun spherecastBody(from: Vector3, direction: Vector3, maxDistance: Float, radius: Float, body: RigidBody): RaycastHit? {
         val result = raycastBody(from, direction, maxDistance, body)
-        return if (result?.hit == true && result.rigidBody != null) {
-            RaycastHit(result.rigidBody, result.hitPoint, result.hitNormal, result.distance)
+        return if (result?.hasHit == true && result.hitObject != null) {
+            RaycastHit(result.hitObject as RigidBody, result.hitPoint, result.hitNormal, result.distance)
         } else null
     }
 

@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.androidLibrary)
+    // alias(libs.plugins.androidLibrary) // Disabled on Windows
     alias(libs.plugins.dokka)
     alias(libs.plugins.kover)
     id("maven-publish")
@@ -39,21 +39,21 @@ kotlin {
         }
     }
 
-    // Android Target
-    androidTarget {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
-        }
-    }
+    // Android Target - Disabled on Windows (requires Android SDK)
+    // androidTarget {
+    //     compilerOptions {
+    //         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+    //     }
+    // }
 
-    // iOS Targets
-    iosX64()
-    iosArm64()
-    iosSimulatorArm64()
+    // iOS Targets - Disabled on Windows
+    // iosX64()
+    // iosArm64()
+    // iosSimulatorArm64()
 
-    // macOS Targets
-    macosX64()
-    macosArm64()
+    // macOS Targets - Disabled on Windows
+    // macosX64()
+    // macosArm64()
 
     // Windows Target
     mingwX64()
@@ -128,56 +128,66 @@ kotlin {
             dependsOn(commonMain)
         }
 
-        // Apple shared code
-        val appleMain by creating {
+        // Apple shared code - Disabled on Windows
+        // val appleMain by creating {
+        //     dependsOn(nativeMain)
+        // }
+
+        // val iosX64Main by getting {
+        //     dependsOn(appleMain)
+        // }
+        // val iosArm64Main by getting {
+        //     dependsOn(appleMain)
+        // }
+        // val iosSimulatorArm64Main by getting {
+        //     dependsOn(appleMain)
+        // }
+        // val macosX64Main by getting {
+        //     dependsOn(appleMain)
+        // }
+        // val macosArm64Main by getting {
+        //     dependsOn(appleMain)
+        // }
+
+        // Linux Target
+        val linuxX64Main by getting {
             dependsOn(nativeMain)
         }
 
-        val iosX64Main by getting {
-            dependsOn(appleMain)
-        }
-        val iosArm64Main by getting {
-            dependsOn(appleMain)
-        }
-        val iosSimulatorArm64Main by getting {
-            dependsOn(appleMain)
-        }
-        val macosX64Main by getting {
-            dependsOn(appleMain)
-        }
-        val macosArm64Main by getting {
-            dependsOn(appleMain)
+        // Windows Target
+        val mingwX64Main by getting {
+            dependsOn(nativeMain)
         }
 
         // Mobile shared code
-        val mobileMain by creating {
-            dependsOn(commonMain)
-        }
+        // val mobileMain by creating {
+        //     dependsOn(commonMain)
+        // }
 
-        val androidMain by getting {
-            dependsOn(mobileMain)
-            dependencies {
-                // XR: Will be implemented with expect/actual pattern
-                // implementation("com.google.ar:core:1.42.0") // TODO: Add when needed
-            }
-        }
+        // val androidMain by getting {
+        //     dependsOn(mobileMain)
+        //     dependencies {
+        //         // XR: Will be implemented with expect/actual pattern
+        //         // implementation("com.google.ar:core:1.42.0") // TODO: Add when needed
+        //     }
+        // }
     }
 }
 
-android {
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
-    sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
-    defaultConfig {
-        minSdk = libs.versions.android.minSdk.get().toInt()
-    }
-
-    testOptions {
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
-    }
-    namespace = "io.kreekt"
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-}
+// android {
+//     compileSdk = libs.versions.android.compileSdk.get().toInt()
+//     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
+//     defaultConfig {
+//         minSdk = libs.versions.android.minSdk.get().toInt()
+//     }
+//
+//     testOptions {
+//         targetSdk = libs.versions.android.targetSdk.get().toInt()
+//     }
+//     namespace = "io.kreekt"
+//
+//     compileOptions {
+//         sourceCompatibility = JavaVersion.VERSION_11
+//         targetCompatibility = JavaVersion.VERSION_11
+//     }
+// }

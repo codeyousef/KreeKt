@@ -13,6 +13,7 @@ dependencies {
     implementation(project(":"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.datetime)
 
     // Web server for documentation
     implementation("io.ktor:ktor-server-core:${libs.versions.ktor.get()}")

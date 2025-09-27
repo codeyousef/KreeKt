@@ -5,7 +5,6 @@
 package io.kreekt.physics
 
 import io.kreekt.core.math.*
-import io.kreekt.core.math.Box3
 
 /**
  * Physics world management interface
@@ -82,7 +81,6 @@ interface CollisionObject {
      * Shape management
      */
     fun setCollisionShape(shape: CollisionShape): PhysicsResult<Unit>
-    fun getCollisionShape(): CollisionShape
 
     /**
      * Transform operations
@@ -293,7 +291,6 @@ interface PhysicsConstraint {
      */
     fun getAppliedImpulse(): Float
     fun isEnabled(): Boolean
-    fun setEnabled(enabled: Boolean)
     fun getInfo(info: ConstraintInfo)
 }
 
@@ -423,7 +420,6 @@ interface CharacterController : CollisionObject {
     /**
      * Movement
      */
-    fun setWalkDirection(walkDirection: Vector3)
     fun setVelocityForTimeInterval(velocity: Vector3, timeInterval: Float)
     fun warp(origin: Vector3)
     fun preStep(world: PhysicsWorld)

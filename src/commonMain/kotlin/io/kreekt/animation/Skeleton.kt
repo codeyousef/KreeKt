@@ -1,15 +1,9 @@
 package io.kreekt.animation
 
 import io.kreekt.core.math.Matrix4
-import io.kreekt.core.platform.platformClone
 import io.kreekt.core.math.Quaternion
-import io.kreekt.core.platform.platformClone
 import io.kreekt.core.math.Vector3
-import io.kreekt.core.platform.platformClone
-import kotlinx.serialization.Contextual
-import io.kreekt.core.platform.platformClone
-import kotlinx.serialization.Serializable
-import io.kreekt.core.platform.platformClone
+import io.kreekt.core.scene.compose
 
 /**
  * Enhanced Skeleton class with IK chain support and bone constraints.
@@ -54,7 +48,10 @@ class Skeleton(
         var rotation: Quaternion = Quaternion(),
         var scale: Vector3 = Vector3(1f, 1f, 1f),
         val constraints: BoneConstraints = BoneConstraints(),
-        var userData: Map<String, Any> = emptyMap()
+        var userData: Map<String, Any> = emptyMap(),
+        val bindTransform: Matrix4 = Matrix4(),
+        val inverseBindMatrix: Matrix4 = Matrix4(),
+        val parentIndex: Int = -1  // -1 indicates root bone
     ) {
         // Local and world matrices
         val matrix = Matrix4()
@@ -527,11 +524,7 @@ private fun Vector3.setFromMatrixPosition(matrix: Matrix4): Vector3 {
     return this // Placeholder
 }
 
-// Extension functions for Matrix4
-private fun Matrix4.compose(position: Vector3, quaternion: Quaternion, scale: Vector3): Matrix4 {
-    // Simplified matrix composition - in real implementation, use proper math
-    return this // Placeholder
-}
+// Matrix4.compose is now available from io.kreekt.core.scene.Object3D
 
 private fun Matrix4.decompose(position: Vector3, quaternion: Quaternion, scale: Vector3): Matrix4 {
     // Simplified matrix decomposition - in real implementation, use proper math

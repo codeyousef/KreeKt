@@ -1,18 +1,16 @@
 package io.kreekt.optimization
 
-import io.kreekt.core.math.*
-import io.kreekt.geometry.BufferGeometry
-import io.kreekt.core.scene.Mesh
-import io.kreekt.core.scene.Object3D
 import io.kreekt.camera.Camera
 import io.kreekt.camera.PerspectiveCamera
+import io.kreekt.core.math.Vector3
+import io.kreekt.core.scene.Mesh
+import io.kreekt.geometry.BufferGeometry
 import io.kreekt.renderer.Renderer
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
-import kotlin.math.*
-import kotlinx.coroutines.Dispatchers
 import kotlin.math.PI
-import kotlinx.coroutines.withContext
+import kotlin.math.exp
+import kotlin.math.ln
+import kotlin.math.tan
 
 /**
  * Level of Detail (LOD) configuration for a single level
@@ -262,7 +260,7 @@ class LODSystem(
         // Basic reduction (production would use quadric error metrics)
         if (targetRatio < 0.5f) {
             // Aggressive simplification - note: this is a placeholder implementation
-            val indexAttribute = simplified.getIndex()
+            val indexAttribute = simplified.index
             if (indexAttribute != null) {
                 val skipFactor = (1.0f / targetRatio).toInt()
                 val newIndices = mutableListOf<Int>()

@@ -1,83 +1,101 @@
 package io.kreekt.core.math
 
 import kotlin.test.Test
-import kotlin.test.assertFailsWith
 import kotlin.test.assertEquals
+import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
 /**
- * Matrix4 transformations test
- * T017 - This test MUST FAIL until Matrix4 is implemented
+ * Matrix4 operations test
  */
 class Matrix4Test {
 
     @Test
-    fun testMatrix4IdentityContract() {
-        // This test will fail until we implement Matrix4
-        assertFailsWith<NotImplementedError> {
-            // TODO: Replace with actual implementation
-            // val m = Matrix4()
-            // assertTrue(m.isIdentity())
-            // assertEquals(1f, m.elements[0])  // m[0,0]
-            // assertEquals(1f, m.elements[5])  // m[1,1]
-            // assertEquals(1f, m.elements[10]) // m[2,2]
-            // assertEquals(1f, m.elements[15]) // m[3,3]
-            throw NotImplementedError("Matrix4 not yet implemented")
-        }
+    fun testMatrix4Creation() {
+        val m = Matrix4()
+        // Default should be identity matrix
+        assertTrue(m.isIdentity())
     }
 
     @Test
-    fun testMatrix4MultiplicationContract() {
-        // This test will fail until we implement Matrix4 multiplication
-        assertFailsWith<NotImplementedError> {
-            // TODO: Replace with actual implementation
-            // val m1 = Matrix4().makeTranslation(1f, 2f, 3f)
-            // val m2 = Matrix4().makeScale(2f, 2f, 2f)
-            // val result = m1.multiply(m2)
-            // // Result should be scale then translate
-            // assertEquals(2f, result.elements[0])  // scale x
-            // assertEquals(1f, result.elements[12]) // translate x
-            throw NotImplementedError("Matrix4.multiply() not yet implemented")
-        }
+    fun testIdentity() {
+        val m = Matrix4.identity()
+        assertTrue(m.isIdentity())
     }
 
     @Test
-    fun testMatrix4TranslationContract() {
-        // This test will fail until we implement Matrix4 translation
-        assertFailsWith<NotImplementedError> {
-            // TODO: Replace with actual implementation
-            // val m = Matrix4().makeTranslation(5f, 10f, 15f)
-            // assertEquals(5f, m.elements[12])  // translate x
-            // assertEquals(10f, m.elements[13]) // translate y
-            // assertEquals(15f, m.elements[14]) // translate z
-            throw NotImplementedError("Matrix4.makeTranslation() not yet implemented")
-        }
+    fun testSetFromArray() {
+        val array = floatArrayOf(
+            1f, 2f, 3f, 4f,
+            5f, 6f, 7f, 8f,
+            9f, 10f, 11f, 12f,
+            13f, 14f, 15f, 16f
+        )
+        val m = Matrix4(array)
+
+        assertEquals(1f, m.elements[0])
+        assertEquals(16f, m.elements[15])
     }
 
     @Test
-    fun testMatrix4RotationContract() {
-        // This test will fail until we implement Matrix4 rotation
-        assertFailsWith<NotImplementedError> {
-            // TODO: Replace with actual implementation
-            // val m = Matrix4().makeRotationZ(Math.PI.toFloat() / 2) // 90 degrees
-            // val v = Vector3(1f, 0f, 0f)
-            // val rotated = v.applyMatrix4(m)
-            // assertTrue(abs(rotated.x) < 0.001f)
-            // assertTrue(abs(rotated.y - 1f) < 0.001f)
-            throw NotImplementedError("Matrix4.makeRotationZ() not yet implemented")
-        }
+    fun testMultiplication() {
+        val m1 = Matrix4.identity()
+        val m2 = Matrix4.identity().setPosition(Vector3(1f, 2f, 3f))
+
+        val result = m1.clone().multiply(m2)
+
+        val translation = result.getTranslation()
+        assertEquals(Vector3(1f, 2f, 3f), translation)
     }
 
     @Test
-    fun testMatrix4InverseContract() {
-        // This test will fail until we implement Matrix4 inverse
-        assertFailsWith<NotImplementedError> {
-            // TODO: Replace with actual implementation
-            // val m = Matrix4().makeTranslation(1f, 2f, 3f)
-            // val inverse = m.clone().invert()
-            // val identity = m.multiply(inverse)
-            // assertTrue(identity.isIdentity())
-            throw NotImplementedError("Matrix4.invert() not yet implemented")
-        }
+    fun testDeterminant() {
+        val m = Matrix4.identity()
+        assertEquals(1f, m.determinant())
+    }
+
+    @Test
+    fun testInverse() {
+        val m = Matrix4.identity().setPosition(Vector3(1f, 2f, 3f))
+        val inverse = m.clone().invert()
+
+        val result = m.clone().multiply(inverse)
+        assertTrue(result.isIdentity())
+    }
+
+    @Test
+    fun testTranspose() {
+        val m = Matrix4(
+            floatArrayOf(
+                1f, 2f, 3f, 4f,
+                5f, 6f, 7f, 8f,
+                9f, 10f, 11f, 12f,
+                13f, 14f, 15f, 16f
+            )
+        )
+
+        val transposed = m.clone().transpose()
+
+        assertEquals(1f, transposed.elements[0])
+        assertEquals(5f, transposed.elements[1])
+        assertEquals(9f, transposed.elements[2])
+        assertEquals(13f, transposed.elements[3])
+    }
+
+    @Test
+    fun testTranslation() {
+        val translation = Vector3(1f, 2f, 3f)
+        val m = Matrix4().setPosition(translation)
+
+        assertEquals(translation, m.getTranslation())
+    }
+
+    @Test
+    fun testClone() {
+        val m = Matrix4().setPosition(Vector3(1f, 2f, 3f))
+        val clone = m.clone()
+
+        assertEquals(m.getTranslation(), clone.getTranslation())
+        assertNotSame(m, clone)
     }
 }

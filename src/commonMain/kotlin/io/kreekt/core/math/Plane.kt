@@ -1,9 +1,6 @@
 package io.kreekt.core.math
 
-import kotlin.math.*
-import io.kreekt.core.platform.platformClone
-import kotlin.math.PI
-import io.kreekt.core.math.Box3
+import kotlin.math.abs
 
 /**
  * A plane represented by a normal vector and a constant.
@@ -13,7 +10,7 @@ import io.kreekt.core.math.Box3
  * where P is any point on the plane.
  */
 data class Plane(
-    val normal: Vector3 = Vector3(1f, 0f, 0f),
+    var normal: Vector3 = Vector3(1f, 0f, 0f),
     var constant: Float = 0f
 ) {
 

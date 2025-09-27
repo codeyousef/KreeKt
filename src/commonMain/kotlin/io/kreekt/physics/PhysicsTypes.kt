@@ -3,11 +3,9 @@
  * Contains enums, data classes, and interfaces referenced by physics implementations
  */
 package io.kreekt.physics
-import io.kreekt.core.scene.Material
 
 import io.kreekt.core.math.*
 import kotlin.math.*
-import io.kreekt.core.math.Box3
 
 /**
  * Enums for physics system
@@ -27,7 +25,11 @@ enum class ShapeType {
 }
 
 enum class BroadphaseType {
-    SIMPLE, AXIS_SWEEP_3, DBVT, SAP
+    SIMPLE, AXIS_SWEEP_3, DBVT, SAP,
+    DYNAMIC_AABB_TREE,
+    SORT_AND_SWEEP,
+    HASH_GRID,
+    SPATIAL_HASH
 }
 
 enum class ConstraintParam {
@@ -110,6 +112,18 @@ interface RaycastResult {
 }
 
 /**
+ * Collision contact information
+ */
+data class CollisionContact(
+    val bodyA: RigidBody,
+    val bodyB: RigidBody,
+    val point: Vector3,
+    val normal: Vector3,
+    val distance: Float = 0f,
+    val impulse: Float = 0f
+)
+
+/**
  * Physics material data class
  */
 data class PhysicsMaterial(
@@ -137,6 +151,7 @@ typealias PhysicsResult<T> = PhysicsOperationResult<T>
  */
 sealed class PhysicsException(message: String, cause: Throwable? = null) : Exception(message, cause) {
     class WorldCreationFailed(message: String, cause: Throwable? = null) : PhysicsException(message, cause)
+    class EngineError(message: String, cause: Throwable? = null) : PhysicsException(message, cause)
     class BodyCreationFailed(message: String, cause: Throwable? = null) : PhysicsException(message, cause)
     class ShapeCreationFailed(message: String, cause: Throwable? = null) : PhysicsException(message, cause)
     class ConstraintCreationFailed(message: String, cause: Throwable? = null) : PhysicsException(message, cause)

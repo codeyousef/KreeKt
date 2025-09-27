@@ -1,11 +1,9 @@
 package io.kreekt.renderer
 
-import io.kreekt.core.math.*
-import io.kreekt.core.scene.*
 import io.kreekt.camera.Camera
 import io.kreekt.camera.Viewport
-import io.kreekt.renderer.TextureFormat
-import kotlin.math.PI
+import io.kreekt.core.math.Color
+import io.kreekt.core.scene.Scene
 
 /**
  * Core renderer interface for all platform-specific implementations.
@@ -335,16 +333,6 @@ enum class Precision {
     HIGHP
 }
 
-/**
- * Render pass information
- */
-data class RenderPass(
-    val name: String,
-    val enabled: Boolean = true,
-    val clear: Boolean = true,
-    val renderToScreen: Boolean = false,
-    val needsSwap: Boolean = true
-)
 
 /**
  * Renderer factory interface

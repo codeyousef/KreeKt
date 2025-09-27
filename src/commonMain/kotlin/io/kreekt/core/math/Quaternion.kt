@@ -1,10 +1,6 @@
 package io.kreekt.core.math
 
 import kotlin.math.*
-import io.kreekt.core.platform.platformClone
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * A quaternion representing rotation in 3D space.
@@ -40,6 +36,12 @@ data class Quaternion(
          */
         fun fromEuler(euler: Euler): Quaternion =
             Quaternion().setFromEuler(euler)
+
+        /**
+         * Creates a quaternion from rotation matrix
+         */
+        fun fromRotationMatrix(matrix: Matrix4): Quaternion =
+            Quaternion().setFromRotationMatrix(matrix)
 
         /**
          * Spherical linear interpolation between two quaternions

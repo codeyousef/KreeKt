@@ -1,15 +1,19 @@
 package tools.docs.search
 
 import kotlinx.coroutines.*
+import kotlinx.datetime.*
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import java.io.File
 import kotlin.math.*
+import kotlin.time.ExperimentalTime
+import kotlin.time.Duration
 
 /**
  * Advanced search index builder for KreeKt documentation.
  * Creates searchable indices with full-text search, semantic matching, and intelligent ranking.
  */
+@OptIn(ExperimentalTime::class)
 @Serializable
 data class SearchDocument(
     val id: String,
@@ -164,7 +168,7 @@ class SearchIndexer {
         documents: List<SearchDocument>,
         includeSemanticVectors: Boolean = true
     ): SearchIndex = withContext(Dispatchers.Default) {
-        val startTime = System.currentTimeMillis()
+        val startTime = Clock.System.now().toEpochMilliseconds()
 
         // Preprocess documents
         val preprocessedDocs = documents.map { preprocessDocument(it) }
@@ -189,7 +193,7 @@ class SearchIndexer {
         val statistics = calculateIndexStatistics(
             documents = indexedDocuments,
             termIndex = termIndex,
-            buildTime = System.currentTimeMillis() - startTime
+            buildTime = Clock.System.now().toEpochMilliseconds() - startTime
         )
 
         SearchIndex(
@@ -210,7 +214,7 @@ class SearchIndexer {
         index: SearchIndex,
         query: SearchQuery
     ): SearchResult = withContext(Dispatchers.Default) {
-        val startTime = System.currentTimeMillis()
+        val startTime = Clock.System.now().toEpochMilliseconds()
 
         // Parse and normalize query
         val queryTerms = normalizeQuery(query.query)
@@ -248,7 +252,7 @@ class SearchIndexer {
             query = query.query,
             results = resultsWithHighlights,
             totalHits = filteredCandidates.size,
-            searchTime = System.currentTimeMillis() - startTime,
+            searchTime = Clock.System.now().toEpochMilliseconds() - startTime,
             suggestions = suggestions,
             facets = facets
         )
@@ -408,9 +412,9 @@ class SearchIndexer {
                     documentId = document.id,
                     frequency = positions.size,
                     positions = positions,
-                    fieldBoosts = mapOf(
-                        "title" -> if (document.title.lowercase().contains(term)) 2.0 else 1.0,
-                        "keywords" -> if (document.keywords.any { it.lowercase().contains(term) }) 1.5 else 1.0
+                    fieldBoosts = mapOf<String, Double>(
+                        "title" to if (document.title.lowercase().contains(term)) 2.0 else 1.0,
+                        "keywords" to if (document.keywords.any { it.lowercase().contains(term) }) 1.5 else 1.0
                     )
                 )
 
@@ -432,7 +436,7 @@ class SearchIndexer {
 
             val vector = allTerms.map { term ->
                 val tf = termFreqs[term]?.toDouble() ?: 0.0
-                val idf = log(documents.size.toDouble() / (documents.count { doc ->
+                val idf = ln(documents.size.toDouble() / (documents.count { doc ->
                     tokenizeText(doc.content).contains(term)
                 } + 1))
                 tf * idf
@@ -609,7 +613,7 @@ class SearchIndexer {
         return queryTerms.sumOf { term ->
             val tf = document.termFrequencies[term] ?: 0.0
             val df = index.termIndex[term]?.size ?: 0
-            val idf = log((index.statistics.totalDocuments - df + 0.5) / (df + 0.5))
+            val idf = ln((index.statistics.totalDocuments - df + 0.5) / (df + 0.5))
 
             val numerator = tf * (K1 + 1)
             val denominator = tf + K1 * (1 - B + B * (docLength / avgDocLength))
@@ -832,12 +836,12 @@ object SearchUtils {
 
         // Click-through rate boost
         if (clickCount > 0) {
-            score += log(clickCount.toDouble() + 1) * 0.1
+            score += ln(clickCount.toDouble() + 1) * 0.1
         }
 
         // Recency boost
         lastClickTime?.let { clickTime ->
-            val daysSinceClick = kotlin.time.Duration.between(clickTime, kotlinx.datetime.Clock.System.now()).inWholeDays
+            val daysSinceClick = (Clock.System.now() - clickTime).inWholeDays.toInt()
             if (daysSinceClick < 30) {
                 score += (30 - daysSinceClick) / 30.0 * 0.1
             }

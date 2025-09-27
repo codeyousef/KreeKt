@@ -1,14 +1,17 @@
 package tools.docs.examples
 
 import kotlinx.coroutines.*
+import kotlinx.datetime.*
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import java.io.File
+import kotlin.time.ExperimentalTime
 
 /**
  * Interactive example generator for KreeKt documentation.
  * Creates runnable, testable, and interactive code examples with live previews.
  */
+@OptIn(ExperimentalTime::class)
 @Serializable
 data class InteractiveExample(
     val id: String,
@@ -159,6 +162,15 @@ class ExampleGenerator {
             "kreekt.math.*",
             "kotlinx.coroutines.*"
         )
+
+        private val visualCategories = setOf(
+            ExampleCategory.SCENE_MANAGEMENT,
+            ExampleCategory.GEOMETRY_CREATION,
+            ExampleCategory.MATERIAL_SHADERS,
+            ExampleCategory.ANIMATION,
+            ExampleCategory.LIGHTING,
+            ExampleCategory.ADVANCED_RENDERING
+        )
     }
 
     /**
@@ -205,7 +217,7 @@ class ExampleGenerator {
         val processedCode = processTemplate(template.templateCode, parameters)
 
         InteractiveExample(
-            id = "generated-${System.currentTimeMillis()}",
+            id = "generated-${Clock.System.now().toEpochMilliseconds()}",
             title = "Custom ${template.name}",
             description = "Generated from ${template.name} template",
             category = template.category,
@@ -259,7 +271,7 @@ class ExampleGenerator {
         }
 
         val codeToExecute = userCode ?: codeBlock.code
-        val startTime = System.currentTimeMillis()
+        val startTime = Clock.System.now().toEpochMilliseconds()
         val startMemory = Runtime.getRuntime().let { it.totalMemory() - it.freeMemory() }
 
         try {
@@ -287,7 +299,7 @@ class ExampleGenerator {
                 timeoutMs = 30_000 // 30 second timeout
             )
 
-            val executionTime = System.currentTimeMillis() - startTime
+            val executionTime = Clock.System.now().toEpochMilliseconds() - startTime
             val endMemory = Runtime.getRuntime().let { it.totalMemory() - it.freeMemory() }
             val memoryUsed = maxOf(0, endMemory - startMemory)
 
@@ -314,7 +326,7 @@ class ExampleGenerator {
                 success = false,
                 output = "",
                 errors = listOf("Execution failed: ${e.message}"),
-                executionTime = System.currentTimeMillis() - startTime,
+                executionTime = Clock.System.now().toEpochMilliseconds() - startTime,
                 memoryUsage = 0,
                 resourceUsage = ExampleResourceUsage(0, 0, 0, 0)
             )
@@ -835,16 +847,6 @@ class ExampleGenerator {
         // Kotlin Playground export implementation
     }
 
-    companion object {
-        private val visualCategories = setOf(
-            ExampleCategory.SCENE_MANAGEMENT,
-            ExampleCategory.GEOMETRY_CREATION,
-            ExampleCategory.MATERIAL_SHADERS,
-            ExampleCategory.ANIMATION,
-            ExampleCategory.LIGHTING,
-            ExampleCategory.ADVANCED_RENDERING
-        )
-    }
 }
 
 // Supporting data classes

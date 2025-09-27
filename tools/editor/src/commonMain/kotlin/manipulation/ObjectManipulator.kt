@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.time.ExperimentalTime::class)
+
 package io.kreekt.tools.editor.manipulation
 
 import io.kreekt.tools.editor.data.*
@@ -880,7 +882,7 @@ class ObjectManipulator {
     }
 
     private fun generateUniqueId(): String {
-        return "obj_${System.currentTimeMillis()}_${(0..999).random()}"
+        return "obj_${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}_${(0..999).random()}"
     }
 }
 

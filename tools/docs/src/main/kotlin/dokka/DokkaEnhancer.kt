@@ -1,8 +1,10 @@
 package tools.docs.dokka
 
 import kotlinx.coroutines.*
+import kotlinx.datetime.*
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
+import kotlin.time.ExperimentalTime
 import java.io.File
 import java.net.URL
 import kotlin.collections.*
@@ -11,6 +13,7 @@ import kotlin.collections.*
  * Enhanced Dokka integration for KreeKt documentation generation.
  * Provides advanced documentation features, custom styling, and interactive elements.
  */
+@OptIn(ExperimentalTime::class)
 @Serializable
 data class DokkaConfiguration(
     val projectName: String,
@@ -160,7 +163,7 @@ class DokkaEnhancer {
     suspend fun generateDocumentation(
         config: DokkaConfiguration
     ): DocumentationResult = withContext(Dispatchers.IO) {
-        val startTime = System.currentTimeMillis()
+        val startTime = Clock.System.now().toEpochMilliseconds()
 
         try {
             // Prepare enhanced configuration
@@ -201,7 +204,7 @@ class DokkaEnhancer {
                 searchIndex = searchIndex
             )
 
-            val executionTime = System.currentTimeMillis() - startTime
+            val executionTime = Clock.System.now().toEpochMilliseconds() - startTime
 
             DocumentationResult(
                 success = true,
@@ -343,7 +346,7 @@ class DokkaEnhancer {
         SearchIndex(
             entries = entries,
             version = "1.0",
-            generatedAt = kotlinx.datetime.Clock.System.now()
+            generatedAt = Clock.System.now()
         )
     }
 
@@ -853,7 +856,8 @@ data class DocumentationStatistics(
 data class SearchIndex(
     val entries: List<SearchEntry>,
     val version: String,
-    val generatedAt: kotlinx.datetime.Instant
+    @OptIn(ExperimentalTime::class)
+    val generatedAt: Instant
 )
 
 @Serializable

@@ -11,14 +11,12 @@
  * - Memory optimization techniques
  */
 package io.kreekt.geometry
-import io.kreekt.core.math.Box3
 
-import io.kreekt.core.math.*
-import io.kreekt.core.platform.platformClone
-import kotlinx.collections.immutable.*
-import io.kreekt.core.platform.platformClone
-import kotlin.math.*
-import io.kreekt.core.platform.platformClone
+import io.kreekt.core.math.Box3
+import io.kreekt.core.math.Plane
+import io.kreekt.core.math.Sphere
+import io.kreekt.core.math.Vector3
+import kotlin.math.sqrt
 
 /**
  * Advanced geometry processor for real-time 3D applications
@@ -126,7 +124,7 @@ class GeometryProcessor {
         val positionAttribute = geometry.getAttribute("position")
             ?: return geometry.clone()
 
-        val indexAttribute = geometry.getIndex()
+        val indexAttribute = geometry.index
         if (indexAttribute == null) {
             // Convert non-indexed geometry to indexed first
             val indexedGeometry = generateIndices(geometry)
@@ -187,7 +185,7 @@ class GeometryProcessor {
         }
 
         // Update indices
-        val originalIndex = geometry.getIndex()
+        val originalIndex = geometry.index
         if (originalIndex != null) {
             for (i in 0 until originalIndex.count) {
                 val oldIndex = originalIndex.array[i].toInt()
@@ -217,16 +215,16 @@ class GeometryProcessor {
     ): BufferGeometry {
         val result = geometry.clone()
         val positionAttribute = result.getAttribute("position") ?: return result
-        val indexAttribute = result.getIndex()
+        val indexAttribute = result.index
 
         val vertexCount = positionAttribute.count
         val normals = Array(vertexCount) { Vector3() }
         val normalCounts = IntArray(vertexCount)
 
         // Calculate face normals and accumulate vertex normals
-        if (indexAttribute != null) {
-            calculateIndexedNormals(positionAttribute, indexAttribute, normals, normalCounts)
-        } else {
+        indexAttribute?.let { index ->
+            calculateIndexedNormals(positionAttribute, index, normals, normalCounts)
+        } ?: run {
             calculateNonIndexedNormals(positionAttribute, normals, normalCounts)
         }
 
@@ -272,7 +270,7 @@ class GeometryProcessor {
         // Calculate tangents using UV derivatives
         calculateTangentVectors(
             positionAttribute, normalAttribute, uvAttribute,
-            result.getIndex(), tangents, bitangents
+            result.index, tangents, bitangents
         )
 
         // Orthogonalize tangents using Gram-Schmidt process
@@ -323,7 +321,7 @@ class GeometryProcessor {
         }
 
         // Generate indices if not present
-        if (result.getIndex() == null && options.generateIndices) {
+        if (result.index == null && options.generateIndices) {
             result = generateIndices(result)
             optimizations.add("Generated index buffer")
         }
@@ -495,7 +493,7 @@ class GeometryProcessor {
         }
 
         // Add index buffer if present
-        geometry.getIndex()?.let { index ->
+        geometry.index?.let { index ->
             totalBytes = totalBytes + index.array.size * 4
         }
 

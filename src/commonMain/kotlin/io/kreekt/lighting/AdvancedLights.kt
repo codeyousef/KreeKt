@@ -4,14 +4,14 @@
  */
 package io.kreekt.lighting
 
-import io.kreekt.core.math.*
-import io.kreekt.renderer.*
-import kotlin.math.*
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
+import io.kreekt.core.math.Color
+import io.kreekt.core.math.Quaternion
+import io.kreekt.core.math.Vector3
 import io.kreekt.renderer.Texture
 import io.kreekt.renderer.Texture3D
+import kotlin.math.*
+
+private var nextAdvancedLightId = 1000
 
 /**
  * Area light shape enumeration
@@ -26,34 +26,28 @@ enum class AreaLightShape {
 /**
  * Area light interface
  */
-interface AreaLight {
+interface AreaLight : Light {
+    override val type: LightType get() = LightType.AREA
     var width: Float
     var height: Float
     var shape: AreaLightShape
     var texture: Texture?
     var doubleSided: Boolean
-    var intensity: Float
-    var color: Color
-    var position: Vector3
     var rotation: Quaternion
-    var castShadow: Boolean
     var visible: Boolean
 }
 
 /**
  * Volumetric light interface
  */
-interface VolumetricLight {
+interface VolumetricLight : Light {
+    override val type: LightType get() = LightType.VOLUMETRIC
     var volumeTexture: Texture3D?
     var scattering: Float
     var extinction: Float
     var phase: Float
     var steps: Int
-    var intensity: Float
-    var color: Color
-    var position: Vector3
     var rotation: Quaternion
-    var castShadow: Boolean
     var visible: Boolean
 }
 
@@ -69,11 +63,16 @@ class AreaLightImpl(
     override var doubleSided: Boolean = false
 ) : AreaLight {
 
+    override val id: Int = nextAdvancedLightId++
     override var intensity: Float = 1.0f
     override var color: Color = Color.WHITE
     override var position: Vector3 = Vector3.ZERO
     override var rotation: Quaternion = Quaternion.identity()
     override var castShadow: Boolean = true
+    override var shadowMapSize: Int = 1024
+    override var shadowBias: Float = 0.0005f
+    override var shadowNormalBias: Float = 0.03f
+    override var shadowRadius: Float = 1.0f
     override var visible: Boolean = true
 
     // Physical light properties
@@ -253,11 +252,16 @@ class VolumetricLightImpl(
     override var steps: Int = 32
 ) : VolumetricLight {
 
+    override val id: Int = nextAdvancedLightId++
     override var intensity: Float = 1.0f
     override var color: Color = Color.WHITE
     override var position: Vector3 = Vector3.ZERO
     override var rotation: Quaternion = Quaternion.identity()
     override var castShadow: Boolean = false // Volumetric lights typically don't cast sharp shadows
+    override var shadowMapSize: Int = 512
+    override var shadowBias: Float = 0.001f
+    override var shadowNormalBias: Float = 0.05f
+    override var shadowRadius: Float = 2.0f
     override var visible: Boolean = true
 
     // Volumetric properties

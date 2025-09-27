@@ -3,12 +3,9 @@
  * Extends the basic geometry system with morph targets, instancing, and LOD support
  */
 package io.kreekt.geometry
-import io.kreekt.core.math.Box3
 
 import io.kreekt.core.math.*
-import io.kreekt.core.platform.platformClone
 import io.kreekt.core.platform.currentTimeMillis
-import kotlinx.collections.immutable.*
 import kotlinx.serialization.Serializable
 
 /**
@@ -77,8 +74,6 @@ open class BufferGeometry {
         _index = index
         return this
     }
-
-    fun getIndex(): BufferAttribute? = _index
 
     val index: BufferAttribute? get() = _index
 

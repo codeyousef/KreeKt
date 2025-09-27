@@ -1,8 +1,8 @@
 package io.kreekt.physics
 
 import io.kreekt.core.math.*
-import kotlin.collections.mutableListOf
-import kotlin.math.*
+import io.kreekt.physics.PhysicsOperationResult.Success
+import kotlin.math.PI
 
 /**
  * Default implementations of physics components
@@ -197,7 +197,7 @@ class DefaultCharacterController(
             from = position,
             to = position + Vector3(0f, -stepHeight - 0.1f, 0f)
         )
-        onGroundFlag = result?.hit == true
+        onGroundFlag = result?.hasHit == true
         if (onGroundFlag) {
             canJumpFlag = true
         }
@@ -221,7 +221,7 @@ class DefaultCharacterController(
     // CollisionObject interface methods
     override fun setCollisionShape(shape: CollisionShape): PhysicsResult<Unit> {
         collisionShape = shape
-        return PhysicsResult.Success(Unit)
+        return Success(Unit)
     }
 
 
@@ -234,6 +234,9 @@ class DefaultCharacterController(
     override fun translate(offset: Vector3) {
         position = position + offset
     }
+
+    // Missing abstract members from parent interfaces
+
 
     override fun rotate(rotation: Quaternion) {
         transform = transform.rotate(rotation)
@@ -266,6 +269,7 @@ abstract class BaseConstraint(
 
     override fun getAppliedImpulse(): Float = 0f
     override fun isEnabled(): Boolean = enabled
+
 
     override fun getInfo(info: ConstraintInfo) {
         // Default constraint info
@@ -324,7 +328,7 @@ class DefaultPhysicsEngine : PhysicsEngine {
         if (world is DefaultPhysicsWorld) {
             world.dispose()
         }
-        return PhysicsResult.Success(Unit)
+        return Success(Unit)
     }
 
     override fun createBoxShape(halfExtents: Vector3): BoxShape = DefaultBoxShape(halfExtents)
@@ -384,10 +388,10 @@ class DefaultPhysicsEngine : PhysicsEngine {
             override fun calculateLocalInertia(mass: Float): Vector3 = Vector3.ZERO
             override fun getTriangle(index: Int): Triangle = Triangle(Vector3.ZERO, Vector3.ZERO, Vector3.ZERO)
             override fun processAllTriangles(callback: TriangleCallback, aabbMin: Vector3, aabbMax: Vector3) {}
-            override fun buildBVH(): MeshBVH = object : MeshBVH {
-                override fun raycast(from: Vector3, to: Vector3): RaycastResult? = null
-                override fun optimize() {}
-            }
+            override fun buildBVH(): MeshBVH = MeshBVH(
+                nodes = emptyList(),
+                triangles = emptyList()
+            )
             override fun calculateBoundingBox(): Box3 = Box3.empty()
         }
     }
@@ -417,10 +421,10 @@ class DefaultPhysicsEngine : PhysicsEngine {
             override fun isCompound(): Boolean = true
             override fun getVolume(): Float = childShapes.sumOf { it.shape.getVolume().toDouble() }.toFloat()
             override fun calculateLocalInertia(mass: Float): Vector3 = Vector3(mass / 6f, mass / 6f, mass / 6f)
-            override fun addChildShape(transform: Matrix4, shape: CollisionShape): PhysicsResult<Unit> = PhysicsResult.Success(Unit)
-            override fun removeChildShape(shape: CollisionShape): PhysicsResult<Unit> = PhysicsResult.Success(Unit)
-            override fun removeChildShapeByIndex(index: Int): PhysicsResult<Unit> = PhysicsResult.Success(Unit)
-            override fun updateChildTransform(index: Int, transform: Matrix4): PhysicsResult<Unit> = PhysicsResult.Success(Unit)
+            override fun addChildShape(transform: Matrix4, shape: CollisionShape): PhysicsResult<Unit> = Success(Unit)
+            override fun removeChildShape(shape: CollisionShape): PhysicsResult<Unit> = Success(Unit)
+            override fun removeChildShapeByIndex(index: Int): PhysicsResult<Unit> = Success(Unit)
+            override fun updateChildTransform(index: Int, transform: Matrix4): PhysicsResult<Unit> = Success(Unit)
             override fun recalculateLocalAabb() {}
             override fun calculateBoundingBox(): Box3 = Box3.empty()
         }

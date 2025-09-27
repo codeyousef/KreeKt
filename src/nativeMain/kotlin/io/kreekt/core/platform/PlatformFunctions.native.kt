@@ -28,4 +28,16 @@ actual fun platformArrayCopy(
     }
 }
 
-// Platform-specific clone functions are now extension functions in Platform.kt
+@Suppress("UNCHECKED_CAST")
+actual fun <T> platformClone(obj: T): T {
+    return when (obj) {
+        is FloatArray -> obj.copyOf() as T
+        is IntArray -> obj.copyOf() as T
+        is DoubleArray -> obj.copyOf() as T
+        is Array<*> -> obj.copyOf() as T
+        is MutableList<*> -> (obj as MutableList<*>).toMutableList() as T
+        is MutableMap<*, *> -> (obj as MutableMap<*, *>).toMutableMap() as T
+        is MutableSet<*> -> (obj as MutableSet<*>).toMutableSet() as T
+        else -> obj // For immutable objects, return as-is
+    }
+}

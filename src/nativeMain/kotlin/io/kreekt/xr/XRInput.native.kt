@@ -6,6 +6,6 @@ package io.kreekt.xr
 
 internal actual suspend fun getPlatformHandJointPoses(
     hand: DefaultXRHand
-): Map<XRHandJoint, DefaultXRJointPose> = emptyMap()
+): Map<XRHandJoint, XRJointPose> = emptyMap()
 
 internal actual suspend fun getPlatformEyeTrackingData(): EyeTrackingData? = null

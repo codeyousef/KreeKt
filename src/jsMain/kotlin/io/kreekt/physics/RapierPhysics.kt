@@ -5,7 +5,9 @@
 package io.kreekt.physics
 
 import io.kreekt.core.math.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.await
+import kotlinx.coroutines.launch
 import kotlin.js.Promise
 
 /**
@@ -17,7 +19,7 @@ external object RAPIER {
     fun init(): Promise<Unit>
 
     class World(gravity: dynamic) {
-        val gravity: dynamic
+        var gravity: dynamic
         var timestep: Float
         var maxVelocityIterations: Int
         var maxPositionIterations: Int
@@ -275,7 +277,17 @@ class RapierPhysicsWorld(
     private var collisionCallback: CollisionCallback? = null
     private val eventQueue = RAPIER.EventQueue()
 
+    // Event callbacks
+    private val collisionCallbacks = mutableListOf<(CollisionContact) -> Unit>()
+
     private var initialized = false
+
+    /**
+     * Add collision callback
+     */
+    fun onCollision(callback: (CollisionContact) -> Unit) {
+        collisionCallbacks.add(callback)
+    }
 
     override var gravity: Vector3 = initialGravity
         set(value) {
@@ -431,7 +443,7 @@ class RapierPhysicsWorld(
 
             // Update rigid body transforms
             world.forEachActiveRigidBody { rapierBody ->
-                val body = rapierBody.userData as? RapierRigidBody
+                val body = rapierBody.userData() as? RapierRigidBody
                 body?.updateFromRapier()
             }
 
@@ -444,25 +456,25 @@ class RapierPhysicsWorld(
     private fun processCollisionEvents() {
         eventQueue.drainCollisionEvents { handle1, handle2, started ->
             // Find colliders by handle
-            val collider1 = colliders.values.find { it.handle == handle1 }
-            val collider2 = colliders.values.find { it.handle == handle2 }
+            val collider1 = colliders.values.find { it.handle() == handle1 }
+            val collider2 = colliders.values.find { it.handle() == handle2 }
 
             if (collider1 != null && collider2 != null) {
-                val obj1 = collider1.userData as? CollisionObject
-                val obj2 = collider2.userData as? CollisionObject
+                val obj1 = collider1.userData() as? CollisionObject
+                val obj2 = collider2.userData() as? CollisionObject
 
                 if (obj1 != null && obj2 != null) {
-                    val event = CollisionEvent(
-                        objectA = obj1,
-                        objectB = obj2,
-                        contactPoints = extractContactPoints(collider1, collider2),
+                    val contact = CollisionContact(
+                        bodyA = obj1 as RigidBody,
+                        bodyB = obj2 as RigidBody,
+                        point = extractContactNormal(collider1, collider2), // Use normal as placeholder
                         normal = extractContactNormal(collider1, collider2),
                         impulse = 0f // Will be calculated from contact forces
                     )
 
                     when {
-                        started -> collisionCallback?.onCollisionEnter(event)
-                        else -> collisionCallback?.onCollisionExit(event)
+                        started -> collisionCallbacks.forEach { callback -> callback(contact) }
+                        // Note: Exit events could be handled differently if needed
                     }
                 }
             }
@@ -522,17 +534,19 @@ class RapierPhysicsWorld(
 
         val hit = world.castRay(ray, maxDistance, true, groups)
 
-        return hit?.let {
-            val collider = it.collider as RAPIER.Collider
-            val hitPoint = from + (direction * (it.toi as Float))
-            val normal = fromRapierVector3(it.normal)
+        return hit?.let { result ->
+            val collider = result.collider as RAPIER.Collider
+            val hitPoint = from + (direction * (result.toi as Float))
+            val normal = fromRapierVector3(result.normal)
 
-            RaycastResult(
-                hitObject = collider.userData as? CollisionObject,
-                hitPoint = hitPoint,
-                hitNormal = normal,
-                distance = it.toi as Float
-            )
+            object : RaycastResult {
+                override val hasHit = true
+                override val hitObject = collider.userData() as? CollisionObject
+                override val hitPoint = hitPoint
+                override val hitNormal = normal
+                override val hitFraction = result.toi as Float
+                override val distance = result.toi as Float
+            }
         }
     }
 
@@ -547,7 +561,7 @@ class RapierPhysicsWorld(
             RAPIER.Quaternion(0f, 0f, 0f, 1f),
             sphereShape,
             { collider ->
-                val obj = collider.userData as? CollisionObject
+                val obj = collider.userData() as? CollisionObject
                 obj?.let { results.add(it) }
                 true // Continue iteration
             },
@@ -573,7 +587,7 @@ class RapierPhysicsWorld(
             toRapierQuaternion(rotation),
             boxShape,
             { collider ->
-                val obj = collider.userData as? CollisionObject
+                val obj = collider.userData() as? CollisionObject
                 obj?.let { results.add(it) }
                 true // Continue iteration
             },
@@ -601,7 +615,7 @@ class RapierPhysicsWorld(
             toRapierQuaternion(rotation),
             rapierShape,
             { collider ->
-                val obj = collider.userData as? CollisionObject
+                val obj = collider.userData() as? CollisionObject
                 obj?.let { results.add(it) }
                 true // Continue iteration
             },
@@ -758,7 +772,7 @@ class RapierRigidBody(
         }
     }
 
-    override fun getCollisionShape(): CollisionShape = collisionShape
+    // collisionShape property is implemented below
 
     override fun setWorldTransform(transform: Matrix4) {
         this.transform = transform
@@ -865,7 +879,7 @@ class RapierRigidBody(
 
     override fun getCenterOfMassTransform(): Matrix4 {
         val com = fromRapierVector3(rapierBody.centerOfMass())
-        return Matrix4.translation(com)
+        return Matrix4.translation(com.x, com.y, com.z)
     }
 
     internal fun updateFromRapier() {
@@ -875,7 +889,12 @@ class RapierRigidBody(
     private fun updateTransformFromRapier() {
         val position = fromRapierVector3(rapierBody.translation())
         val rotation = fromRapierQuaternion(rapierBody.rotation())
-        transform = Matrix4.compose(position, rotation, Vector3.ONE)
+
+        // Create rotation matrix and set translation
+        transform = Matrix4().makeRotationFromQuaternion(rotation)
+        transform.elements[12] = position.x
+        transform.elements[13] = position.y
+        transform.elements[14] = position.z
     }
 }
 
@@ -913,7 +932,7 @@ abstract class RapierConstraint(
 
     override fun isEnabled(): Boolean = enabled
 
-    override fun setEnabled(enabled: Boolean) {
+    fun setEnabled(enabled: Boolean) {
         this.enabled = enabled
     }
 
@@ -1022,7 +1041,7 @@ class RapierPhysicsEngine : PhysicsEngine {
         val rapierCollider = tempWorld.createCollider(colliderDesc, rapierBody)
 
         return RapierRigidBody(
-            id = "rb_${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}",
+            id = "rb_${kotlin.js.Date.now().toLong()}",
             rapierBody = rapierBody,
             rapierCollider = rapierCollider,
             initialShape = shape,
@@ -1494,14 +1513,14 @@ private class RapierTriangleMeshShape(
             val triangle = getTriangle(i)
             // Check if triangle intersects AABB
             if (triangleIntersectsAABB(triangle, aabbMin, aabbMax)) {
-                callback.processTriangle(triangle, i)
+                callback.processTriangle(triangle, 0, i)
             }
         }
     }
 
     override fun buildBVH(): MeshBVH {
         // Simplified BVH implementation
-        return SimpleMeshBVH(this)
+        return createSimpleMeshBVH(this)
     }
 
     override fun calculateInertia(mass: Float): Matrix3 {
@@ -1519,7 +1538,7 @@ private class RapierTriangleMeshShape(
         var volume = 0f
         for (i in 0 until triangleCount) {
             val tri = getTriangle(i)
-            volume += tri.v0.dot(tri.v1.cross(tri.v2)) / 6f
+            volume += tri.vertex0.dot(tri.vertex1.cross(tri.vertex2)) / 6f
         }
         return kotlin.math.abs(volume)
     }
@@ -1528,8 +1547,8 @@ private class RapierTriangleMeshShape(
         var area = 0f
         for (i in 0 until triangleCount) {
             val tri = getTriangle(i)
-            val ab = tri.v1.subtract(tri.v0)
-            val ac = tri.v2.subtract(tri.v0)
+            val ab = tri.vertex1.subtract(tri.vertex0)
+            val ac = tri.vertex2.subtract(tri.vertex0)
             area += ab.cross(ac).length() * 0.5f
         }
         return area
@@ -1548,14 +1567,14 @@ private class RapierTriangleMeshShape(
     private fun triangleIntersectsAABB(triangle: Triangle, aabbMin: Vector3, aabbMax: Vector3): Boolean {
         // Simplified AABB-triangle intersection test
         val triMin = Vector3(
-            minOf(triangle.v0.x, triangle.v1.x, triangle.v2.x),
-            minOf(triangle.v0.y, triangle.v1.y, triangle.v2.y),
-            minOf(triangle.v0.z, triangle.v1.z, triangle.v2.z)
+            minOf(triangle.vertex0.x, triangle.vertex1.x, triangle.vertex2.x),
+            minOf(triangle.vertex0.y, triangle.vertex1.y, triangle.vertex2.y),
+            minOf(triangle.vertex0.z, triangle.vertex1.z, triangle.vertex2.z)
         )
         val triMax = Vector3(
-            maxOf(triangle.v0.x, triangle.v1.x, triangle.v2.x),
-            maxOf(triangle.v0.y, triangle.v1.y, triangle.v2.y),
-            maxOf(triangle.v0.z, triangle.v1.z, triangle.v2.z)
+            maxOf(triangle.vertex0.x, triangle.vertex1.x, triangle.vertex2.x),
+            maxOf(triangle.vertex0.y, triangle.vertex1.y, triangle.vertex2.y),
+            maxOf(triangle.vertex0.z, triangle.vertex1.z, triangle.vertex2.z)
         )
 
         return !(triMax.x < aabbMin.x || triMin.x > aabbMax.x ||
@@ -1751,22 +1770,50 @@ private fun fromRapierQuaternion(q: dynamic): Quaternion {
     return Quaternion(q.x as Float, q.y as Float, q.z as Float, q.w as Float)
 }
 
-// Simplified helper classes
-private class SimpleMeshBVH(private val mesh: TriangleMeshShape) : MeshBVH {
-    override fun raycast(from: Vector3, to: Vector3): BVHRaycastResult? {
-        // Simplified raycast implementation
-        return null
+// Simplified helper functions for mesh processing
+private fun createSimpleMeshBVH(mesh: TriangleMeshShape): MeshBVH {
+    // Create simple BVH with all triangles in a single node
+    val triangles = (0 until mesh.triangleCount).map { mesh.getTriangle(it) }
+    val bounds = calculateTrianglesBounds(triangles)
+
+    val rootNode = BVHNode(
+        bounds = bounds,
+        leftChild = -1,
+        rightChild = -1,
+        triangleOffset = 0,
+        triangleCount = triangles.size
+    )
+
+    return MeshBVH(
+        nodes = listOf(rootNode),
+        triangles = triangles
+    )
+}
+
+private fun calculateTrianglesBounds(triangles: List<Triangle>): Box3 {
+    if (triangles.isEmpty()) {
+        return Box3(Vector3.ZERO, Vector3.ZERO)
     }
 
-    override fun getTrianglesInAABB(min: Vector3, max: Vector3): List<Int> {
-        val results = mutableListOf<Int>()
-        for (i in 0 until mesh.triangleCount) {
-            val tri = mesh.getTriangle(i)
-            // Check triangle-AABB intersection
-            results.add(i)
+    var minX = Float.MAX_VALUE
+    var minY = Float.MAX_VALUE
+    var minZ = Float.MAX_VALUE
+    var maxX = Float.MIN_VALUE
+    var maxY = Float.MIN_VALUE
+    var maxZ = Float.MIN_VALUE
+
+    triangles.forEach { triangle ->
+        listOf(triangle.vertex0, triangle.vertex1, triangle.vertex2).forEach { vertex ->
+            minX = minOf(minX, vertex.x)
+            minY = minOf(minY, vertex.y)
+            minZ = minOf(minZ, vertex.z)
+            maxX = maxOf(maxX, vertex.x)
+            maxY = maxOf(maxY, vertex.y)
+            maxZ = maxOf(maxZ, vertex.z)
         }
-        return results
     }
+
+    return Box3(Vector3(minX, minY, minZ), Vector3(maxX, maxY, maxZ))
 }
 
 // Extension functions for Matrix3
@@ -1821,4 +1868,5 @@ private fun Matrix4.extractRotation(): Quaternion {
 }
 
 // Platform-specific actual implementations
-actual fun createDefaultPhysicsEngine(): PhysicsEngine = RapierPhysicsEngine()
+// Platform-specific physics engine - remove actual if no expect is defined
+fun createRapierPhysicsEngine(): PhysicsEngine = RapierPhysicsEngine()

@@ -1,15 +1,17 @@
 package io.kreekt.core.platform
 
-import kotlinx.datetime.Clock
+import kotlin.time.TimeSource
 
 /**
  * Native implementation of platform abstractions
  */
-actual fun currentTimeMillis(): Long = Clock.System.now().toEpochMilliseconds()
+private val timeSource = TimeSource.Monotonic
 
-actual fun nanoTime(): Long = Clock.System.now().nanosecondsOfSecond.toLong()
+actual fun currentTimeMillis(): Long = timeSource.markNow().elapsedNow().inWholeMilliseconds
 
-actual fun performanceNow(): Double = Clock.System.now().toEpochMilliseconds().toDouble()
+actual fun nanoTime(): Long = timeSource.markNow().elapsedNow().inWholeNanoseconds
+
+actual fun performanceNow(): Double = timeSource.markNow().elapsedNow().inWholeNanoseconds / 1_000_000.0
 
 actual fun FloatArray.platformClone(): FloatArray {
     val result = FloatArray(this.size)
@@ -36,6 +38,5 @@ actual fun DoubleArray.platformClone(): DoubleArray {
 }
 
 actual fun <T> Array<T>.platformClone(): Array<T> {
-    @Suppress("UNCHECKED_CAST")
-    return Array(this.size) { i -> this[i] } as Array<T>
+    return this.copyOf()
 }

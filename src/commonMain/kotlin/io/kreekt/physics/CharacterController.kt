@@ -4,14 +4,15 @@
  */
 package io.kreekt.physics
 
-import io.kreekt.core.math.*
-import io.kreekt.core.Result
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Quaternion
+import io.kreekt.core.math.Vector3
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlin.math.*
 import kotlin.math.PI
-import kotlin.math.cos
+import kotlin.math.abs
+import kotlin.math.acos
 
 /**
  * Comprehensive character controller implementation
@@ -40,7 +41,6 @@ class CharacterControllerImpl(
         return PhysicsOperationResult.Success(Unit)
     }
 
-    override fun getCollisionShape(): CollisionShape = collisionShape
 
     override fun setWorldTransform(transform: Matrix4) {
         this.transform = transform
@@ -169,9 +169,6 @@ class CharacterControllerImpl(
         }
     }
 
-    override fun setWalkDirection(walkDirection: Vector3) {
-        this.walkDirection = walkDirection
-    }
 
     override fun setVelocityForTimeInterval(velocity: Vector3, timeInterval: Float) {
         this.velocityForTimeInterval = velocity

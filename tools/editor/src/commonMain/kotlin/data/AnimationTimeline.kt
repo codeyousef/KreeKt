@@ -434,7 +434,12 @@ data class BezierHandles(
 data class Vector2(
     val x: Float,
     val y: Float
-)
+) {
+    operator fun plus(other: Vector2): Vector2 = Vector2(x + other.x, y + other.y)
+    operator fun minus(other: Vector2): Vector2 = Vector2(x - other.x, y - other.y)
+    operator fun times(scalar: Float): Vector2 = Vector2(x * scalar, y * scalar)
+    operator fun div(scalar: Float): Vector2 = Vector2(x / scalar, y / scalar)
+}
 
 /**
  * TimelineMarker - Marks important points in the timeline

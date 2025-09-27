@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class, kotlin.time.ExperimentalTime::class)
+
 package io.kreekt.tools.editor.data
 
 import kotlinx.datetime.Instant

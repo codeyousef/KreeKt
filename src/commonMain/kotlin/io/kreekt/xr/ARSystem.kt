@@ -4,12 +4,11 @@
  */
 package io.kreekt.xr
 
-import io.kreekt.core.math.*
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Quaternion
+import io.kreekt.core.math.Vector2
+import io.kreekt.core.math.Vector3
 import io.kreekt.core.platform.currentTimeMillis
-import io.kreekt.renderer.Texture
-import kotlinx.coroutines.*
-import kotlin.math.*
-import io.kreekt.lighting.SphericalHarmonics
 
 /**
  * Default implementation of ARSystem interface
@@ -117,8 +116,8 @@ class DefaultXRHitTestResult(
     val pose: XRPose
 ) : XRHitTestResult {
 
-    override suspend fun createAnchor(): XRResult<XRAnchor> {
-        return XRResult.Error(XRException.NotSupported("Anchor creation not implemented"))
+    override suspend fun createAnchor(): XRAnchor? {
+        return null // Not implemented
     }
 
     override fun getPose(baseSpace: XRSpace): XRPose? = pose
@@ -149,9 +148,9 @@ class DefaultXRLightProbe(
  * Default XR Light Estimate implementation
  */
 class DefaultXRLightEstimate(
-    override val primaryLightDirection: Vector3? = null,
-    override val primaryLightIntensity: Vector3? = null,
-    override val sphericalHarmonicsCoefficients: FloatArray? = null
+    override val primaryLightDirection: Vector3 = Vector3.ZERO,
+    override val primaryLightIntensity: Float = 1.0f,
+    override val sphericalHarmonicsCoefficients: List<Vector3> = emptyList()
 ) : XRLightEstimate {
     val environmentTexture: Any? = null
 }

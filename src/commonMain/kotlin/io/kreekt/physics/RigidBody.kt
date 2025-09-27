@@ -4,11 +4,14 @@
  */
 package io.kreekt.physics
 
-import io.kreekt.core.math.*
+import io.kreekt.core.math.Matrix3
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Quaternion
+import io.kreekt.core.math.Vector3
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlin.math.*
+import kotlin.math.max
 
 /**
  * Contact point data structure
@@ -170,7 +173,6 @@ class DefaultRigidBody(
         }
     }
 
-    override fun getCollisionShape(): CollisionShape = collisionShape
 
     override fun setWorldTransform(transform: Matrix4) {
         this.transform = transform
@@ -436,7 +438,6 @@ class DefaultCollisionObject(
         return PhysicsOperationResult.Success(Unit)
     }
 
-    override fun getCollisionShape(): CollisionShape = collisionShape
 
     override fun setWorldTransform(transform: Matrix4) {
         this.transform = transform

@@ -4,11 +4,9 @@
  */
 package io.kreekt.xr
 
-import io.kreekt.core.math.*
-import io.kreekt.renderer.Renderer
-import io.kreekt.core.scene.*
-import io.kreekt.renderer.TextureFormat
-import kotlin.math.PI
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Vector2
+import io.kreekt.core.math.Vector3
 
 /**
  * Represents an XR device
@@ -36,38 +34,7 @@ interface XRSystem {
 /**
  * XR Session interface for managing XR sessions
  */
-interface XRSession {
-    val sessionId: String
-    val mode: XRSessionMode
-    val state: XRSessionState
-    val referenceSpaces: Map<XRReferenceSpaceType, XRReferenceSpace>
 
-    suspend fun updateRenderState(
-        depthNear: Float? = null,
-        depthFar: Float? = null,
-        baseLayer: XRLayer? = null
-    ): XRResult<Unit>
-
-    suspend fun requestReferenceSpace(type: XRReferenceSpaceType): XRResult<XRReferenceSpace>
-    suspend fun requestAnimationFrame(callback: (XRFrame) -> Unit): Int
-    fun cancelAnimationFrame(handle: Int)
-    suspend fun end(): XRResult<Unit>
-
-    fun onSessionStart(callback: () -> Unit)
-    fun onSessionEnd(callback: () -> Unit)
-    fun onInputSourcesChange(callback: (List<XRInputSource>) -> Unit)
-}
-
-/**
- * XR Frame interface for frame handling
- */
-interface XRFrame {
-    val session: XRSession
-    val predictedDisplayTime: Double
-
-    fun getViewerPose(referenceSpace: XRReferenceSpace): XRViewerPose?
-    fun getPose(space: XRSpace, baseSpace: XRSpace): XRPose?
-}
 
 /**
  * XR Space interface representing a coordinate system
@@ -186,6 +153,17 @@ interface XRHand {
 }
 
 /**
+ * XR Eye Gaze interface
+ */
+interface XRGaze {
+    val eyeSpace: XRSpace
+    val isTracked: Boolean
+
+    fun getEyePose(frame: XRFrame, referenceSpace: XRSpace): XRPose?
+    fun getGazeDirection(frame: XRFrame, referenceSpace: XRSpace): Vector3?
+}
+
+/**
  * XR Joint Space interface
  */
 interface XRJointSpace : XRSpace {
@@ -226,22 +204,6 @@ interface ARSystem : XRSystem {
     suspend fun enableDepthSensing(options: XRDepthSensingOptions): XRResult<XRDepthSensor>
 }
 
-/**
- * XR Controller interface
- */
-interface XRController : XRInputSource {
-    val controllerId: String
-    val isConnected: Boolean
-    val pose: XRPose?
-
-    fun vibrate(intensity: Float, duration: Float): Boolean
-    fun getButton(button: XRControllerButton): XRGamepadButton?
-    fun getAxis(axis: XRControllerAxis): Float
-
-    fun onButtonDown(button: XRControllerButton, callback: () -> Unit)
-    fun onButtonUp(button: XRControllerButton, callback: () -> Unit)
-    fun onAxisChange(axis: XRControllerAxis, callback: (Float) -> Unit)
-}
 
 /**
  * XR Hit Test Options
@@ -413,13 +375,13 @@ data class CameraIntrinsics(
  * XR Depth Sensor interface
  */
 interface XRDepthSensor {
-    fun getDepthInformation(view: XRView): XRDepthInformation?
+    fun getDepthInformation(view: XRView): XRDepthInfo?
 }
 
 /**
  * XR Depth Information interface
  */
-interface XRDepthInformation {
+interface XRDepthInfo {
     val width: Int
     val height: Int
     val normDepthBufferFromNormView: Matrix4

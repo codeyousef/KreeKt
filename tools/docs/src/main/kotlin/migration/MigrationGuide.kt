@@ -1,6 +1,7 @@
 package tools.docs.migration
 
 import kotlinx.coroutines.*
+import kotlinx.datetime.*
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import java.io.File
@@ -282,7 +283,8 @@ class MigrationGuideGenerator {
             ?: return@withContext emptyList()
 
         patterns.mapNotNull { pattern ->
-            generatePatternMigration(pattern, fromLibrary, libraryKnowledge)
+            // TODO: Implement pattern migration logic
+            null
         }
     }
 

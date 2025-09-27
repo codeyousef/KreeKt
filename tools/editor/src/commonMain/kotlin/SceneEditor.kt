@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.time.ExperimentalTime::class)
+
 package io.kreekt.tools.editor
 
 import io.kreekt.tools.editor.data.SceneEditorProject

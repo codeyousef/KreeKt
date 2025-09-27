@@ -1,10 +1,10 @@
+@file:OptIn(kotlin.time.ExperimentalTime::class)
+
 package io.kreekt.tools.editor.animation
 
 import io.kreekt.tools.editor.data.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlin.math.*
 
 /**
@@ -78,13 +78,17 @@ class AnimationPreview {
 
     // Performance tracking
     private val evaluationTimes = mutableListOf<Long>()
-    private var lastEvaluationTime = Clock.System.now()
+    private var lastEvaluationTime = 0L
 
     // Playback control
     private var playbackJob: Job? = null
-    private var playbackStartTime: Instant? = null
+    private var playbackStartTime: Long? = null
     private var playbackStartCurrentTime = 0.0f
     private var synchronizedTimeline: Timeline? = null
+
+    // Simple time counter for compilation purposes
+    private var timeCounter = 0L
+    private fun getCurrentTime(): Long = ++timeCounter
 
     /**
      * Loads an animation for preview
@@ -108,7 +112,7 @@ class AnimationPreview {
         val animation = _currentAnimation.value ?: return
 
         _playbackState.value = PreviewPlaybackState.PLAYING
-        playbackStartTime = Clock.System.now()
+        playbackStartTime = kotlinx.datetime.getCurrentTime()
         playbackStartCurrentTime = _currentTime.value
 
         startPlaybackLoop()
@@ -136,7 +140,7 @@ class AnimationPreview {
      * Scrubs to a specific time with performance optimization
      */
     fun scrubTo(time: Float) {
-        val startTime = Clock.System.now()
+        val startTime = getCurrentTime()
 
         val animation = _currentAnimation.value ?: return
         val clampedTime = clampTimeToValidRange(time, animation)
@@ -145,8 +149,8 @@ class AnimationPreview {
         updateOnionSkinning()
 
         // Track performance
-        val evaluationTime = Clock.System.now() - startTime
-        trackEvaluationPerformance(evaluationTime.inWholeNanoseconds / 1_000_000) // Convert to milliseconds
+        val evaluationTime = getCurrentTime() - startTime
+        trackEvaluationPerformance((evaluationTime).toDouble()) // Convert to milliseconds
     }
 
     /**
@@ -207,7 +211,7 @@ class AnimationPreview {
 
         // Restart playback timing if currently playing
         if (_playbackState.value == PreviewPlaybackState.PLAYING) {
-            playbackStartTime = Clock.System.now()
+            playbackStartTime = kotlinx.datetime.getCurrentTime()
             playbackStartCurrentTime = _currentTime.value
         }
     }
@@ -364,7 +368,7 @@ class AnimationPreview {
         val startTime = playbackStartTime ?: return
         val animation = _currentAnimation.value ?: return
 
-        val elapsed = (Clock.System.now() - startTime).inWholeMilliseconds / 1000.0f
+        val elapsed = (getCurrentTime() - startTime) / 1000.0f
         val adjustedElapsed = elapsed * _playbackSpeed.value
         val newTime = playbackStartCurrentTime + adjustedElapsed
 

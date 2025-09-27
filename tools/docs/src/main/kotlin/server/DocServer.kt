@@ -1,12 +1,19 @@
 package tools.docs.server
 
 import kotlinx.coroutines.*
+import kotlinx.datetime.*
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import tools.docs.dokka.*
 import tools.docs.examples.*
 import tools.docs.migration.*
-import tools.docs.search.*
+import tools.docs.search.SearchDocument
+import tools.docs.search.SearchResult
+import tools.docs.search.SearchIndexer
+import tools.docs.search.SearchIndex as SearchSearchIndex
+import tools.docs.search.SearchQuery
+import tools.docs.search.IndexStatistics
+import tools.docs.search.DocumentType
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -89,7 +96,7 @@ data class DocumentationSite(
     val baseUrl: String,
     val sections: List<SiteSection>,
     val navigation: NavigationStructure,
-    val searchIndex: SearchIndex,
+    val searchIndex: SearchSearchIndex,
     val theme: ThemeConfiguration,
     val metadata: SiteMetadata
 )
@@ -446,7 +453,7 @@ class DocServer {
      * Get server statistics
      */
     fun getStats(): ServerStats {
-        val uptime = if (isRunning) System.currentTimeMillis() else 0
+        val uptime = if (isRunning) Clock.System.now().toEpochMilliseconds() else 0
         val averageResponseTime = if (responseTimeHistory.isNotEmpty()) {
             responseTimeHistory.average()
         } else 0.0
@@ -534,9 +541,11 @@ class DocServer {
         println("👀 Starting file watcher for hot reload...")
 
         // Monitor source directories for changes
-        launch {
-            // File watching logic would go here
-            // When files change, trigger rebuild and notify clients
+        coroutineScope {
+            launch {
+                // File watching logic would go here
+                // When files change, trigger rebuild and notify clients
+            }
         }
     }
 
@@ -547,10 +556,10 @@ class DocServer {
         }
     }
 
-    private fun loadOrCreateSearchIndex(): SearchIndex {
+    private suspend fun loadOrCreateSearchIndex(): SearchSearchIndex {
         // Load existing search index or create new one
         val indexPath = "${config.staticFiles.rootDirectory}/search-index.json"
-        return searchIndexer.loadIndex(indexPath) ?: SearchIndex(
+        return searchIndexer.loadIndex(indexPath) ?: SearchSearchIndex(
             version = "1.0",
             documents = emptyList(),
             termIndex = emptyMap(),

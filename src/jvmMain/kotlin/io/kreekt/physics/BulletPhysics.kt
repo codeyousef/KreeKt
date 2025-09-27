@@ -26,25 +26,25 @@ class BulletPhysicsWorld(
     override var solverIterations = 10
     override var broadphase = BroadphaseType.DBVT
 
-    override fun addRigidBody(body: RigidBody): PhysicsResult<Unit> {
+    override fun addRigidBody(body: RigidBody): PhysicsOperationResult<Unit> {
         return try {
             val bulletBody = body as? BulletRigidBody
-                ?: return PhysicsResult.Error(
+                ?: return PhysicsOperationResult.Error(
                     PhysicsException.InvalidOperation("Body must be created through BulletPhysicsEngine")
                 )
             rigidBodies[body.id] = bulletBody
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to add rigid body"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to add rigid body"))
         }
     }
 
-    override fun removeRigidBody(body: RigidBody): PhysicsResult<Unit> {
+    override fun removeRigidBody(body: RigidBody): PhysicsOperationResult<Unit> {
         return try {
             rigidBodies.remove(body.id)
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to remove rigid body"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to remove rigid body"))
         }
     }
 
@@ -52,45 +52,53 @@ class BulletPhysicsWorld(
 
     override fun getRigidBody(id: String): RigidBody? = rigidBodies[id]
 
-    override fun addConstraint(constraint: PhysicsConstraint): PhysicsResult<Unit> {
+    override fun addConstraint(constraint: PhysicsConstraint): PhysicsOperationResult<Unit> {
         return try {
             val bulletConstraint = constraint as? BulletConstraint
-                ?: return PhysicsResult.Error(
+                ?: return PhysicsOperationResult.Error(
                     PhysicsException.InvalidOperation("Constraint must be created through BulletPhysicsEngine")
                 )
             constraints[constraint.id] = bulletConstraint
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to add constraint"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to add constraint"))
         }
     }
 
-    override fun removeConstraint(constraint: PhysicsConstraint): PhysicsResult<Unit> {
+    override fun removeConstraint(constraint: PhysicsConstraint): PhysicsOperationResult<Unit> {
         return try {
             constraints.remove(constraint.id)
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to remove constraint"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to remove constraint"))
         }
     }
 
     override fun getConstraints(): List<PhysicsConstraint> = constraints.values.toList()
 
-    override fun addCollisionObject(obj: CollisionObject): PhysicsResult<Unit> {
+    override fun addCollisionObject(obj: CollisionObject): PhysicsOperationResult<Unit> {
         return try {
             collisionObjects[obj.id] = obj
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to add collision object"))
+            PhysicsOperationResult.Error(
+                PhysicsException.SimulationError(
+                    e.message ?: "Failed to add collision object"
+                )
+            )
         }
     }
 
-    override fun removeCollisionObject(obj: CollisionObject): PhysicsResult<Unit> {
+    override fun removeCollisionObject(obj: CollisionObject): PhysicsOperationResult<Unit> {
         return try {
             collisionObjects.remove(obj.id)
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError(e.message ?: "Failed to remove collision object"))
+            PhysicsOperationResult.Error(
+                PhysicsException.SimulationError(
+                    e.message ?: "Failed to remove collision object"
+                )
+            )
         }
     }
 
@@ -98,15 +106,15 @@ class BulletPhysicsWorld(
         collisionCallback = callback
     }
 
-    override fun step(deltaTime: Float): PhysicsResult<Unit> {
+    override fun step(deltaTime: Float): PhysicsOperationResult<Unit> {
         return try {
             // Simulate physics step
             rigidBodies.values.forEach { body ->
                 body.updateFromSimulation()
             }
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError("Simulation step failed: ${e.message}"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError("Simulation step failed: ${e.message}"))
         }
     }
 
@@ -189,16 +197,15 @@ class BulletRigidBody(
     override var ccdMotionThreshold: Float = 0f
     override var ccdSweptSphereRadius: Float = 0f
 
-    override fun setCollisionShape(shape: CollisionShape): PhysicsResult<Unit> {
+    override fun setCollisionShape(shape: CollisionShape): PhysicsOperationResult<Unit> {
         return try {
             collisionShape = shape
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.InvalidOperation("Failed to set collision shape"))
+            PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Failed to set collision shape"))
         }
     }
 
-    override fun getCollisionShape(): CollisionShape = collisionShape
 
     override fun setWorldTransform(transform: Matrix4) {
         this.transform = transform
@@ -214,47 +221,47 @@ class BulletRigidBody(
         _transform = _transform.rotate(rotation)
     }
 
-    override fun applyForce(force: Vector3, relativePosition: Vector3): PhysicsResult<Unit> {
+    override fun applyForce(force: Vector3, relativePosition: Vector3): PhysicsOperationResult<Unit> {
         return try {
             // Apply force logic here
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError("Failed to apply force"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError("Failed to apply force"))
         }
     }
 
-    override fun applyImpulse(impulse: Vector3, relativePosition: Vector3): PhysicsResult<Unit> {
+    override fun applyImpulse(impulse: Vector3, relativePosition: Vector3): PhysicsOperationResult<Unit> {
         return try {
             // Apply impulse logic here
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError("Failed to apply impulse"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError("Failed to apply impulse"))
         }
     }
 
-    override fun applyTorque(torque: Vector3): PhysicsResult<Unit> {
+    override fun applyTorque(torque: Vector3): PhysicsOperationResult<Unit> {
         return try {
             // Apply torque logic here
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError("Failed to apply torque"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError("Failed to apply torque"))
         }
     }
 
-    override fun applyTorqueImpulse(torque: Vector3): PhysicsResult<Unit> {
+    override fun applyTorqueImpulse(torque: Vector3): PhysicsOperationResult<Unit> {
         return try {
             // Apply torque impulse logic here
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.SimulationError("Failed to apply torque impulse"))
+            PhysicsOperationResult.Error(PhysicsException.SimulationError("Failed to apply torque impulse"))
         }
     }
 
-    override fun applyCentralForce(force: Vector3): PhysicsResult<Unit> {
+    override fun applyCentralForce(force: Vector3): PhysicsOperationResult<Unit> {
         return applyForce(force, Vector3.ZERO)
     }
 
-    override fun applyCentralImpulse(impulse: Vector3): PhysicsResult<Unit> {
+    override fun applyCentralImpulse(impulse: Vector3): PhysicsOperationResult<Unit> {
         return applyImpulse(impulse, Vector3.ZERO)
     }
 
@@ -302,10 +309,6 @@ abstract class BulletConstraint(
     override fun getAppliedImpulse(): Float = 0f
 
     override fun isEnabled(): Boolean = enabled
-
-    override fun setEnabled(enabled: Boolean) {
-        this.enabled = enabled
-    }
 
     override fun getInfo(info: ConstraintInfo) {
         // Fill constraint info based on type
@@ -355,12 +358,12 @@ class BulletPhysicsEngine : PhysicsEngine {
         return BulletPhysicsWorld(gravity)
     }
 
-    override fun destroyWorld(world: PhysicsWorld): PhysicsResult<Unit> {
+    override fun destroyWorld(world: PhysicsWorld): PhysicsOperationResult<Unit> {
         return try {
             (world as? BulletPhysicsWorld)?.dispose()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.InvalidOperation("Failed to destroy world"))
+            PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Failed to destroy world"))
         }
     }
 
@@ -484,7 +487,7 @@ private class BulletBoxShape(override val halfExtents: Vector3) : BoxShape {
         if (direction.x > 0) halfExtents.x else -halfExtents.x,
         if (direction.y > 0) halfExtents.y else -halfExtents.y,
         if (direction.z > 0) halfExtents.z else -halfExtents.z
-    ).add(direction.normalize().scale(margin))
+    ).add(direction.normalize().multiply(margin))
 
     override fun localGetSupportingVertexWithoutMargin(direction: Vector3) = Vector3(
         if (direction.x > 0) halfExtents.x else -halfExtents.x,
@@ -527,10 +530,10 @@ private class BulletSphereShape(override val radius: Float) : SphereShape {
     override fun isCompound() = false
 
     override fun localGetSupportingVertex(direction: Vector3) =
-        direction.normalize().scale(radius + margin)
+        direction.normalize().multiply(radius + margin)
 
     override fun localGetSupportingVertexWithoutMargin(direction: Vector3) =
-        direction.normalize().scale(radius)
+        direction.normalize().multiply(radius)
 
     override fun calculateLocalInertia(mass: Float): Vector3 {
         val inertia = 0.4f * mass * radius * radius
@@ -587,7 +590,7 @@ private class BulletCapsuleShape(
         }
         val horizontal = Vector3(dir.x, 0f, dir.z).normalize()
         val y = if (dir.y > 0) height/2f else -height/2f
-        return horizontal.scale(radius).add(Vector3(0f, y, 0f))
+        return horizontal.multiply(radius).add(Vector3(0f, y, 0f))
     }
 
     override fun localGetSupportingVertexWithoutMargin(direction: Vector3) =
@@ -763,7 +766,7 @@ private class BulletConvexHullShape(
             }
         }
 
-        return support.add(direction.normalize().scale(margin))
+        return support.add(direction.normalize().multiply(margin))
     }
 
     override fun localGetSupportingVertexWithoutMargin(direction: Vector3): Vector3 {
@@ -837,13 +840,14 @@ private class BulletTriangleMeshShape(
     override fun processAllTriangles(callback: TriangleCallback, aabbMin: Vector3, aabbMax: Vector3) {
         for (i in 0 until triangleCount) {
             val triangle = getTriangle(i)
-            callback.processTriangle(triangle, i)
+            callback.processTriangle(triangle, 0, i)
         }
     }
 
-    override fun buildBVH(): MeshBVH {
-        return SimpleMeshBVH(this)
-    }
+    override fun buildBVH(): MeshBVH = MeshBVH(
+        nodes = emptyList(),
+        triangles = emptyList()
+    )
 
     override fun calculateInertia(mass: Float): Matrix3 {
         val size = boundingBox.getSize()
@@ -858,7 +862,7 @@ private class BulletTriangleMeshShape(
         var volume = 0f
         for (i in 0 until triangleCount) {
             val tri = getTriangle(i)
-            volume += tri.v0.dot(tri.v1.cross(tri.v2)) / 6f
+            volume += tri.vertex0.dot(tri.vertex1.cross(tri.vertex2)) / 6f
         }
         return kotlin.math.abs(volume)
     }
@@ -867,8 +871,8 @@ private class BulletTriangleMeshShape(
         var area = 0f
         for (i in 0 until triangleCount) {
             val tri = getTriangle(i)
-            val ab = tri.v1.subtract(tri.v0)
-            val ac = tri.v2.subtract(tri.v0)
+            val ab = tri.vertex1.subtract(tri.vertex0)
+            val ac = tri.vertex2.subtract(tri.vertex0)
             area += ab.cross(ac).length() * 0.5f
         }
         return area
@@ -950,47 +954,47 @@ private class BulletCompoundShape : CompoundShape {
     override var boundingBox = Box3(Vector3.ZERO, Vector3.ZERO)
         private set
 
-    override fun addChildShape(transform: Matrix4, shape: CollisionShape): PhysicsResult<Unit> {
+    override fun addChildShape(transform: Matrix4, shape: CollisionShape): PhysicsOperationResult<Unit> {
         return try {
             childShapes.add(ChildShape(transform, shape))
             recalculateLocalAabb()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.InvalidOperation("Failed to add child shape"))
+            PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Failed to add child shape"))
         }
     }
 
-    override fun removeChildShape(shape: CollisionShape): PhysicsResult<Unit> {
+    override fun removeChildShape(shape: CollisionShape): PhysicsOperationResult<Unit> {
         return try {
             childShapes.removeAll { it.shape == shape }
             recalculateLocalAabb()
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.InvalidOperation("Failed to remove child shape"))
+            PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Failed to remove child shape"))
         }
     }
 
-    override fun removeChildShapeByIndex(index: Int): PhysicsResult<Unit> {
+    override fun removeChildShapeByIndex(index: Int): PhysicsOperationResult<Unit> {
         return try {
             if (index in childShapes.indices) {
                 childShapes.removeAt(index)
                 recalculateLocalAabb()
             }
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.InvalidOperation("Failed to remove child shape"))
+            PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Failed to remove child shape"))
         }
     }
 
-    override fun updateChildTransform(index: Int, transform: Matrix4): PhysicsResult<Unit> {
+    override fun updateChildTransform(index: Int, transform: Matrix4): PhysicsOperationResult<Unit> {
         return try {
             if (index in childShapes.indices) {
                 childShapes[index] = ChildShape(transform, childShapes[index].shape)
                 recalculateLocalAabb()
             }
-            PhysicsResult.Success(Unit)
+            PhysicsOperationResult.Success(Unit)
         } catch (e: Exception) {
-            PhysicsResult.Error(PhysicsException.InvalidOperation("Failed to update child transform"))
+            PhysicsOperationResult.Error(PhysicsException.InvalidOperation("Failed to update child transform"))
         }
     }
 
@@ -1052,88 +1056,89 @@ private class BulletCompoundShape : CompoundShape {
 
 // Character controller implementation
 private class BulletCharacterController(
-    override val collisionShape: CollisionShape,
-    override val stepHeight: Float
+    override var collisionShape: CollisionShape,
+    override var stepHeight: Float
 ) : CharacterController {
     override val id = "character_${System.currentTimeMillis()}"
     override var transform: Matrix4 = Matrix4.identity()
-    override var velocity: Vector3 = Vector3.ZERO
-    override var isOnGround: Boolean = false
+    override var collisionGroups: Int = 1
+    override var collisionMask: Int = 1
+    override var userData: Any? = null
+    override var contactProcessingThreshold: Float = 0.0f
+    override var collisionFlags: Int = 0
+    override var isTrigger: Boolean = false
     override var jumpSpeed: Float = 10f
     override var walkDirection: Vector3 = Vector3.ZERO
     override var fallSpeed: Float = 9.81f
-    override var maxJumpHeight: Float = 5f
-    override var canJump: Boolean = true
-    override var slopeRadians: Float = kotlin.math.PI.toFloat() / 4f
+    override var maxSlope: Float = kotlin.math.PI.toFloat() / 4f
+    override var velocityForTimeInterval: Vector3 = Vector3.ZERO
 
-    override fun setWalkDirection(direction: Vector3) {
-        walkDirection = direction
+    private var isOnGroundState: Boolean = false
+    private var velocity: Vector3 = Vector3.ZERO
+
+    override fun onGround(): Boolean = isOnGroundState
+
+    override fun canJump(): Boolean = isOnGroundState
+
+    override fun jump(direction: Vector3) {
+        if (canJump()) {
+            velocity = velocity.add(direction.multiply(jumpSpeed))
+        }
     }
 
+
     override fun setVelocityForTimeInterval(velocity: Vector3, timeInterval: Float) {
-        this.velocity = velocity
+        this.velocityForTimeInterval = velocity
     }
 
     override fun warp(origin: Vector3) {
-        transform = transform.setTranslation(origin)
+        transform = Matrix4.IDENTITY.makeTranslation(origin.x, origin.y, origin.z)
     }
 
     override fun preStep(world: PhysicsWorld) {}
 
+    override fun setCollisionShape(shape: CollisionShape): PhysicsOperationResult<Unit> {
+        collisionShape = shape
+        return PhysicsOperationResult.Success(Unit)
+    }
+
+    override fun setWorldTransform(transform: Matrix4) {
+        this.transform = transform
+    }
+
+    override fun getWorldTransform(): Matrix4 = transform
+
+    override fun translate(offset: Vector3) {
+        transform = transform.translate(offset)
+    }
+
+    override fun rotate(rotation: Quaternion) {
+        transform = transform.rotate(rotation)
+    }
+
     override fun playerStep(world: PhysicsWorld, deltaTime: Float) {
         // Simple character controller step
         if (walkDirection.length() > 0f) {
-            velocity = velocity.add(walkDirection.scale(deltaTime * 10f))
+            velocity = velocity.add(walkDirection.multiply(deltaTime * 10f))
         }
 
         // Apply gravity
-        if (!isOnGround) {
+        if (!isOnGroundState) {
             velocity = velocity.add(Vector3(0f, -fallSpeed * deltaTime, 0f))
         }
 
         // Update position
-        transform = transform.translate(velocity.scale(deltaTime))
+        transform = transform.translate(velocity.multiply(deltaTime))
 
         // Simple ground check
-        isOnGround = transform.getTranslation().y <= 0f
-        if (isOnGround) {
-            transform = transform.setTranslation(transform.getTranslation().copy(y = 0f))
+        isOnGroundState = transform.getTranslation().y <= 0f
+        if (isOnGroundState) {
+            val currentPos = transform.getTranslation()
+            transform = Matrix4.IDENTITY.makeTranslation(currentPos.x, 0f, currentPos.z)
             velocity = velocity.copy(y = 0f)
         }
     }
 
-    override fun jump(velocity: Vector3) {
-        if (canJump && isOnGround) {
-            this.velocity = this.velocity.add(velocity)
-            isOnGround = false
-        }
-    }
-
-    override fun canJump(): Boolean = canJump && isOnGround
-
-    override fun onGround(): Boolean = isOnGround
-
-    override fun setJumpSpeed(jumpSpeed: Float) {
-        this.jumpSpeed = jumpSpeed
-    }
-
-    override fun setMaxJumpHeight(maxJumpHeight: Float) {
-        this.maxJumpHeight = maxJumpHeight
-    }
-
-    override fun setFallSpeed(fallSpeed: Float) {
-        this.fallSpeed = fallSpeed
-    }
-
-    override fun setMaxSlope(slopeRadians: Float) {
-        this.slopeRadians = slopeRadians
-    }
-
-    override fun setUpAxis(axis: Int) {}
-
-    override fun setGravity(gravity: Vector3) {
-        fallSpeed = gravity.length()
-    }
 }
 
 // Additional constraint implementations
@@ -1152,7 +1157,7 @@ private class BulletHingeConstraint(
     override var lowerLimit = 0f
     override var upperLimit = 0f
     override var enableAngularMotor = false
-    override var motorTargetVelocity = 0f
+    override var targetVelocity = 0f
     override var maxMotorImpulse = 0f
 
     override fun getHingeAngle(): Float = 0f
@@ -1162,13 +1167,6 @@ private class BulletHingeConstraint(
     }
     override fun enableMotor(enable: Boolean) { enableAngularMotor = enable }
     override fun setMotorTarget(targetAngle: Float, deltaTime: Float) {}
-    override fun setMotorTargetVelocity(omega: Float) { motorTargetVelocity = omega }
-    override fun setMaxMotorImpulse(maxMotorImpulse: Float) { this.maxMotorImpulse = maxMotorImpulse }
-    override fun getFrameOffsetA(): Matrix4 = Matrix4.identity()
-    override fun getFrameOffsetB(): Matrix4 = Matrix4.identity()
-    override fun setFrames(frameA: Matrix4, frameB: Matrix4) {}
-    override fun getMotorTargetVelocity(): Float = motorTargetVelocity
-    override fun getMaxMotorImpulse(): Float = maxMotorImpulse
     override fun setParam(param: ConstraintParam, value: Float, axis: Int) {}
     override fun getParam(param: ConstraintParam, axis: Int): Float = 0f
 }
@@ -1185,28 +1183,15 @@ private class BulletSliderConstraint(
     override var upperLinearLimit = 0f
     override var lowerAngularLimit = 0f
     override var upperAngularLimit = 0f
-    override var linearMotorEnabled = false
-    override var angularMotorEnabled = false
     override var maxLinearMotorForce = 0f
     override var maxAngularMotorForce = 0f
     override var targetLinearMotorVelocity = 0f
     override var targetAngularMotorVelocity = 0f
+    override var poweredLinearMotor = false
+    override var poweredAngularMotor = false
 
     override fun getLinearPos(): Float = 0f
     override fun getAngularPos(): Float = 0f
-    override fun setLowerLinearLimit(lowerLimit: Float) { lowerLinearLimit = lowerLimit }
-    override fun setUpperLinearLimit(upperLimit: Float) { upperLinearLimit = upperLimit }
-    override fun setLowerAngularLimit(lowerLimit: Float) { lowerAngularLimit = lowerLimit }
-    override fun setUpperAngularLimit(upperLimit: Float) { upperAngularLimit = upperLimit }
-    override fun setPoweredLinearMotor(onOff: Boolean) { linearMotorEnabled = onOff }
-    override fun setPoweredAngularMotor(onOff: Boolean) { angularMotorEnabled = onOff }
-    override fun setTargetLinearMotorVelocity(targetLinearMotorVelocity: Float) { this.targetLinearMotorVelocity = targetLinearMotorVelocity }
-    override fun setTargetAngularMotorVelocity(targetAngularMotorVelocity: Float) { this.targetAngularMotorVelocity = targetAngularMotorVelocity }
-    override fun setMaxLinearMotorForce(maxLinearMotorForce: Float) { this.maxLinearMotorForce = maxLinearMotorForce }
-    override fun setMaxAngularMotorForce(maxAngularMotorForce: Float) { this.maxAngularMotorForce = maxAngularMotorForce }
-    override fun getFrameOffsetA(): Matrix4 = frameA
-    override fun getFrameOffsetB(): Matrix4 = frameB
-    override fun setFrames(frameA: Matrix4, frameB: Matrix4) {}
     override fun setParam(param: ConstraintParam, value: Float, axis: Int) {}
     override fun getParam(param: ConstraintParam, axis: Int): Float = 0f
 }
@@ -1218,18 +1203,4 @@ private fun Matrix3.add(other: Matrix3) = Matrix3(floatArrayOf(
     m10 + other.m10, m11 + other.m11, m12 + other.m12,
     m20 + other.m20, m21 + other.m21, m22 + other.m22))
 
-// Simplified helper classes
-private class SimpleMeshBVH(private val mesh: TriangleMeshShape) : MeshBVH {
-    override fun raycast(from: Vector3, to: Vector3): BVHRaycastResult? = null
 
-    override fun getTrianglesInAABB(min: Vector3, max: Vector3): List<Int> {
-        val results = mutableListOf<Int>()
-        for (i in 0 until mesh.triangleCount) {
-            results.add(i)
-        }
-        return results
-    }
-}
-
-// Platform-specific actual implementations
-actual fun createDefaultPhysicsEngine(): PhysicsEngine = BulletPhysicsEngine()

@@ -100,6 +100,16 @@ data class Vector2(
     fun angle(): Float = atan2(y, x)
     fun angleTo(other: Vector2): Float = atan2(cross(other), dot(other))
 
+    fun rotate(angle: Float): Vector2 {
+        val cos = cos(angle)
+        val sin = sin(angle)
+        val newX = x * cos - y * sin
+        val newY = x * sin + y * cos
+        x = newX
+        y = newY
+        return this
+    }
+
     fun lerp(other: Vector2, t: Float): Vector2 {
         x += (other.x - x) * t
         y += (other.y - y) * t
@@ -167,6 +177,34 @@ data class Vector2(
     }
 
     fun isZero(): Boolean = x == 0f && y == 0f
+
+    // Three.js compatibility aliases
+    fun distanceTo(other: Vector2): Float = distance(other)
+    fun distanceToSquared(other: Vector2): Float = distanceSquared(other)
+    fun sub(other: Vector2): Vector2 = subtract(other)
+    fun multiplyScalar(scalar: Float): Vector2 = multiply(scalar)
+    fun divideScalar(scalar: Float): Vector2 = divide(scalar)
+    fun addScalar(scalar: Float): Vector2 = add(scalar)
+    fun lengthSq(): Float = lengthSquared()
+
+    // Additional Three.js compatibility methods
+    fun subVectors(a: Vector2, b: Vector2): Vector2 {
+        x = a.x - b.x
+        y = a.y - b.y
+        return this
+    }
+
+    fun addVectors(a: Vector2, b: Vector2): Vector2 {
+        x = a.x + b.x
+        y = a.y + b.y
+        return this
+    }
+
+    fun lerpVectors(a: Vector2, b: Vector2, t: Float): Vector2 {
+        x = a.x + (b.x - a.x) * t
+        y = a.y + (b.y - a.y) * t
+        return this
+    }
 
     override fun toString(): String = "Vector2($x, $y)"
 

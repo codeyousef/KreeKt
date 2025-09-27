@@ -5,6 +5,7 @@
 package io.kreekt.xr
 
 import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Vector3
 
 // Placeholder implementations for XR anchor functions on JVM
 internal actual suspend fun savePersistentAnchor(handle: String, pose: XRPose) {
@@ -23,11 +24,10 @@ internal actual suspend fun checkPlatformTrackingState(anchorId: String): XRTrac
 internal actual suspend fun getPlatformAnchorPose(anchorId: String): XRPose? = null
 
 internal actual fun performCoordinateTransform(
-    pose: XRPose,
+    position: Vector3,
     fromSpace: XRReferenceSpace,
-    toSpace: XRReferenceSpace,
-    transform: Matrix4
-): XRPose = pose
+    toSpace: XRReferenceSpace
+): Vector3? = position
 
 internal actual fun recalculatePoseFromOrigin(pose: XRPose, originTransform: Matrix4): XRPose = pose
 
@@ -36,10 +36,16 @@ internal actual fun evaluatePlatformTrackingQuality(): TrackingQuality = Trackin
 internal actual suspend fun uploadAnchorToPlatformCloud(
     anchor: XRAnchor,
     metadata: Map<String, Any>
-): String? = null
+): String = ""
 
 internal actual suspend fun downloadAnchorFromPlatformCloud(cloudId: String): PersistentAnchorData =
-    PersistentAnchorData("", XRPose.IDENTITY, emptyMap())
+    PersistentAnchorData(
+        id = cloudId,
+        handle = "",
+        pose = DefaultXRPose(Vector3.ZERO, io.kreekt.core.math.Quaternion.IDENTITY),
+        createdTime = 0L,
+        metadata = emptyMap()
+    )
 
 internal actual suspend fun listAnchorsFromPlatformCloud(filter: Map<String, Any>): List<CloudAnchor> = emptyList()
 

@@ -4,20 +4,13 @@
  */
 package io.kreekt.xr
 
-import io.kreekt.core.math.*
-import io.kreekt.core.platform.platformClone
-import io.kreekt.core.platform.currentTimeMillis
-import io.kreekt.core.platform.platformClone
-import kotlinx.coroutines.*
-import io.kreekt.core.platform.platformClone
-import io.kreekt.core.platform.currentTimeMillis
-import io.kreekt.core.platform.platformClone
-import kotlin.math.*
-import io.kreekt.core.platform.platformClone
-import io.kreekt.core.platform.currentTimeMillis
-import io.kreekt.core.platform.platformClone
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Vector3
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.PI
-import kotlin.math.cos
+import kotlin.math.acos
 
 /**
  * Default implementation of XRHand interface
@@ -274,36 +267,8 @@ class DefaultXRGaze : XRGaze {
     }
 }
 
-/**
- * Default implementation of XRJointSpace
- */
-class DefaultXRJointSpace(
-    override val jointName: XRHandJoint
-) : XRJointSpace {
-    override val id: String = "xrjs_${jointName}_${currentTimeMillis()}"
-}
 
-/**
- * Default implementation of XRJointPose
- */
-class DefaultXRJointPose(
-    override val transform: Matrix4,
-    override val position: Vector3,
-    override val orientation: Quaternion,
-    override val radius: Float? = null,
-    override val linearVelocity: Vector3? = null,
-    override val angularVelocity: Vector3? = null
-) : XRJointPose {
-    override fun inverse(): XRPose {
-        return DefaultXRPose(
-            transform = transform.inverse(),
-            position = position.negate(),
-            orientation = orientation.conjugate(),
-            linearVelocity = linearVelocity?.negate(),
-            angularVelocity = angularVelocity?.negate()
-        )
-    }
-}
+// DefaultXRJointPose is implemented in platform-specific modules
 
 /**
  * Hand gesture detector
@@ -345,8 +310,8 @@ class HandGestureDetector(
         val ringCurl = hand.getFingerCurl(Finger.RING)
         val pinkyCurl = hand.getFingerCurl(Finger.PINKY)
 
-        val thumbTip = hand.getJointPose(XRHandJoint.THUMB_TIP)?.transform.getTranslation()
-        val wrist = hand.getJointPose(XRHandJoint.WRIST)?.transform.getTranslation()
+        val thumbTip = hand.getJointPose(XRHandJoint.THUMB_TIP)?.transform?.getTranslation()
+        val wrist = hand.getJointPose(XRHandJoint.WRIST)?.transform?.getTranslation()
 
         if (thumbTip == null || wrist == null) return false
 
@@ -364,8 +329,8 @@ class HandGestureDetector(
         val ringCurl = hand.getFingerCurl(Finger.RING)
         val pinkyCurl = hand.getFingerCurl(Finger.PINKY)
 
-        val thumbTip = hand.getJointPose(XRHandJoint.THUMB_TIP)?.transform.getTranslation()
-        val wrist = hand.getJointPose(XRHandJoint.WRIST)?.transform.getTranslation()
+        val thumbTip = hand.getJointPose(XRHandJoint.THUMB_TIP)?.transform?.getTranslation()
+        val wrist = hand.getJointPose(XRHandJoint.WRIST)?.transform?.getTranslation()
 
         if (thumbTip == null || wrist == null) return false
 
@@ -427,7 +392,7 @@ class HandGestureDetector(
 
         // Check for oscillating hand movement
         val wristPositions = gestureHistory.mapNotNull {
-            hand.getJointPose(XRHandJoint.WRIST)?.transform.getTranslation()
+            hand.getJointPose(XRHandJoint.WRIST)?.transform?.getTranslation()
         }
 
         if (wristPositions.size < 20) return false
@@ -453,7 +418,7 @@ class HandGestureDetector(
         if (gestureHistory.size < 10) return false
 
         val recentPositions = gestureHistory.takeLast(10).mapNotNull {
-            hand.getJointPose(XRHandJoint.WRIST)?.transform.getTranslation()
+            hand.getJointPose(XRHandJoint.WRIST)?.transform?.getTranslation()
         }
 
         if (recentPositions.size < 10) return false
@@ -503,7 +468,7 @@ class XRInputSourceManager(
 
     private fun startInputMonitoring() {
         GlobalScope.launch {
-            while (session.isActive) {
+            while (session.isSessionActive()) {
                 updateInputSources()
                 updateHandTracking()
                 updateEyeTracking()
@@ -553,11 +518,8 @@ class XRInputSourceManager(
             }
         }
 
-        // Check if it's eye gaze
-        source.gaze?.let { gaze ->
-            eyeGaze = gaze as? DefaultXRGaze
-            inputCallbacks.forEach { it.onEyeTrackingStarted(gaze) }
-        }
+        // Eye gaze would be handled separately through XR eye tracking APIs
+        // inputCallbacks.forEach { it.onEyeTrackingStarted(gaze) }
     }
 
     private fun handleRemovedInputSource(id: String) {
@@ -577,10 +539,9 @@ class XRInputSourceManager(
             }
         }
 
-        source.gaze?.let {
-            eyeGaze = null
-            inputCallbacks.forEach { it.onEyeTrackingLost() }
-        }
+        // Handle eye gaze tracking loss if applicable
+        eyeGaze = null
+        inputCallbacks.forEach { it.onEyeTrackingLost() }
     }
 
     private suspend fun updateHandTracking() {
@@ -608,7 +569,7 @@ class XRInputSourceManager(
     private suspend fun updateHandJoints(hand: DefaultXRHand) {
         // Update joint poses from platform
         val jointPoses = getPlatformHandJointPoses(hand)
-        jointPoses.forEach { (joint, pose) ->
+        jointPoses.forEach { (joint: XRHandJoint, pose: XRJointPose) ->
             hand.updateJointPose(joint, pose)
         }
     }
@@ -737,6 +698,6 @@ data class EyeTrackingData(
 // Platform-specific functions (will be implemented via expect/actual)
 internal expect suspend fun getPlatformHandJointPoses(
     hand: DefaultXRHand
-): Map<XRHandJoint, DefaultXRJointPose>
+): Map<XRHandJoint, XRJointPose>
 
 internal expect suspend fun getPlatformEyeTrackingData(): EyeTrackingData?

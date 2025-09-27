@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.time.ExperimentalTime::class)
+
 package io.kreekt.tools.editor.material
 
 import io.kreekt.tools.editor.data.MaterialDefinition
@@ -9,6 +11,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.*
@@ -86,7 +90,11 @@ class UniformControls(
                 uniform.category?.contains(query, ignoreCase = true) == true
             }
         }
-    }
+    }.stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = emptyMap()
+    )
 
     val groupedUniforms: StateFlow<Map<String, List<Pair<String, UniformValue>>>> = combine(
         filteredUniforms, _grouping
@@ -97,7 +105,11 @@ class UniformControls(
             UniformGrouping.ALPHABETICAL -> groupUniformsAlphabetically(uniforms)
             UniformGrouping.NONE -> mapOf("All" to uniforms.toList())
         }
-    }
+    }.stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = emptyMap()
+    )
 
     val canUndo: StateFlow<Boolean> = MutableStateFlow(false).apply {
         scope.launch {

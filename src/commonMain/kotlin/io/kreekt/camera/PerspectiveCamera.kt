@@ -1,10 +1,8 @@
 package io.kreekt.camera
-import io.kreekt.core.math.Box3
 
 import io.kreekt.core.math.*
 import io.kreekt.core.scene.Object3D
 import kotlin.math.*
-import kotlin.math.PI
 
 /**
  * Perspective camera with field of view projection.
@@ -43,7 +41,7 @@ class PerspectiveCamera(
     /**
      * Zoom factor
      */
-    var zoom: Float = 1f
+    override var zoom: Float = 1f
         set(value) {
             field = value
             updateProjectionMatrix()

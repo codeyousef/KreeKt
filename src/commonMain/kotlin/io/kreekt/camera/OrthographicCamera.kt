@@ -1,10 +1,10 @@
 package io.kreekt.camera
-import io.kreekt.core.math.Box3
 
-import io.kreekt.core.math.*
+import io.kreekt.core.math.Box3
+import io.kreekt.core.math.Ray
+import io.kreekt.core.math.Vector2
+import io.kreekt.core.math.Vector3
 import io.kreekt.core.scene.Object3D
-import kotlin.math.*
-import kotlin.math.PI
 
 /**
  * Orthographic camera with parallel projection.
@@ -17,22 +17,22 @@ class OrthographicCamera(
     /**
      * Left edge of the view frustum
      */
-    var left: Float = -1f,
+    left: Float = -1f,
 
     /**
      * Right edge of the view frustum
      */
-    var right: Float = 1f,
+    right: Float = 1f,
 
     /**
      * Top edge of the view frustum
      */
-    var top: Float = 1f,
+    top: Float = 1f,
 
     /**
      * Bottom edge of the view frustum
      */
-    var bottom: Float = -1f,
+    bottom: Float = -1f,
 
     /**
      * Near clipping plane distance
@@ -46,9 +46,45 @@ class OrthographicCamera(
 ) : Camera() {
 
     /**
+     * Left edge of the view frustum
+     */
+    override var left: Float = left
+        set(value) {
+            field = value
+            updateProjectionMatrix()
+        }
+
+    /**
+     * Right edge of the view frustum
+     */
+    override var right: Float = right
+        set(value) {
+            field = value
+            updateProjectionMatrix()
+        }
+
+    /**
+     * Top edge of the view frustum
+     */
+    override var top: Float = top
+        set(value) {
+            field = value
+            updateProjectionMatrix()
+        }
+
+    /**
+     * Bottom edge of the view frustum
+     */
+    override var bottom: Float = bottom
+        set(value) {
+            field = value
+            updateProjectionMatrix()
+        }
+
+    /**
      * Zoom factor for scaling the view
      */
-    var zoom: Float = 1f
+    override var zoom: Float = 1f
         set(value) {
             field = value
             updateProjectionMatrix()

@@ -1,13 +1,10 @@
 package io.kreekt.camera
 
 import io.kreekt.core.math.*
-import io.kreekt.core.platform.platformClone
 import io.kreekt.core.scene.Object3D
-import io.kreekt.core.platform.platformClone
-import kotlin.math.*
-import io.kreekt.core.platform.platformClone
 import kotlin.math.PI
-import io.kreekt.core.math.Box3
+import kotlin.math.atan
+import kotlin.math.tan
 
 /**
  * Abstract base class for all cameras.
@@ -47,6 +44,40 @@ abstract class Camera : Object3D() {
      * Far clipping plane distance
      */
     var far: Float = 2000f
+        set(value) {
+            field = value
+            updateProjectionMatrix()
+        }
+
+    /**
+     * Zoom factor (for compatibility - overridden in subclasses)
+     */
+    open var zoom: Float = 1f
+        set(value) {
+            field = value
+            updateProjectionMatrix()
+        }
+
+    // Orthographic camera properties (default values for compatibility)
+    open var left: Float = -1f
+        set(value) {
+            field = value
+            updateProjectionMatrix()
+        }
+
+    open var right: Float = 1f
+        set(value) {
+            field = value
+            updateProjectionMatrix()
+        }
+
+    open var top: Float = 1f
+        set(value) {
+            field = value
+            updateProjectionMatrix()
+        }
+
+    open var bottom: Float = -1f
         set(value) {
             field = value
             updateProjectionMatrix()

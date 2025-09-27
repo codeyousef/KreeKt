@@ -1,9 +1,7 @@
 package io.kreekt.core.math
 
-import kotlin.math.*
-import io.kreekt.core.platform.platformClone
-import kotlin.math.PI
-import io.kreekt.core.math.Box3
+import kotlin.math.abs
+import kotlin.math.sqrt
 
 /**
  * A ray represented by an origin point and a direction vector.
@@ -211,17 +209,39 @@ data class Ray(
     }
 
     /**
-     * Tests intersection with a sphere
+     * Tests intersection with a sphere and returns intersection distances
+     * @return Vector2 with x = near distance, y = far distance, or null if no intersection
      */
-    fun intersectSphere(sphere: Sphere): Vector3? {
+    fun intersectSphere(sphere: Sphere): Vector2? {
+        val v1 = Vector3().copy(sphere.center).sub(origin)
+        val tca = v1.dot(direction)
+        val d2 = v1.dot(v1) - tca * tca
+        val radius2 = sphere.radius * sphere.radius
+
+        if (d2 > radius2) return null
+
+        val thc = sqrt(radius2 - d2)
+        val t0 = tca - thc
+        val t1 = tca + thc
+
+        // Both t0 and t1 are negative, sphere is behind ray
+        if (t0 < 0f && t1 < 0f) return null
+
+        return Vector2(t0, t1)
+    }
+
+    /**
+     * Tests intersection with a sphere and returns intersection point
+     */
+    fun intersectSpherePoint(sphere: Sphere): Vector3? {
         val result = Vector3()
-        return if (intersectSphere(sphere, result)) result else null
+        return if (intersectSpherePoint(sphere, result)) result else null
     }
 
     /**
      * Tests intersection with a sphere and stores result in target
      */
-    fun intersectSphere(sphere: Sphere, target: Vector3): Boolean {
+    fun intersectSpherePoint(sphere: Sphere, target: Vector3): Boolean {
         val v1 = Vector3().copy(sphere.center).sub(origin)
         val tca = v1.dot(direction)
         val d2 = v1.dot(v1) - tca * tca

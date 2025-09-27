@@ -1004,12 +1004,12 @@ private fun convertNativeView(nativeView: XRViewNative): XRView {
         else -> XREye.NONE
     }
 
-    val projectionMatrix = Matrix4(
+    val projectionMatrix = Matrix4(floatArrayOf(
         nativeView.projectionMatrix[0], nativeView.projectionMatrix[1], nativeView.projectionMatrix[2], nativeView.projectionMatrix[3],
         nativeView.projectionMatrix[4], nativeView.projectionMatrix[5], nativeView.projectionMatrix[6], nativeView.projectionMatrix[7],
         nativeView.projectionMatrix[8], nativeView.projectionMatrix[9], nativeView.projectionMatrix[10], nativeView.projectionMatrix[11],
         nativeView.projectionMatrix[12], nativeView.projectionMatrix[13], nativeView.projectionMatrix[14], nativeView.projectionMatrix[15]
-    )
+    ))
 
     val transform = convertRigidTransform(nativeView.transform)
 
@@ -1017,12 +1017,12 @@ private fun convertNativeView(nativeView: XRViewNative): XRView {
 }
 
 private fun convertRigidTransform(rigidTransform: XRRigidTransform): Matrix4 {
-    return Matrix4(
+    return Matrix4(floatArrayOf(
         rigidTransform.matrix[0], rigidTransform.matrix[1], rigidTransform.matrix[2], rigidTransform.matrix[3],
         rigidTransform.matrix[4], rigidTransform.matrix[5], rigidTransform.matrix[6], rigidTransform.matrix[7],
         rigidTransform.matrix[8], rigidTransform.matrix[9], rigidTransform.matrix[10], rigidTransform.matrix[11],
         rigidTransform.matrix[12], rigidTransform.matrix[13], rigidTransform.matrix[14], rigidTransform.matrix[15]
-    )
+    ))
 }
 
 // Default implementations for XR types
@@ -1031,24 +1031,17 @@ data class DefaultXRView(
     override val projectionMatrix: Matrix4,
     override val transform: Matrix4,
     override val recommendedViewportScale: Float?
-) : XRView
+) : XRView {
+    override val viewMatrix: Matrix4 = transform.invert()
+}
 
 class DefaultXRJointPose(
     override val transform: Matrix4,
-    override val position: Vector3,
-    override val orientation: Quaternion,
     override val radius: Float,
-    override val linearVelocity: Vector3?,
-    override val angularVelocity: Vector3?
-) : XRJointPose {
-    override fun inverse(): XRPose = DefaultXRPose(
-        transform.inverse(),
-        position.negate(),
-        orientation.conjugate(),
-        linearVelocity?.negate(),
-        angularVelocity?.negate()
-    )
-}
+    override val emulatedPosition: Boolean = false,
+    override val linearVelocity: Vector3? = null,
+    override val angularVelocity: Vector3? = null
+) : XRJointPose
 
 // Extension function for Matrix4
 private fun Matrix4.extractRotation(): Quaternion {

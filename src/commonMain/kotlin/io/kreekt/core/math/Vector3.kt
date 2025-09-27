@@ -130,6 +130,40 @@ data class Vector3(
     fun distanceToSquared(other: Vector3): Float = distanceSquared(other)
     fun lengthSq(): Float = lengthSquared()
 
+    // Additional Three.js compatibility methods
+    fun lerpVectors(a: Vector3, b: Vector3, t: Float): Vector3 {
+        x = a.x + (b.x - a.x) * t
+        y = a.y + (b.y - a.y) * t
+        z = a.z + (b.z - a.z) * t
+        return this
+    }
+
+    fun subVectors(a: Vector3, b: Vector3): Vector3 {
+        x = a.x - b.x
+        y = a.y - b.y
+        z = a.z - b.z
+        return this
+    }
+
+    fun addVectors(a: Vector3, b: Vector3): Vector3 {
+        x = a.x + b.x
+        y = a.y + b.y
+        z = a.z + b.z
+        return this
+    }
+
+    fun setFromMatrixColumn(matrix: Matrix4, index: Int): Vector3 {
+        val elements = matrix.elements
+        when (index) {
+            0 -> set(elements[0], elements[1], elements[2])
+            1 -> set(elements[4], elements[5], elements[6])
+            2 -> set(elements[8], elements[9], elements[10])
+            3 -> set(elements[12], elements[13], elements[14])
+            else -> throw IndexOutOfBoundsException("Matrix column index must be 0-3")
+        }
+        return this
+    }
+
     // Component-wise min/max operations
     fun min(other: Vector3): Vector3 {
         x = minOf(x, other.x)

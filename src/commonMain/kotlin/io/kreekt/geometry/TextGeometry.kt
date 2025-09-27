@@ -4,9 +4,10 @@
  */
 package io.kreekt.geometry
 
-import io.kreekt.core.math.*
-import kotlin.math.*
 import io.kreekt.core.math.Box3
+import io.kreekt.core.math.Vector2
+import io.kreekt.core.math.Vector3
+import kotlin.math.max
 
 /**
  * Options for text geometry generation
@@ -542,7 +543,7 @@ class TextGeometry(
         val positionAttribute = sourceGeometry.getAttribute("position")!!
         val normalAttribute = sourceGeometry.getAttribute("normal")!!
         val uvAttribute = sourceGeometry.getAttribute("uv")!!
-        val indexAttribute = sourceGeometry.getIndex()!!
+        val indexAttribute = sourceGeometry.index!!
 
         val startVertexIndex = targetVertices.size
 

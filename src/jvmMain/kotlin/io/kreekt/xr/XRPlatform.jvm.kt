@@ -1,8 +1,6 @@
 package io.kreekt.xr
 
 import io.kreekt.core.math.Vector2
-import io.kreekt.core.math.Vector3
-import io.kreekt.core.math.Matrix4
 
 /**
  * JVM implementation of XR platform functions
@@ -52,10 +50,10 @@ actual fun combineTransforms(first: XRPose, second: XRPose): XRPose {
     // Simple implementation that combines transforms
     val firstTransform = first.transform
     val secondTransform = second.transform
-    val combined = firstTransform.matrix * secondTransform.matrix
+    val combined = firstTransform.multiply(secondTransform)
 
     return DefaultXRPose(
-        position = Vector3(combined.m03, combined.m13, combined.m23),
-        orientation = first.transform.orientation // Simplified - just use first orientation
+        position = combined.getTranslation(),
+        orientation = io.kreekt.core.math.Quaternion.IDENTITY // Simplified implementation
     )
 }

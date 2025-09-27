@@ -4,15 +4,17 @@
  */
 package io.kreekt.lighting
 
-import io.kreekt.core.math.*
+import io.kreekt.camera.Camera
+import io.kreekt.core.math.Box3
+import io.kreekt.core.math.Color
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Vector3
 import io.kreekt.core.scene.Material
 import io.kreekt.core.scene.Object3D
 import io.kreekt.core.scene.Scene
+import io.kreekt.renderer.CubeTexture
 import io.kreekt.renderer.Renderer
 import io.kreekt.renderer.Texture
-import io.kreekt.renderer.CubeTexture
-import io.kreekt.camera.Camera
-import io.kreekt.geometry.BufferGeometry
 
 /**
  * Light Probe interface for global illumination
@@ -87,9 +89,25 @@ interface IBLProcessor {
 }
 
 /**
+ * Light types enumeration
+ */
+enum class LightType {
+    DIRECTIONAL,
+    POINT,
+    SPOT,
+    AREA,
+    HEMISPHERE,
+    AMBIENT,
+    RECTAREA,
+    VOLUMETRIC
+}
+
+/**
  * Light interface
  */
 interface Light {
+    val id: Int
+    val type: LightType
     var position: Vector3
     var color: Color
     var intensity: Float
@@ -104,6 +122,7 @@ interface Light {
  * Directional Light interface
  */
 interface DirectionalLight : Light {
+    override val type: LightType get() = LightType.DIRECTIONAL
     val direction: Vector3
     var shadowCameraTop: Float
     var shadowCameraBottom: Float
@@ -117,6 +136,7 @@ interface DirectionalLight : Light {
  * Point Light interface
  */
 interface PointLight : Light {
+    override val type: LightType get() = LightType.POINT
     var decay: Float
     var distance: Float
     val shadowCameraNear: Float
@@ -127,6 +147,7 @@ interface PointLight : Light {
  * Spot Light interface
  */
 interface SpotLight : Light {
+    override val type: LightType get() = LightType.SPOT
     val direction: Vector3
     var angle: Float
     var penumbra: Float
@@ -142,18 +163,22 @@ interface SpotLight : Light {
  * Hemisphere Light interface
  */
 interface HemisphereLight : Light {
+    override val type: LightType get() = LightType.HEMISPHERE
     var groundColor: Color
 }
 
 /**
  * Ambient Light interface
  */
-interface AmbientLight : Light
+interface AmbientLight : Light {
+    override val type: LightType get() = LightType.AMBIENT
+}
 
 /**
  * Rect Area Light interface
  */
 interface RectAreaLight : Light {
+    override val type: LightType get() = LightType.RECTAREA
     var width: Float
     var height: Float
 }
