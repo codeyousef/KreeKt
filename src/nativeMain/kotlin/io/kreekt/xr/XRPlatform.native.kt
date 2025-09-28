@@ -1,18 +1,23 @@
 package io.kreekt.xr
 
-import io.kreekt.core.math.Vector3
-import io.kreekt.core.math.Vector2
 import io.kreekt.core.math.Matrix4
-import io.kreekt.xr.PermissionState
+import io.kreekt.core.math.Vector2
 
 /**
- * Native implementation of XRDepthInformation
+ * Native implementation of XRDepthInfo for depth sensing
+ * Uses the common XRDepthInfo interface defined in XRTypes.kt
  */
-actual interface XRDepthInformation {
-    actual val width: Int
-    actual val height: Int
-    actual val rawValueToMeters: Float
-    actual fun getDepthInMeters(x: Float, y: Float): Float
+class NativeXRDepthInfo(
+    override val width: Int,
+    override val height: Int,
+    override val normDepthBufferFromNormView: Matrix4,
+    override val rawValueToMeters: Float
+) : XRDepthInfo {
+    override fun getDepthInMeters(x: Float, y: Float): Float {
+        // Native implementation would access platform-specific depth buffer
+        // For now, return a default value
+        return 0.0f
+    }
 }
 
 /**

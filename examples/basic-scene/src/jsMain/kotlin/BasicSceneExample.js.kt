@@ -6,13 +6,24 @@
 import io.kreekt.renderer.Renderer
 import kotlinx.browser.document
 import kotlinx.browser.window
-import kotlinx.coroutines.*
-import org.w3c.dom.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.events.KeyboardEvent
 import org.w3c.dom.events.MouseEvent
 
-actual fun createRenderer(): Renderer {
-    return WebGPURenderer() // With WebGL fallback
+actual fun createRenderer(): io.kreekt.renderer.RendererResult<Renderer> {
+    return try {
+        io.kreekt.renderer.RendererResult.Success(WebGPURenderer()) // With WebGL fallback
+    } catch (e: Exception) {
+        io.kreekt.renderer.RendererResult.Error(
+            io.kreekt.renderer.RendererException.InitializationFailed(
+                "Failed to create WebGPU renderer",
+                e
+            )
+        )
+    }
 }
 
 actual class InputState {
@@ -165,7 +176,7 @@ private fun setupPage() {
     body.innerHTML = ""
     body.style.margin = "0"
     body.style.padding = "0"
-    body.style.overflow = "hidden"
+    body.style.asDynamic().overflow = "hidden"
     body.style.fontFamily = "Arial, sans-serif"
     body.style.backgroundColor = "#000"
 
@@ -223,35 +234,185 @@ private class WebGPURenderer : Renderer {
     private val canvas: HTMLCanvasElement = document.getElementById("kreekt-canvas") as HTMLCanvasElement
     private var frameCount = 0
     private var lastFPSTime = window.performance.now()
+    private var viewport = io.kreekt.camera.Viewport(0, 0, canvas.width, canvas.height)
 
-    override fun setSize(width: Int, height: Int) {
-        canvas.width = width
-        canvas.height = height
-    }
+    // Renderer interface properties
+    override val capabilities: io.kreekt.renderer.RendererCapabilities = io.kreekt.renderer.RendererCapabilities(
+        maxTextureSize = 4096,
+        vendor = "WebGPU",
+        renderer = "Browser WebGPU",
+        version = "WebGPU 1.0"
+    )
 
-    override fun setClearColor(color: io.kreekt.core.math.Color) {
-        // WebGPU clear color setup
-    }
+    override var renderTarget: io.kreekt.renderer.RenderTarget? = null
+    override var autoClear: Boolean = true
+    override var autoClearColor: Boolean = true
+    override var autoClearDepth: Boolean = true
+    override var autoClearStencil: Boolean = false
+    override var clearColor: io.kreekt.core.math.Color = io.kreekt.core.math.Color(0.05f, 0.05f, 0.1f)
+    override var clearAlpha: Float = 1.0f
+    override var shadowMap: io.kreekt.renderer.ShadowMapSettings = io.kreekt.renderer.ShadowMapSettings()
+    override var toneMapping: io.kreekt.renderer.ToneMapping = io.kreekt.renderer.ToneMapping.NONE
+    override var toneMappingExposure: Float = 1.0f
+    override var outputColorSpace: io.kreekt.renderer.ColorSpace = io.kreekt.renderer.ColorSpace.sRGB
+    override var physicallyCorrectLights: Boolean = false
 
-    override fun render(scene: io.kreekt.core.scene.Scene, camera: io.kreekt.camera.Camera) {
-        // Basic WebGL/WebGPU rendering - replace with actual implementation
-        val context = canvas.getContext("webgl2") ?: canvas.getContext("webgl")
-        if (context != null) {
-            val gl = context.asDynamic()
-
-            // Clear screen
-            gl.clearColor(0.05, 0.05, 0.1, 1.0)
-            gl.clear(gl.COLOR_BUFFER_BIT or gl.DEPTH_BUFFER_BIT)
-            gl.enable(gl.DEPTH_TEST)
-
-            // Render scene objects (placeholder)
-            scene.traverse { obj ->
-                renderObject(obj, camera, gl)
-            }
+    override suspend fun initialize(surface: io.kreekt.renderer.RenderSurface): io.kreekt.renderer.RendererResult<Unit> {
+        return try {
+            // WebGPU initialization would go here
+            io.kreekt.renderer.RendererResult.Success(Unit)
+        } catch (e: Exception) {
+            io.kreekt.renderer.RendererResult.Error(
+                io.kreekt.renderer.RendererException.InitializationFailed(
+                    "WebGPU init failed",
+                    e
+                )
+            )
         }
+    }
 
-        // Update FPS counter
-        updateFPS()
+    override fun render(
+        scene: io.kreekt.core.scene.Scene,
+        camera: io.kreekt.camera.Camera
+    ): io.kreekt.renderer.RendererResult<Unit> {
+        return try {
+            // Basic WebGL/WebGPU rendering - replace with actual implementation
+            val context = canvas.getContext("webgl2") ?: canvas.getContext("webgl")
+            if (context != null) {
+                val gl = context.asDynamic()
+
+                // Clear screen
+                gl.clearColor(clearColor.r, clearColor.g, clearColor.b, clearAlpha)
+                gl.clear(gl.COLOR_BUFFER_BIT or gl.DEPTH_BUFFER_BIT)
+                gl.enable(gl.DEPTH_TEST)
+
+                // Render scene objects (placeholder)
+                scene.traverse { obj ->
+                    renderObject(obj, camera, gl)
+                }
+            }
+
+            // Update FPS counter
+            updateFPS()
+            io.kreekt.renderer.RendererResult.Success(Unit)
+        } catch (e: Exception) {
+            io.kreekt.renderer.RendererResult.Error(
+                io.kreekt.renderer.RendererException.RenderingFailed(
+                    "Render failed",
+                    e
+                )
+            )
+        }
+    }
+
+    override fun setSize(width: Int, height: Int, updateStyle: Boolean): io.kreekt.renderer.RendererResult<Unit> {
+        return try {
+            canvas.width = width
+            canvas.height = height
+            viewport = io.kreekt.camera.Viewport(0, 0, width, height)
+            if (updateStyle) {
+                canvas.style.width = "${width}px"
+                canvas.style.height = "${height}px"
+            }
+            io.kreekt.renderer.RendererResult.Success(Unit)
+        } catch (e: Exception) {
+            io.kreekt.renderer.RendererResult.Error(io.kreekt.renderer.RendererException.InvalidState("Failed to set size"))
+        }
+    }
+
+    override fun setPixelRatio(pixelRatio: Float): io.kreekt.renderer.RendererResult<Unit> {
+        return io.kreekt.renderer.RendererResult.Success(Unit)
+    }
+
+    override fun setViewport(x: Int, y: Int, width: Int, height: Int): io.kreekt.renderer.RendererResult<Unit> {
+        viewport = io.kreekt.camera.Viewport(x, y, width, height)
+        return io.kreekt.renderer.RendererResult.Success(Unit)
+    }
+
+    override fun getViewport(): io.kreekt.camera.Viewport = viewport
+
+    override fun setScissorTest(enable: Boolean): io.kreekt.renderer.RendererResult<Unit> {
+        return io.kreekt.renderer.RendererResult.Success(Unit)
+    }
+
+    override fun setScissor(x: Int, y: Int, width: Int, height: Int): io.kreekt.renderer.RendererResult<Unit> {
+        return io.kreekt.renderer.RendererResult.Success(Unit)
+    }
+
+    override fun clear(color: Boolean, depth: Boolean, stencil: Boolean): io.kreekt.renderer.RendererResult<Unit> {
+        return try {
+            val context = canvas.getContext("webgl2") ?: canvas.getContext("webgl")
+            if (context != null) {
+                val gl = context.asDynamic()
+                var mask = 0
+                if (color) mask = mask or gl.COLOR_BUFFER_BIT
+                if (depth) mask = mask or gl.DEPTH_BUFFER_BIT
+                if (stencil) mask = mask or gl.STENCIL_BUFFER_BIT
+                gl.clear(mask)
+            }
+            io.kreekt.renderer.RendererResult.Success(Unit)
+        } catch (e: Exception) {
+            io.kreekt.renderer.RendererResult.Error(
+                io.kreekt.renderer.RendererException.RenderingFailed(
+                    "Clear failed",
+                    e
+                )
+            )
+        }
+    }
+
+    override fun clearColorBuffer(): io.kreekt.renderer.RendererResult<Unit> =
+        clear(color = true, depth = false, stencil = false)
+
+    override fun clearDepth(): io.kreekt.renderer.RendererResult<Unit> =
+        clear(color = false, depth = true, stencil = false)
+
+    override fun clearStencil(): io.kreekt.renderer.RendererResult<Unit> =
+        clear(color = false, depth = false, stencil = true)
+
+    override fun resetState(): io.kreekt.renderer.RendererResult<Unit> {
+        return io.kreekt.renderer.RendererResult.Success(Unit)
+    }
+
+    override fun compile(
+        scene: io.kreekt.core.scene.Scene,
+        camera: io.kreekt.camera.Camera
+    ): io.kreekt.renderer.RendererResult<Unit> {
+        return io.kreekt.renderer.RendererResult.Success(Unit)
+    }
+
+    override fun dispose(): io.kreekt.renderer.RendererResult<Unit> {
+        return try {
+            // Cleanup WebGPU/WebGL resources
+            io.kreekt.renderer.RendererResult.Success(Unit)
+        } catch (e: Exception) {
+            io.kreekt.renderer.RendererResult.Error(
+                io.kreekt.renderer.RendererException.ResourceCreationFailed(
+                    "Dispose failed",
+                    e
+                )
+            )
+        }
+    }
+
+    override fun forceContextLoss(): io.kreekt.renderer.RendererResult<Unit> {
+        return io.kreekt.renderer.RendererResult.Success(Unit)
+    }
+
+    override fun isContextLost(): Boolean = false
+
+    override fun getStats(): io.kreekt.renderer.RenderStats {
+        return io.kreekt.renderer.RenderStats(
+            frame = frameCount,
+            calls = 1,
+            triangles = 0,
+            points = 0,
+            lines = 0
+        )
+    }
+
+    override fun resetStats() {
+        frameCount = 0
     }
 
     private fun renderObject(obj: io.kreekt.core.scene.Object3D, camera: io.kreekt.camera.Camera, gl: dynamic) {
@@ -270,19 +431,5 @@ private class WebGPURenderer : Renderer {
             lastFPSTime = currentTime
         }
     }
-
-    override fun getRenderInfo(): RenderInfo {
-        return RenderInfo(0, 0, 0, 0)
-    }
-
-    override fun dispose() {
-        // Cleanup WebGPU/WebGL resources
-    }
 }
 
-data class RenderInfo(
-    val triangles: Int,
-    val drawCalls: Int,
-    val textureMemory: Long,
-    val bufferMemory: Long
-)

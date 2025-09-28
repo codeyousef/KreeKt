@@ -29,16 +29,3 @@ actual fun platformArrayCopy(
     System.arraycopy(src, srcPos, dest, destPos, length)
 }
 
-/**
- * JVM implementation of platform-specific clone function
- */
-actual fun <T> platformClone(obj: T): T {
-    @Suppress("UNCHECKED_CAST")
-    return when (obj) {
-        is FloatArray -> obj.clone() as T
-        is IntArray -> obj.clone() as T
-        is DoubleArray -> obj.clone() as T
-        is Array<*> -> obj.clone() as T
-        else -> obj // For immutable objects, return as-is
-    }
-}

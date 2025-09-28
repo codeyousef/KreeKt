@@ -32,16 +32,14 @@ internal actual suspend fun uploadAnchorToPlatformCloud(
     metadata: Map<String, Any>
 ): String = ""
 
-internal actual suspend fun downloadAnchorFromPlatformCloud(cloudId: String): PersistentAnchorData {
-    val identityMatrix = Matrix4.identity()
-    return PersistentAnchorData(
-        id = "",
+internal actual suspend fun downloadAnchorFromPlatformCloud(cloudId: String): PersistentAnchorData =
+    PersistentAnchorData(
+        id = cloudId,
         handle = "",
-        pose = XRPose(transform = identityMatrix),
+        pose = DefaultXRPose(Vector3.ZERO, io.kreekt.core.math.Quaternion.IDENTITY),
         createdTime = 0L,
         metadata = emptyMap()
     )
-}
 
 internal actual suspend fun listAnchorsFromPlatformCloud(filter: Map<String, Any>): List<CloudAnchor> = emptyList()
 

@@ -82,34 +82,6 @@ class DefaultXRPlane(
 }
 
 /**
- * Default XR Hit Test Source implementation
- */
-class DefaultXRHitTestSource(
-    private val space: XRSpace,
-    private val entityTypes: Set<String>
-) : XRHitTestSource {
-    val id: String = "hitTestSource_${currentTimeMillis()}"
-
-    override fun cancel() {
-        // No-op implementation
-    }
-}
-
-/**
- * Default XR Transient Input Hit Test Source implementation
- */
-class DefaultXRTransientInputHitTestSource(
-    private val profile: String,
-    private val entityTypes: Set<String>
-) : XRTransientInputHitTestSource {
-    val id: String = "transientHitTestSource_${currentTimeMillis()}"
-
-    override fun cancel() {
-        // No-op implementation
-    }
-}
-
-/**
  * Default XR Hit Test Result implementation
  */
 class DefaultXRHitTestResult(
@@ -121,27 +93,6 @@ class DefaultXRHitTestResult(
     }
 
     override fun getPose(baseSpace: XRSpace): XRPose? = pose
-}
-
-/**
- * Default XR Light Probe implementation
- */
-class DefaultXRLightProbe(
-    private val position: Vector3
-) : XRLightProbe {
-    val id: String = "lightProbe_${currentTimeMillis()}"
-
-    override val probeSpace: XRSpace = object : XRSpace {
-        override val spaceId: String = "probeSpace_${currentTimeMillis()}"
-    }
-
-    override fun addEventListener(type: String, listener: (Any) -> Unit) {
-        // No-op implementation
-    }
-
-    override fun removeEventListener(type: String, listener: (Any) -> Unit) {
-        // No-op implementation
-    }
 }
 
 /**
@@ -186,7 +137,7 @@ class DefaultXRTrackedImage(
 /**
  * Helper function to create XRPose from position and orientation
  */
-fun createXRPose(
+fun createARXRPose(
     position: Vector3,
     orientation: Quaternion,
     emulatedPosition: Boolean = false
@@ -194,8 +145,9 @@ fun createXRPose(
     val matrix = Matrix4()
     matrix.makeRotationFromQuaternion(orientation)
     matrix.setPosition(position)
-    return XRPose(
-        transform = matrix,
+    return DefaultXRPose(
+        position = position,
+        orientation = orientation,
         emulatedPosition = emulatedPosition
     )
 }

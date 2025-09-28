@@ -281,11 +281,5 @@ class DefaultXRHapticActuator : XRHapticActuator {
     }
 }
 
-/**
- * Default implementation of XRSpace
- */
-class DefaultXRSpace(
-    override val spaceId: String = "default_space"
-) : XRSpace
-
+// DefaultXRSpace is now defined in XRTypes.kt
 // DefaultXRJointSpace is already defined in XRInput.kt

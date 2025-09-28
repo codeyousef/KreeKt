@@ -75,6 +75,7 @@ typealias MaterialLighting = Any
 /**
  * Advanced PBR material with physically-based lighting model
  * Implements the latest glTF 2.0 PBR extensions and real-time rendering techniques
+ */
 class PBRMaterial(
     // Core PBR parameters
     var albedo: Color = Color.WHITE,

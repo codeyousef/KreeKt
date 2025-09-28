@@ -25,5 +25,5 @@ rootProject.name = "kreekt"
 // include(":tools:cicd")
 // include(":tools:api-server")
 
-// Example projects - Temporarily disabled
-// include(":examples:basic-scene")
+// Example projects
+include(":examples:basic-scene")

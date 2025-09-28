@@ -4,10 +4,28 @@
  */
 package io.kreekt.xr
 
-import io.kreekt.core.math.Matrix4
-import io.kreekt.core.math.Vector2
-import io.kreekt.core.math.Vector3
-import io.kreekt.core.scene.compose
+import io.kreekt.core.math.*
+
+/**
+ * XR Result sealed class for handling XR operation results
+ */
+sealed class XRResult<T> {
+    data class Success<T>(val value: T) : XRResult<T>()
+    data class Error<T>(val exception: XRException) : XRResult<T>()
+}
+
+/**
+ * XR Exception sealed class for XR-specific errors
+ */
+sealed class XRException(message: String, cause: Throwable? = null) : Exception(message, cause) {
+    class InvalidParameters(message: String) : XRException(message)
+    class InvalidState(message: String) : XRException(message)
+    class NotSupported(message: String) : XRException(message)
+    class FeatureNotAvailable(feature: XRFeature) : XRException("Feature not available: $feature")
+    class SessionNotActive(message: String = "XR session is not active") : XRException(message)
+    class DeviceNotFound(message: String = "XR device not found") : XRException(message)
+    class PermissionDenied(feature: XRFeature) : XRException("Permission denied for feature: $feature")
+}
 
 /**
  * Represents an XR device
@@ -169,6 +187,29 @@ interface XRGaze {
  */
 interface XRJointSpace : XRSpace {
     val joint: XRHandJoint
+}
+
+/**
+ * XR Controller interface for controller management
+ */
+interface XRController {
+    val controllerId: String
+    val handedness: XRHandedness
+    val targetRayMode: XRTargetRayMode
+    val targetRaySpace: XRSpace
+    val gripSpace: XRSpace?
+    val gamepad: XRGamepad?
+    val hand: XRHand?
+    val profiles: List<String>
+    val isConnected: Boolean
+    val pose: XRPose?
+
+    fun vibrate(intensity: Float, duration: Float): Boolean
+    fun getButton(button: XRControllerButton): XRGamepadButton?
+    fun getAxis(axis: XRControllerAxis): Float
+    fun onButtonDown(button: XRControllerButton, callback: () -> Unit)
+    fun onButtonUp(button: XRControllerButton, callback: () -> Unit)
+    fun onAxisChange(axis: XRControllerAxis, callback: (Float) -> Unit)
 }
 
 /**
@@ -547,6 +588,58 @@ enum class XRDepthDataFormat {
     RGBA32F
 }
 
+enum class XRHitTestType {
+    PLANE,
+    POINT,
+    MESH,
+    FEATURE_POINT
+}
+
+/**
+ * Platform-specific data classes for AR functionality
+ */
+data class PlaneData(
+    val id: String,
+    val centerPose: Matrix4,
+    val extentX: Float,
+    val extentZ: Float,
+    val polygonVertices: List<Vector3>,
+    val orientation: PlaneOrientation,
+    val trackingState: XRTrackingState,
+    val semanticLabel: String? = null
+)
+
+data class ImageTrackingResult(
+    val target: XRImageTarget,
+    val pose: Matrix4,
+    val trackingState: XRTrackingState,
+    val measuredWidth: Float,
+    val confidence: Float
+)
+
+data class ObjectTrackingResult(
+    val target: XRObjectTarget,
+    val pose: Matrix4,
+    val trackingState: XRTrackingState,
+    val confidence: Float
+)
+
+data class EnvironmentProbeData(
+    val position: Vector3,
+    val size: Vector3,
+    val environmentTexture: Any?, // Platform-specific texture
+    val irradianceCoefficients: FloatArray,
+    val intensity: Float
+)
+
+data class LightEstimationData(
+    val primaryLightDirection: Vector3,
+    val primaryLightIntensity: Float,
+    val ambientLightColor: Color,
+    val ambientLightIntensity: Float,
+    val sphericalHarmonicsCoefficients: FloatArray
+)
+
 /**
  * XR Controller Pose data class
  */
@@ -583,3 +676,78 @@ open class DefaultXRSystem : XRSystem {
         features: List<XRFeature>
     ): XRResult<XRSession> = XRResult.Error(XRException.NotSupported("XR not supported in this implementation"))
 }
+
+/**
+ * Default implementation of XRPose interface
+ */
+data class DefaultXRPose(
+    val position: Vector3 = Vector3.ZERO,
+    val orientation: Quaternion = Quaternion.IDENTITY,
+    override val linearVelocity: Vector3? = null,
+    override val angularVelocity: Vector3? = null,
+    override val emulatedPosition: Boolean = false
+) : XRPose {
+    override val transform: Matrix4 = Matrix4().compose(position, orientation, Vector3(1f, 1f, 1f))
+}
+
+/**
+ * Default implementation of XRSpace interface
+ */
+class DefaultXRSpace(
+    override val spaceId: String = "default_space_${kotlin.random.Random.nextInt()}"
+) : XRSpace
+
+/**
+ * Default implementation of XRJointSpace interface
+ */
+class DefaultXRJointSpace(
+    override val joint: XRHandJoint,
+    override val spaceId: String = "joint_space_${joint.name}"
+) : XRJointSpace
+
+/**
+ * Default implementation of XRHitTestSource interface
+ */
+class DefaultXRHitTestSource(
+    val space: XRSpace,
+    val entityTypes: Set<String>
+) : XRHitTestSource {
+    override fun cancel() {
+        // Default implementation - no-op
+    }
+}
+
+/**
+ * Default implementation of XRTransientInputHitTestSource interface
+ */
+class DefaultXRTransientInputHitTestSource(
+    val profile: String,
+    val entityTypes: Set<String>
+) : XRTransientInputHitTestSource {
+    override fun cancel() {
+        // Default implementation - no-op
+    }
+}
+
+class DefaultXRLightProbe(val position: Vector3) : XRLightProbe {
+    override val probeSpace: XRSpace = DefaultXRSpace("light_probe_space")
+
+    override fun addEventListener(type: String, listener: (Any) -> Unit) {
+        // Default implementation - no-op
+    }
+
+    override fun removeEventListener(type: String, listener: (Any) -> Unit) {
+        // Default implementation - no-op
+    }
+}
+
+/**
+ * Utility function to create XRPose from position and orientation
+ */
+fun createXRPose(
+    position: Vector3,
+    orientation: Quaternion,
+    linearVelocity: Vector3? = null,
+    angularVelocity: Vector3? = null,
+    emulatedPosition: Boolean = false
+): XRPose = DefaultXRPose(position, orientation, linearVelocity, angularVelocity, emulatedPosition)

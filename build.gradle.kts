@@ -192,3 +192,79 @@ kotlin {
 //         targetCompatibility = JavaVersion.VERSION_11
 //     }
 // }
+
+// ============================================================================
+// Custom Tasks for Running Examples
+// ============================================================================
+
+tasks.register("runSimpleDemo", JavaExec::class) {
+    group = "kreekt"
+    description = "Run the simple KreeKt demo script"
+
+    dependsOn("jvmMainClasses")
+    classpath = files(
+        configurations.getByName("jvmRuntimeClasspath"),
+        kotlin.targets.getByName("jvm").compilations.getByName("main").output.allOutputs
+    )
+    mainClass.set("examples.SimpleMainKt")
+
+    doFirst {
+        println("🚀 Running KreeKt Simple Demo...")
+        println("This will demonstrate core KreeKt functionality")
+    }
+}
+
+tasks.register("listExamples") {
+    group = "kreekt"
+    description = "List all available KreeKt examples"
+
+    doLast {
+        println(
+            """
+🚀 KreeKt Examples Available:
+
+📝 Simple Examples:
+  ./gradlew listExamples                       - Show this help
+  ./gradlew :examples:basic-scene:runJvm       - Run JVM example with LWJGL
+  ./gradlew :examples:basic-scene:runJs        - Run JavaScript example in browser
+
+🔧 Build Tasks:
+  ./gradlew build                              - Build entire project
+  ./gradlew :examples:basic-scene:build        - Build examples only
+
+📊 Test Tasks:
+  ./gradlew test                               - Run all tests
+  ./gradlew :examples:basic-scene:test         - Run example tests
+
+🌐 Platform-specific:
+  ./gradlew compileKotlinJvm                   - Compile JVM target
+  ./gradlew compileKotlinJs                    - Compile JavaScript target
+  ./gradlew compileKotlinLinuxX64              - Compile Linux native
+  ./gradlew compileKotlinMingwX64              - Compile Windows native
+
+📖 Documentation:
+  ./gradlew dokkaHtml                          - Generate API documentation
+
+💡 Quick Start:
+  1. ./gradlew build                           - Build everything
+  2. ./gradlew :examples:basic-scene:runJvm    - Interactive 3D example
+  3. ./gradlew :examples:basic-scene:runJs     - Web browser example
+
+🎯 Direct file execution (requires kotlinc):
+  kotlinc -script examples/simple-demo.kt     - Standalone demo script
+        """.trimIndent()
+        )
+    }
+}
+
+tasks.register("quickStart") {
+    group = "kreekt"
+    description = "Quick start - build and run basic scene example"
+
+    dependsOn("build")
+    finalizedBy(":examples:basic-scene:runJvm")
+
+    doLast {
+        println("✅ KreeKt Quick Start Complete!")
+    }
+}
