@@ -7,6 +7,17 @@ import org.lwjgl.system.MemoryUtil.NULL
 import kotlin.math.cos
 import kotlin.math.sin
 
+// Camera state
+data class CameraState(
+    var posX: Float = 5.0f,
+    var posY: Float = 5.0f,
+    var posZ: Float = 5.0f,
+    var rotX: Float = -30.0f,
+    var rotY: Float = 45.0f,
+    var moveSpeed: Float = 5.0f,
+    var lookSpeed: Float = 50.0f
+)
+
 fun main() {
     println("🚀 KreeKt Basic Scene Example (LWJGL)")
     println("======================================")
@@ -30,10 +41,50 @@ fun main() {
         throw RuntimeException("Failed to create the GLFW window")
     }
 
+    // Camera state
+    val camera = CameraState()
+    var lastMouseX = 640.0
+    var lastMouseY = 360.0
+    var firstMouse = true
+    var mousePressed = false
+
     // Setup key callback
     glfwSetKeyCallback(window) { windowHandle, key, scancode, action, mods ->
         if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
             glfwSetWindowShouldClose(windowHandle, true)
+        }
+    }
+
+    // Setup mouse callbacks
+    glfwSetMouseButtonCallback(window) { _, button, action, _ ->
+        if (button == GLFW_MOUSE_BUTTON_LEFT) {
+            mousePressed = action == GLFW_PRESS
+            if (mousePressed) {
+                firstMouse = true
+            }
+        }
+    }
+
+    glfwSetCursorPosCallback(window) { _, xpos, ypos ->
+        if (mousePressed) {
+            if (firstMouse) {
+                lastMouseX = xpos
+                lastMouseY = ypos
+                firstMouse = false
+            }
+
+            val xoffset = (xpos - lastMouseX).toFloat()
+            val yoffset = (lastMouseY - ypos).toFloat() // reversed since y-coordinates range from bottom to top
+            lastMouseX = xpos
+            lastMouseY = ypos
+
+            val sensitivity = 0.3f
+            camera.rotY += xoffset * sensitivity
+            camera.rotX += yoffset * sensitivity
+
+            // Clamp vertical rotation
+            if (camera.rotX > 89.0f) camera.rotX = 89.0f
+            if (camera.rotX < -89.0f) camera.rotX = -89.0f
         }
     }
 
@@ -100,10 +151,41 @@ fun main() {
                 val aspect = width[0].toFloat() / height[0].toFloat()
                 setupPerspectiveProjection(75.0f, aspect, 0.1f, 100.0f)
 
-                // Draw a simple animated scene
-                drawSimpleScene(currentTime.toFloat())
+                // Handle keyboard input for camera movement
+                val moveSpeed = camera.moveSpeed * deltaTime
+                val yawRad = Math.toRadians(camera.rotY.toDouble())
 
-                // Handle input
+                // W - Move forward (in the direction we're looking)
+                if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+                    camera.posX += sin(yawRad).toFloat() * moveSpeed
+                    camera.posZ -= cos(yawRad).toFloat() * moveSpeed
+                }
+                // S - Move backward
+                if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+                    camera.posX -= sin(yawRad).toFloat() * moveSpeed
+                    camera.posZ += cos(yawRad).toFloat() * moveSpeed
+                }
+                // A - Strafe left
+                if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+                    camera.posX -= cos(yawRad).toFloat() * moveSpeed
+                    camera.posZ -= sin(yawRad).toFloat() * moveSpeed
+                }
+                // D - Strafe right
+                if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+                    camera.posX += cos(yawRad).toFloat() * moveSpeed
+                    camera.posZ += sin(yawRad).toFloat() * moveSpeed
+                }
+                if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+                    camera.posY -= moveSpeed
+                }
+                if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+                    camera.posY += moveSpeed
+                }
+
+                // Draw a simple animated scene with camera
+                drawSceneWithCamera(currentTime.toFloat(), camera)
+
+                // Handle input for KreeKt example
                 val input = getCurrentInput(window)
                 example.handleInput(input)
 
@@ -148,32 +230,121 @@ fun setupPerspectiveProjection(fov: Float, aspect: Float, near: Float, far: Floa
     glMatrixMode(GL_MODELVIEW)
 }
 
-fun drawSimpleScene(time: Float) {
+fun drawSceneWithCamera(time: Float, camera: CameraState) {
     glLoadIdentity()
-    glTranslatef(0f, 0f, -10f)
 
-    // Draw a rotating cube
+    // Apply camera rotation first
+    glRotatef(camera.rotX, 1f, 0f, 0f)
+    glRotatef(camera.rotY, 0f, 1f, 0f)
+
+    // Then translate to camera position (inverted because we move the world, not the camera)
+    glTranslatef(-camera.posX, -camera.posY, -camera.posZ)
+
+    // Draw ground plane (large grid)
     glPushMatrix()
+    glTranslatef(0f, -2f, 0f)
+    glColor3f(0.2f, 0.2f, 0.3f)
+    for (x in -20..20 step 2) {
+        for (z in -20..20 step 2) {
+            glPushMatrix()
+            glTranslatef(x.toFloat(), 0f, z.toFloat())
+            glScalef(0.9f, 0.1f, 0.9f)
+            drawCube()
+            glPopMatrix()
+        }
+    }
+    glPopMatrix()
+
+    // Draw main rotating cube at origin
+    glPushMatrix()
+    glTranslatef(0f, 2f, 0f)
     glRotatef(time * 30f, 1f, 1f, 0f)
+    glScalef(1.5f, 1.5f, 1.5f)
     drawCube()
     glPopMatrix()
 
-    // Draw orbiting spheres
-    for (i in 0..2) {
+    // Draw orbiting spheres around the main cube
+    for (i in 0..4) {
         glPushMatrix()
-        val angle = time + i * 2.0f * Math.PI.toFloat() / 3
-        glTranslatef(cos(angle) * 3f, sin(angle) * 2f, 0f)
+        val angle = time * 0.5f + i * 2.0f * Math.PI.toFloat() / 5
+        val radius = 5f
+        glTranslatef(cos(angle) * radius, 2f + sin(time + i) * 0.5f, sin(angle) * radius)
+        glRotatef(time * 50f + i * 30f, 0.5f, 1f, 0.3f)
         glScalef(0.5f, 0.5f, 0.5f)
-        drawCube() // Using cube as placeholder for sphere
+        drawColoredCube(i)
         glPopMatrix()
     }
 
-    // Draw ground plane
-    glPushMatrix()
-    glTranslatef(0f, -2f, 0f)
-    glScalef(10f, 0.1f, 10f)
-    drawCube()
-    glPopMatrix()
+    // Draw some standing pillars
+    for (i in 0..3) {
+        glPushMatrix()
+        val x = (i - 1.5f) * 4f
+        glTranslatef(x, 1f, -8f)
+        glScalef(0.5f, 3f, 0.5f)
+        glColor3f(0.6f, 0.6f, 0.7f)
+        drawCube()
+        glPopMatrix()
+    }
+
+    // Draw floating platforms
+    for (i in 0..2) {
+        glPushMatrix()
+        val y = 3f + i * 2f
+        val offset = sin(time * 0.3f + i) * 2f
+        glTranslatef(offset, y, -5f + i * 3f)
+        glScalef(2f, 0.2f, 2f)
+        glColor3f(0.3f + i * 0.2f, 0.5f, 0.8f - i * 0.2f)
+        drawCube()
+        glPopMatrix()
+    }
+}
+
+fun drawColoredCube(colorIndex: Int) {
+    val colors = arrayOf(
+        floatArrayOf(0.8f, 0.3f, 0.2f),  // Red
+        floatArrayOf(0.3f, 0.8f, 0.3f),  // Green
+        floatArrayOf(0.3f, 0.3f, 0.8f),  // Blue
+        floatArrayOf(0.8f, 0.8f, 0.3f),  // Yellow
+        floatArrayOf(0.8f, 0.3f, 0.8f)   // Magenta
+    )
+    val color = colors[colorIndex % colors.size]
+    glColor3f(color[0], color[1], color[2])
+    drawSimpleCube()
+}
+
+fun drawSimpleCube() {
+    glBegin(GL_QUADS)
+    // Front face
+    glVertex3f(-1f, -1f, 1f)
+    glVertex3f(1f, -1f, 1f)
+    glVertex3f(1f, 1f, 1f)
+    glVertex3f(-1f, 1f, 1f)
+    // Back face
+    glVertex3f(-1f, -1f, -1f)
+    glVertex3f(-1f, 1f, -1f)
+    glVertex3f(1f, 1f, -1f)
+    glVertex3f(1f, -1f, -1f)
+    // Top face
+    glVertex3f(-1f, 1f, -1f)
+    glVertex3f(-1f, 1f, 1f)
+    glVertex3f(1f, 1f, 1f)
+    glVertex3f(1f, 1f, -1f)
+    // Bottom face
+    glVertex3f(-1f, -1f, -1f)
+    glVertex3f(1f, -1f, -1f)
+    glVertex3f(1f, -1f, 1f)
+    glVertex3f(-1f, -1f, 1f)
+    // Right face
+    glVertex3f(1f, -1f, -1f)
+    glVertex3f(1f, 1f, -1f)
+    glVertex3f(1f, 1f, 1f)
+    glVertex3f(1f, -1f, 1f)
+    // Left face
+    glVertex3f(-1f, -1f, -1f)
+    glVertex3f(-1f, -1f, 1f)
+    glVertex3f(-1f, 1f, 1f)
+    glVertex3f(-1f, 1f, -1f)
+    glEnd()
 }
 
 fun drawCube() {
