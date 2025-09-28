@@ -177,29 +177,27 @@ class DefaultXRTrackedImage(
 ) : XRTrackedImage {
     override val trackingState: XRTrackingState = XRTrackingState.NOT_TRACKING
     val id: String = "trackedImage_${currentTimeMillis()}"
-    val pose: XRPose = DefaultXRPose(
+    val pose: XRPose = createXRPose(
         position = Vector3.ZERO,
         orientation = Quaternion.IDENTITY
     )
 }
 
 /**
- * Default XR Pose implementation
+ * Helper function to create XRPose from position and orientation
  */
-class DefaultXRPose(
-    private val position: Vector3,
-    private val orientation: Quaternion
-) : XRPose {
-    override val transform: Matrix4 by lazy {
-        val matrix = Matrix4()
-        matrix.makeRotationFromQuaternion(orientation)
-        matrix.setPosition(position)
-        matrix
-    }
-
-    override val emulatedPosition: Boolean = false
-    override val linearVelocity: Vector3? = null
-    override val angularVelocity: Vector3? = null
+fun createXRPose(
+    position: Vector3,
+    orientation: Quaternion,
+    emulatedPosition: Boolean = false
+): XRPose {
+    val matrix = Matrix4()
+    matrix.makeRotationFromQuaternion(orientation)
+    matrix.setPosition(position)
+    return XRPose(
+        transform = matrix,
+        emulatedPosition = emulatedPosition
+    )
 }
 
 /**
@@ -223,7 +221,7 @@ class DefaultXRTrackedObject(
         override val spaceId: String = "objectSpace_${currentTimeMillis()}"
     }
     val id: String = "trackedObject_${currentTimeMillis()}"
-    val pose: XRPose = DefaultXRPose(
+    val pose: XRPose = createXRPose(
         position = Vector3.ZERO,
         orientation = Quaternion.IDENTITY
     )

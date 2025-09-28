@@ -465,3 +465,8 @@ interface PhysicsEngine {
     fun createHingeConstraint(bodyA: RigidBody, bodyB: RigidBody?, pivotA: Vector3, pivotB: Vector3, axisA: Vector3, axisB: Vector3): HingeConstraint
     fun createSliderConstraint(bodyA: RigidBody, bodyB: RigidBody?, frameA: Matrix4, frameB: Matrix4): SliderConstraint
 }
+
+/**
+ * Platform-specific physics engine factory
+ */
+expect fun createDefaultPhysicsEngine(): PhysicsEngine

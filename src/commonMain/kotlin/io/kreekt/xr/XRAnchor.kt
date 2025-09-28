@@ -597,7 +597,7 @@ object CoordinateSystemManager {
         rotationMatrix.multiplyMatrices(transform, rotationMatrix)
         val newOrientation = Quaternion().setFromRotationMatrix(rotationMatrix)
 
-        return DefaultXRPose(
+        return createXRPose(
             position = newPosition,
             orientation = newOrientation
         )

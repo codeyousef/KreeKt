@@ -6,6 +6,16 @@ import io.kreekt.core.math.Matrix4
 import io.kreekt.xr.PermissionState
 
 /**
+ * Native implementation of XRDepthInformation
+ */
+actual interface XRDepthInformation {
+    actual val width: Int
+    actual val height: Int
+    actual val rawValueToMeters: Float
+    actual fun getDepthInMeters(x: Float, y: Float): Float
+}
+
+/**
  * Native implementation of XR platform functions
  */
 
