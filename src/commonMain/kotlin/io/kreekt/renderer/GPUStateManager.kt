@@ -498,15 +498,15 @@ class GPUResourcePool {
      */
     fun clear() {
         bufferPools.values.forEach { pool ->
-            // pool.forEach { it.dispose() } // TODO: Add dispose method to Buffer types
+            pool.forEach { it.dispose() }
             pool.clear()
         }
         bufferPools.clear()
 
-        // texturePool.forEach { it.dispose() } // TODO: Add dispose method to Texture
+        texturePool.forEach { it.dispose() }
         texturePool.clear()
 
-        // shaderProgramPool.forEach { it.dispose() } // TODO: Add dispose method to ShaderProgram
+        shaderProgramPool.forEach { it.dispose() }
         shaderProgramPool.clear()
     }
 

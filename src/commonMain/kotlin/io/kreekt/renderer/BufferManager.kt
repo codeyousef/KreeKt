@@ -536,7 +536,59 @@ private class DefaultVertexBuffer(
     }
 
     override fun copyFrom(source: Buffer, srcOffset: Long, dstOffset: Long, size: Long): RendererResult<Unit> {
-        return RendererResult.Success(Unit) // Placeholder implementation
+        return try {
+            // Validate source buffer type compatibility - can copy from any buffer type to vertex buffer
+
+            // Get source buffer data by mapping it
+            val sourceData = source.map(BufferAccess.READ_ONLY)
+
+            if (sourceData == null) {
+                return RendererResult.Error(RendererException.InvalidState("Source buffer has no data or cannot be mapped"))
+            }
+
+            // Calculate actual copy size
+            val actualSize = if (size == -1L) {
+                (sourceData.size - srcOffset).coerceAtLeast(0)
+            } else {
+                size
+            }
+
+            // Validate bounds
+            if (srcOffset < 0 || dstOffset < 0 || actualSize < 0) {
+                return RendererResult.Error(RendererException.InvalidState("Invalid offset or size parameters"))
+            }
+
+            if (srcOffset + actualSize > sourceData.size) {
+                return RendererResult.Error(RendererException.InvalidState("Source copy bounds exceed buffer size"))
+            }
+
+            if (dstOffset + actualSize > this.size) {
+                return RendererResult.Error(RendererException.InvalidState("Destination copy bounds exceed buffer size"))
+            }
+
+            // Initialize destination data if null
+            if (this.data == null) {
+                this.data = ByteArray(this.size.toInt())
+            }
+
+            // Perform the copy
+            sourceData.copyInto(
+                destination = this.data!!,
+                destinationOffset = dstOffset.toInt(),
+                startIndex = srcOffset.toInt(),
+                endIndex = (srcOffset + actualSize).toInt()
+            )
+
+            // Mark buffer as needing update
+            needsUpdate = true
+
+            // Unmap source buffer after copying
+            source.unmap()
+
+            RendererResult.Success(Unit)
+        } catch (e: Exception) {
+            RendererResult.Error(RendererException.InvalidState("Buffer copy failed: ${e.message}"))
+        }
     }
 
     override fun setAttributes(attributes: List<VertexAttribute>) {
@@ -623,7 +675,60 @@ private class DefaultIndexBuffer(
     }
 
     override fun copyFrom(source: Buffer, srcOffset: Long, dstOffset: Long, size: Long): RendererResult<Unit> {
-        return RendererResult.Success(Unit) // Placeholder implementation
+        return try {
+            // Index buffers should typically only copy from other index buffers with compatible types
+            // But we'll allow copying from any buffer type for flexibility
+
+            // Get source buffer data by mapping it
+            val sourceData = source.map(BufferAccess.READ_ONLY)
+
+            if (sourceData == null) {
+                return RendererResult.Error(RendererException.InvalidState("Source buffer has no data or cannot be mapped"))
+            }
+
+            // Calculate actual copy size
+            val actualSize = if (size == -1L) {
+                (sourceData.size - srcOffset).coerceAtLeast(0)
+            } else {
+                size
+            }
+
+            // Validate bounds
+            if (srcOffset < 0 || dstOffset < 0 || actualSize < 0) {
+                return RendererResult.Error(RendererException.InvalidState("Invalid offset or size parameters"))
+            }
+
+            if (srcOffset + actualSize > sourceData.size) {
+                return RendererResult.Error(RendererException.InvalidState("Source copy bounds exceed buffer size"))
+            }
+
+            if (dstOffset + actualSize > this.size) {
+                return RendererResult.Error(RendererException.InvalidState("Destination copy bounds exceed buffer size"))
+            }
+
+            // Initialize destination data if null
+            if (this.data == null) {
+                this.data = ByteArray(this.size.toInt())
+            }
+
+            // Perform the copy
+            sourceData.copyInto(
+                destination = this.data!!,
+                destinationOffset = dstOffset.toInt(),
+                startIndex = srcOffset.toInt(),
+                endIndex = (srcOffset + actualSize).toInt()
+            )
+
+            // Mark buffer as needing update
+            needsUpdate = true
+
+            // Unmap source buffer after copying
+            source.unmap()
+
+            RendererResult.Success(Unit)
+        } catch (e: Exception) {
+            RendererResult.Error(RendererException.InvalidState("Buffer copy failed: ${e.message}"))
+        }
     }
 
     override fun bind(): RendererResult<Unit> {
@@ -685,7 +790,54 @@ private class DefaultUniformBuffer(
     }
 
     override fun copyFrom(source: Buffer, srcOffset: Long, dstOffset: Long, size: Long): RendererResult<Unit> {
-        return RendererResult.Success(Unit) // Placeholder implementation
+        return try {
+            // Uniform buffers can copy from any buffer type
+
+            // Get source buffer data by mapping it
+            val sourceData = source.map(BufferAccess.READ_ONLY)
+
+            if (sourceData == null) {
+                return RendererResult.Error(RendererException.InvalidState("Source buffer has no data or cannot be mapped"))
+            }
+
+            // Calculate actual copy size
+            val actualSize = if (size == -1L) {
+                (sourceData.size - srcOffset).coerceAtLeast(0)
+            } else {
+                size
+            }
+
+            // Validate bounds
+            if (srcOffset < 0 || dstOffset < 0 || actualSize < 0) {
+                return RendererResult.Error(RendererException.InvalidState("Invalid offset or size parameters"))
+            }
+
+            if (srcOffset + actualSize > sourceData.size) {
+                return RendererResult.Error(RendererException.InvalidState("Source copy bounds exceed buffer size"))
+            }
+
+            if (dstOffset + actualSize > this.size) {
+                return RendererResult.Error(RendererException.InvalidState("Destination copy bounds exceed buffer size"))
+            }
+
+            // Perform the copy - uniform buffer data is non-nullable
+            sourceData.copyInto(
+                destination = this.data,
+                destinationOffset = dstOffset.toInt(),
+                startIndex = srcOffset.toInt(),
+                endIndex = (srcOffset + actualSize).toInt()
+            )
+
+            // Mark buffer as needing update
+            needsUpdate = true
+
+            // Unmap source buffer after copying
+            source.unmap()
+
+            RendererResult.Success(Unit)
+        } catch (e: Exception) {
+            RendererResult.Error(RendererException.InvalidState("Buffer copy failed: ${e.message}"))
+        }
     }
 
     override fun setUniform(name: String, value: Any): RendererResult<Unit> {
@@ -761,7 +913,54 @@ private class DefaultStorageBuffer(
     }
 
     override fun copyFrom(source: Buffer, srcOffset: Long, dstOffset: Long, size: Long): RendererResult<Unit> {
-        return RendererResult.Success(Unit) // Placeholder implementation
+        return try {
+            // Storage buffers can copy from any buffer type
+
+            // Get source buffer data by mapping it
+            val sourceData = source.map(BufferAccess.READ_ONLY)
+
+            if (sourceData == null) {
+                return RendererResult.Error(RendererException.InvalidState("Source buffer has no data or cannot be mapped"))
+            }
+
+            // Calculate actual copy size
+            val actualSize = if (size == -1L) {
+                (sourceData.size - srcOffset).coerceAtLeast(0)
+            } else {
+                size
+            }
+
+            // Validate bounds
+            if (srcOffset < 0 || dstOffset < 0 || actualSize < 0) {
+                return RendererResult.Error(RendererException.InvalidState("Invalid offset or size parameters"))
+            }
+
+            if (srcOffset + actualSize > sourceData.size) {
+                return RendererResult.Error(RendererException.InvalidState("Source copy bounds exceed buffer size"))
+            }
+
+            if (dstOffset + actualSize > this.size) {
+                return RendererResult.Error(RendererException.InvalidState("Destination copy bounds exceed buffer size"))
+            }
+
+            // Perform the copy - storage buffer data is non-nullable
+            sourceData.copyInto(
+                destination = this.data,
+                destinationOffset = dstOffset.toInt(),
+                startIndex = srcOffset.toInt(),
+                endIndex = (srcOffset + actualSize).toInt()
+            )
+
+            // Mark buffer as needing update
+            needsUpdate = true
+
+            // Unmap source buffer after copying
+            source.unmap()
+
+            RendererResult.Success(Unit)
+        } catch (e: Exception) {
+            RendererResult.Error(RendererException.InvalidState("Buffer copy failed: ${e.message}"))
+        }
     }
 
     override fun bind(bindingPoint: Int): RendererResult<Unit> {

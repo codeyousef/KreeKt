@@ -76,6 +76,10 @@ class AdvancedAssetLoader {
                 override var needsUpdate: Boolean = true
                 override val width: Int = 512
                 override val height: Int = 512
+
+                override fun dispose() {
+                    // Placeholder dispose implementation
+                }
             }
 
             assetCache[path] = texture

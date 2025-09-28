@@ -130,7 +130,7 @@ abstract class Texture(
     /**
      * Dispose of this texture
      */
-    open fun dispose() {
+    override fun dispose() {
         version++
         needsUpdate = true
     }

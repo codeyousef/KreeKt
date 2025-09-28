@@ -564,17 +564,32 @@ data class FloatKeyframe(
     fun copy(): FloatKeyframe {
         return FloatKeyframe(time, value)
 // Placeholder classes for texture types
+/**
  * Base texture class
+*/
 abstract class Texture {
     abstract fun sample(uv: Vector2): Color
+open fun dispose() {}
+}
+
+/**
  * Cube texture for environment mapping
+*/
 abstract class CubeTexture : Texture()
+
+/**
  * 2D texture for standard texture mapping
+*/
 abstract class Texture2D : Texture() {
     abstract fun sample2D(uv: Vector2): Color
+}
+
+/**
  * 3D texture for volumetric effects
+*/
 abstract class Texture3D : Texture() {
     abstract fun sample3D(uvw: Vector3): Color
+}
  * Extension functions for Vector2 operations
 fun Vector2.multiply(other: Vector2): Vector2 {
     x = x * other.x

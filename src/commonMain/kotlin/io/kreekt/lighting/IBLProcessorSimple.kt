@@ -29,6 +29,10 @@ class IBLProcessorSimple : IBLProcessor {
             override var needsUpdate: Boolean = false
             override val width: Int = width
             override val height: Int = height
+
+            override fun dispose() {
+                // Prefiltered texture disposal
+            }
         }
     }
 
@@ -64,6 +68,10 @@ class IBLProcessorSimple : IBLProcessor {
             override var needsUpdate: Boolean = false
             override val width: Int = size
             override val height: Int = size
+
+            override fun dispose() {
+                // BRDF LUT texture disposal
+            }
         }
     }
 }

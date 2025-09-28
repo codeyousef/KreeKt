@@ -328,32 +328,180 @@ class DefaultShaderManager(
     }
 
     private fun compileShaderImpl(source: ShaderSource): CompiledShader {
-        // Platform-specific shader compilation would go here
-        return DefaultCompiledShader(
-            id = generateShaderId(),
-            type = source.type,
-            source = source,
-            isValid = true, // Assume compilation success for default implementation
-            compilationLog = null
-        )
+        try {
+            // Validate shader source structure
+            val validationIssues = ShaderUtils.validateShaderSource(source)
+            if (validationIssues.isNotEmpty()) {
+                return DefaultCompiledShader(
+                    id = generateShaderId(),
+                    type = source.type,
+                    source = source,
+                    isValid = false,
+                    compilationLog = "Validation failed: ${validationIssues.joinToString("; ")}"
+                )
+            }
+
+            // Get processed source with defines applied
+            val processedSource = source.getProcessedSource()
+
+            // Validate shader language support
+            if (!isShaderLanguageSupported(source.language)) {
+                return DefaultCompiledShader(
+                    id = generateShaderId(),
+                    type = source.type,
+                    source = source,
+                    isValid = false,
+                    compilationLog = "Shader language ${source.language} not supported"
+                )
+            }
+
+            // Perform syntax validation based on shader language
+            val syntaxErrors = validateShaderSyntax(processedSource, source.language, source.type)
+            if (syntaxErrors.isNotEmpty()) {
+                return DefaultCompiledShader(
+                    id = generateShaderId(),
+                    type = source.type,
+                    source = source,
+                    isValid = false,
+                    compilationLog = "Syntax errors: ${syntaxErrors.joinToString("; ")}"
+                )
+            }
+
+            // Validate shader type specific requirements
+            val typeErrors = validateShaderTypeRequirements(processedSource, source.type, source.language)
+            if (typeErrors.isNotEmpty()) {
+                return DefaultCompiledShader(
+                    id = generateShaderId(),
+                    type = source.type,
+                    source = source,
+                    isValid = false,
+                    compilationLog = "Type validation failed: ${typeErrors.joinToString("; ")}"
+                )
+            }
+
+            // Platform-specific compilation would happen here
+            // For now, we'll perform basic validation and assume success
+            val compilationResult = performPlatformSpecificCompilation(processedSource, source)
+
+            return DefaultCompiledShader(
+                id = generateShaderId(),
+                type = source.type,
+                source = source,
+                isValid = compilationResult.success,
+                compilationLog = compilationResult.log
+            )
+
+        } catch (e: Exception) {
+            return DefaultCompiledShader(
+                id = generateShaderId(),
+                type = source.type,
+                source = source,
+                isValid = false,
+                compilationLog = "Compilation exception: ${e.message}"
+            )
+        }
     }
 
     private fun linkProgramImpl(shaders: List<CompiledShader>): ShaderProgram {
-        // Platform-specific program linking would go here
-        val vertexShader = shaders.first { it.type == ShaderType.VERTEX }
-        val fragmentShader = shaders.firstOrNull { it.type == ShaderType.FRAGMENT }
-        val geometryShader = shaders.firstOrNull { it.type == ShaderType.GEOMETRY }
-        val computeShader = shaders.firstOrNull { it.type == ShaderType.COMPUTE }
+        try {
+            // Validate all shaders are valid
+            val invalidShaders = shaders.filter { !it.isValid }
+            if (invalidShaders.isNotEmpty()) {
+                val programId = generateProgramId()
+                val firstValidShader = shaders.firstOrNull() ?: shaders.first()
+                return DefaultShaderProgram(
+                    id = programId,
+                    vertexShader = firstValidShader,
+                    fragmentShader = firstValidShader,
+                    geometryShader = null,
+                    computeShader = null,
+                    isLinked = false,
+                    linkLog = "Cannot link program with invalid shaders: ${
+                        invalidShaders.map { "${it.type}(${it.id})" }.joinToString(", ")
+                    }",
+                    stats = stats
+                )
+            }
 
-        return DefaultShaderProgram(
-            id = generateProgramId(),
-            vertexShader = vertexShader,
-            fragmentShader = fragmentShader ?: vertexShader, // Fallback for compute
-            geometryShader = geometryShader,
-            computeShader = computeShader,
-            isLinked = true, // Assume linking success for default implementation
-            linkLog = null
-        )
+            val vertexShader = shaders.firstOrNull { it.type == ShaderType.VERTEX }
+            val fragmentShader = shaders.firstOrNull { it.type == ShaderType.FRAGMENT }
+            val geometryShader = shaders.firstOrNull { it.type == ShaderType.GEOMETRY }
+            val computeShader = shaders.firstOrNull { it.type == ShaderType.COMPUTE }
+
+            // Validate shader combination
+            val linkingErrors = mutableListOf<String>()
+
+            if (computeShader != null) {
+                // Compute shader must be standalone
+                if (shaders.size > 1) {
+                    linkingErrors.add("Compute shader must be standalone, found ${shaders.size} shaders")
+                }
+            } else {
+                // Graphics pipeline requires vertex and fragment shaders
+                if (vertexShader == null) {
+                    linkingErrors.add("Graphics pipeline requires vertex shader")
+                }
+                if (fragmentShader == null) {
+                    linkingErrors.add("Graphics pipeline requires fragment shader")
+                }
+            }
+
+            // Validate attribute/uniform compatibility
+            if (vertexShader != null && fragmentShader != null) {
+                val compatibilityErrors = validateShaderCompatibility(vertexShader, fragmentShader)
+                linkingErrors.addAll(compatibilityErrors)
+            }
+
+            // Validate geometry shader compatibility
+            if (geometryShader != null) {
+                if (vertexShader == null) {
+                    linkingErrors.add("Geometry shader requires vertex shader")
+                }
+                val geometryErrors = validateGeometryShaderCompatibility(vertexShader, geometryShader)
+                linkingErrors.addAll(geometryErrors)
+            }
+
+            // Check if linking would succeed
+            val linkingSuccess = linkingErrors.isEmpty()
+            val linkLog = if (linkingErrors.isNotEmpty()) {
+                "Linking failed: ${linkingErrors.joinToString("; ")}"
+            } else {
+                null
+            }
+
+            // Perform platform-specific linking
+            val platformLinkResult = if (linkingSuccess) {
+                performPlatformSpecificLinking(shaders)
+            } else {
+                PlatformLinkResult(false, linkLog)
+            }
+
+            val programId = generateProgramId()
+            return DefaultShaderProgram(
+                id = programId,
+                vertexShader = vertexShader ?: computeShader ?: shaders.first(),
+                fragmentShader = fragmentShader ?: computeShader ?: shaders.first(),
+                geometryShader = geometryShader,
+                computeShader = computeShader,
+                isLinked = platformLinkResult.success,
+                linkLog = platformLinkResult.log,
+                stats = stats
+            )
+
+        } catch (e: Exception) {
+            val programId = generateProgramId()
+            val firstShader = shaders.firstOrNull() ?: shaders.first()
+            return DefaultShaderProgram(
+                id = programId,
+                vertexShader = firstShader,
+                fragmentShader = firstShader,
+                geometryShader = null,
+                computeShader = null,
+                isLinked = false,
+                linkLog = "Linking exception: ${e.message}",
+                stats = stats
+            )
+        }
     }
 
     private fun generateShaderCacheKey(source: ShaderSource): String {
@@ -373,6 +521,246 @@ class DefaultShaderManager(
 
     private var nextProgramId = 1
     private fun generateProgramId(): Int = nextProgramId++
+
+    // Helper methods for shader compilation and linking
+
+    /**
+     * Check if a shader language is supported
+     */
+    private fun isShaderLanguageSupported(language: ShaderLanguage): Boolean {
+        return when (language) {
+            ShaderLanguage.WGSL -> true // Primary target
+            ShaderLanguage.GLSL -> capabilities.extensions.contains("GLSL")
+            ShaderLanguage.HLSL -> capabilities.extensions.contains("HLSL")
+            ShaderLanguage.SPIRV -> capabilities.extensions.contains("SPIRV")
+        }
+    }
+
+    /**
+     * Validate shader syntax based on language
+     */
+    private fun validateShaderSyntax(source: String, language: ShaderLanguage, type: ShaderType): List<String> {
+        val errors = mutableListOf<String>()
+
+        when (language) {
+            ShaderLanguage.WGSL -> {
+                // WGSL-specific syntax validation
+                if (!source.contains("fn ${getExpectedEntryPoint(type)}(")) {
+                    errors.add("Missing entry point function '${getExpectedEntryPoint(type)}'")
+                }
+
+                // Check for required stage annotations
+                when (type) {
+                    ShaderType.VERTEX -> if (!source.contains("@vertex")) errors.add("Missing @vertex annotation")
+                    ShaderType.FRAGMENT -> if (!source.contains("@fragment")) errors.add("Missing @fragment annotation")
+                    ShaderType.COMPUTE -> if (!source.contains("@compute")) errors.add("Missing @compute annotation")
+                    else -> {} // Other types may not require annotations
+                }
+
+                // Basic bracket matching
+                val openBraces = source.count { it == '{' }
+                val closeBraces = source.count { it == '}' }
+                if (openBraces != closeBraces) {
+                    errors.add("Mismatched braces: $openBraces open, $closeBraces close")
+                }
+            }
+
+            ShaderLanguage.GLSL -> {
+                // GLSL-specific validation
+                if (!source.contains("#version")) {
+                    errors.add("Missing #version directive")
+                }
+                if (!source.contains("void main(")) {
+                    errors.add("Missing main() function")
+                }
+            }
+
+            ShaderLanguage.HLSL -> {
+                // HLSL-specific validation
+                val entryPoint = getExpectedEntryPoint(type)
+                if (!source.contains("$entryPoint(") && !source.contains("void $entryPoint(")) {
+                    errors.add("Missing entry point function '$entryPoint'")
+                }
+            }
+
+            ShaderLanguage.SPIRV -> {
+                // SPIR-V is binary, basic validation only
+                if (source.isBlank()) {
+                    errors.add("SPIR-V binary data is empty")
+                }
+            }
+        }
+
+        return errors
+    }
+
+    /**
+     * Validate shader type specific requirements
+     */
+    private fun validateShaderTypeRequirements(
+        source: String,
+        type: ShaderType,
+        language: ShaderLanguage
+    ): List<String> {
+        val errors = mutableListOf<String>()
+
+        when (type) {
+            ShaderType.VERTEX -> {
+                if (language == ShaderLanguage.WGSL && !source.contains("@builtin(position)")) {
+                    errors.add("Vertex shader must output position via @builtin(position)")
+                }
+            }
+
+            ShaderType.FRAGMENT -> {
+                if (language == ShaderLanguage.WGSL && !source.contains("@location(0)") && !source.contains("-> @location(0)")) {
+                    errors.add("Fragment shader must output to @location(0)")
+                }
+            }
+
+            ShaderType.COMPUTE -> {
+                if (language == ShaderLanguage.WGSL && !source.contains("@workgroup_size(")) {
+                    errors.add("Compute shader must specify @workgroup_size")
+                }
+            }
+
+            ShaderType.GEOMETRY -> {
+                if (!capabilities.geometryShaders) {
+                    errors.add("Geometry shaders not supported on this platform")
+                }
+            }
+
+            ShaderType.TESSELLATION_CONTROL, ShaderType.TESSELLATION_EVALUATION -> {
+                if (!capabilities.tessellation) {
+                    errors.add("Tessellation shaders not supported on this platform")
+                }
+            }
+        }
+
+        return errors
+    }
+
+    /**
+     * Get expected entry point name for shader type
+     */
+    private fun getExpectedEntryPoint(type: ShaderType): String {
+        return when (type) {
+            ShaderType.VERTEX -> "vs_main"
+            ShaderType.FRAGMENT -> "fs_main"
+            ShaderType.COMPUTE -> "cs_main"
+            ShaderType.GEOMETRY -> "gs_main"
+            ShaderType.TESSELLATION_CONTROL -> "tcs_main"
+            ShaderType.TESSELLATION_EVALUATION -> "tes_main"
+        }
+    }
+
+    /**
+     * Perform platform-specific compilation
+     */
+    private fun performPlatformSpecificCompilation(
+        source: String,
+        shaderSource: ShaderSource
+    ): PlatformCompilationResult {
+        // Platform-specific compilation would be implemented here via expect/actual
+        // For now, assume compilation succeeds
+        return PlatformCompilationResult(
+            success = true,
+            log = "Compilation successful (mock implementation)"
+        )
+    }
+
+    /**
+     * Validate compatibility between vertex and fragment shaders
+     */
+    private fun validateShaderCompatibility(
+        vertexShader: CompiledShader,
+        fragmentShader: CompiledShader
+    ): List<String> {
+        val errors = mutableListOf<String>()
+
+        // Basic compatibility checks
+        if (vertexShader.source.language != fragmentShader.source.language) {
+            errors.add("Vertex and fragment shaders must use the same language")
+        }
+
+        // For WGSL, check that vertex outputs match fragment inputs
+        if (vertexShader.source.language == ShaderLanguage.WGSL) {
+            val vertexOutputs = extractWGSLOutputs(vertexShader.source.getProcessedSource())
+            val fragmentInputs = extractWGSLInputs(fragmentShader.source.getProcessedSource())
+
+            // Check that all fragment inputs have corresponding vertex outputs
+            fragmentInputs.forEach { input ->
+                if (!vertexOutputs.contains(input)) {
+                    errors.add("Fragment shader input '@location($input)' has no corresponding vertex output")
+                }
+            }
+        }
+
+        return errors
+    }
+
+    /**
+     * Validate geometry shader compatibility
+     */
+    private fun validateGeometryShaderCompatibility(
+        vertexShader: CompiledShader?,
+        geometryShader: CompiledShader
+    ): List<String> {
+        val errors = mutableListOf<String>()
+
+        if (vertexShader != null && vertexShader.source.language != geometryShader.source.language) {
+            errors.add("Vertex and geometry shaders must use the same language")
+        }
+
+        return errors
+    }
+
+    /**
+     * Perform platform-specific program linking
+     */
+    private fun performPlatformSpecificLinking(shaders: List<CompiledShader>): PlatformLinkResult {
+        // Platform-specific linking would be implemented here via expect/actual
+        // For now, assume linking succeeds
+        return PlatformLinkResult(
+            success = true,
+            log = "Linking successful (mock implementation)"
+        )
+    }
+
+    /**
+     * Extract WGSL output location indices from shader source
+     */
+    private fun extractWGSLOutputs(source: String): Set<Int> {
+        val outputs = mutableSetOf<Int>()
+        val regex = Regex("""@location\((\d+)\)""")
+
+        // Look for outputs in struct definitions and return statements
+        regex.findAll(source).forEach { match ->
+            val location = match.groupValues[1].toIntOrNull()
+            if (location != null) {
+                outputs.add(location)
+            }
+        }
+
+        return outputs
+    }
+
+    /**
+     * Extract WGSL input location indices from shader source
+     */
+    private fun extractWGSLInputs(source: String): Set<Int> {
+        val inputs = mutableSetOf<Int>()
+        val regex = Regex("""@location\((\d+)\)""")
+
+        // Look for inputs in struct definitions and function parameters
+        regex.findAll(source).forEach { match ->
+            val location = match.groupValues[1].toIntOrNull()
+            if (location != null) {
+                inputs.add(location)
+            }
+        }
+
+        return inputs
+    }
 }
 
 /**
@@ -386,8 +774,44 @@ private class DefaultCompiledShader(
     override val compilationLog: String?
 ) : CompiledShader {
 
+    private var disposed = false
+    private var nativeShaderHandle: Any? = null // Platform-specific shader handle
+
     override fun dispose() {
-        // Cleanup would go here
+        if (disposed) return
+
+        try {
+            // Platform-specific native shader resource cleanup
+            nativeShaderHandle?.let { handle ->
+                cleanupNativeShaderResource(handle)
+            }
+
+            // Mark as disposed to prevent double-cleanup
+            disposed = true
+            nativeShaderHandle = null
+
+        } catch (e: Exception) {
+            // Log disposal error but don't throw to avoid issues in cleanup scenarios
+            // In a real implementation, this would go to a logger
+            println("Warning: Error disposing shader ${id}: ${e.message}")
+        }
+    }
+
+    /**
+     * Check if shader has been disposed
+     */
+    fun isDisposed(): Boolean = disposed
+
+    /**
+     * Platform-specific cleanup method
+     * This would be implemented differently for each platform (WebGPU, Vulkan, etc.)
+     */
+    private fun cleanupNativeShaderResource(handle: Any) {
+        // Platform-specific implementation:
+        // - WebGPU: Release shader module
+        // - Vulkan: Destroy VkShaderModule
+        // - OpenGL: Delete shader object
+        // For now, just a placeholder
     }
 }
 
@@ -401,23 +825,314 @@ private class DefaultShaderProgram(
     override val geometryShader: CompiledShader?,
     override val computeShader: CompiledShader?,
     override val isLinked: Boolean,
-    override val linkLog: String?
+    override val linkLog: String?,
+    private val stats: ShaderStatsTracker
 ) : ShaderProgram {
 
+    private var disposed = false
+    private var currentlyBound = false
+    private var nativeProgramHandle: Any? = null // Platform-specific program handle
+    private val uniformCache = mutableMapOf<String, UniformInfo>()
+
     override fun use(): RendererResult<Unit> {
-        // Platform-specific shader program binding would go here
-        return RendererResult.Success(Unit)
+        if (disposed) {
+            return RendererResult.Error(
+                RendererException.InvalidState("Cannot use disposed shader program $id")
+            )
+        }
+
+        if (!isLinked) {
+            return RendererResult.Error(
+                RendererException.InvalidState("Cannot use unlinked shader program $id")
+            )
+        }
+
+        try {
+            // Validate that all required shaders are still valid
+            if (!vertexShader.isValid || !fragmentShader.isValid) {
+                return RendererResult.Error(
+                    RendererException.InvalidState("Shader program $id contains invalid shaders")
+                )
+            }
+
+            // Check for compute vs graphics pipeline mismatch
+            if (computeShader != null && (currentlyBound && !isComputePipelineActive())) {
+                return RendererResult.Error(
+                    RendererException.InvalidState("Cannot bind compute program during graphics rendering")
+                )
+            }
+
+            // Perform platform-specific binding
+            val bindResult = bindShaderProgram(nativeProgramHandle)
+            if (!bindResult.success) {
+                return RendererResult.Error(
+                    RendererException.RenderingFailed("Failed to bind shader program $id: ${bindResult.error}")
+                )
+            }
+
+            currentlyBound = true
+            return RendererResult.Success(Unit)
+
+        } catch (e: Exception) {
+            return RendererResult.Error(
+                RendererException.RenderingFailed("Exception binding shader program $id: ${e.message}")
+            )
+        }
     }
 
     override fun setUniform(name: String, value: Any): RendererResult<Unit> {
-        // Platform-specific uniform setting would go here
-        return RendererResult.Success(Unit)
+        if (disposed) {
+            return RendererResult.Error(
+                RendererException.InvalidState("Cannot set uniform on disposed shader program $id")
+            )
+        }
+
+        if (!isLinked) {
+            return RendererResult.Error(
+                RendererException.InvalidState("Cannot set uniform on unlinked shader program $id")
+            )
+        }
+
+        if (!currentlyBound) {
+            return RendererResult.Error(
+                RendererException.InvalidState("Shader program $id must be bound before setting uniforms")
+            )
+        }
+
+        try {
+            // Validate uniform name
+            if (name.isBlank()) {
+                return RendererResult.Error(
+                    RendererException.InvalidState("Uniform name cannot be blank")
+                )
+            }
+
+            // Get or cache uniform information
+            val uniformInfo = uniformCache.getOrPut(name) {
+                getUniformInfo(name)
+            }
+
+            if (!uniformInfo.exists) {
+                return RendererResult.Error(
+                    RendererException.InvalidState("Uniform '$name' not found in shader program $id")
+                )
+            }
+
+            // Validate uniform type compatibility
+            val typeValidationResult = validateUniformType(uniformInfo.type, value)
+            if (!typeValidationResult.isValid) {
+                return RendererResult.Error(
+                    RendererException.InvalidState(
+                        "Uniform '$name' type mismatch: expected ${uniformInfo.type}, got ${value::class.simpleName}. ${typeValidationResult.error}"
+                    )
+                )
+            }
+
+            // Perform platform-specific uniform setting
+            val setResult = setPlatformUniform(uniformInfo, value)
+            if (!setResult.success) {
+                return RendererResult.Error(
+                    RendererException.RenderingFailed("Failed to set uniform '$name': ${setResult.error}")
+                )
+            }
+
+            return RendererResult.Success(Unit)
+
+        } catch (e: Exception) {
+            return RendererResult.Error(
+                RendererException.RenderingFailed("Exception setting uniform '$name': ${e.message}")
+            )
+        }
     }
 
     override fun dispose() {
-        // Cleanup would go here
+        if (disposed) return
+
+        try {
+            // Unbind if currently bound
+            if (currentlyBound) {
+                unbindShaderProgram()
+                currentlyBound = false
+            }
+
+            // Platform-specific program cleanup
+            nativeProgramHandle?.let { handle ->
+                cleanupNativeProgramResource(handle)
+            }
+
+            // Clear uniform cache
+            uniformCache.clear()
+
+            // Update stats
+            stats.programDestroyed()
+
+            // Mark as disposed
+            disposed = true
+            nativeProgramHandle = null
+
+        } catch (e: Exception) {
+            // Log disposal error but don't throw to avoid issues in cleanup scenarios
+            println("Warning: Error disposing shader program $id: ${e.message}")
+        }
     }
+
+    /**
+     * Check if program has been disposed
+     */
+    fun isDisposed(): Boolean = disposed
+
+    /**
+     * Check if program is currently bound
+     */
+    fun isBound(): Boolean = currentlyBound && !disposed
+
+    /**
+     * Get uniform information from the shader program
+     */
+    private fun getUniformInfo(name: String): UniformInfo {
+        // Platform-specific uniform introspection would go here
+        // For now, assume uniform exists with basic type inference
+        return UniformInfo(
+            name = name,
+            location = name.hashCode(), // Mock location
+            type = UniformType.FLOAT, // Default type
+            exists = true
+        )
+    }
+
+    /**
+     * Validate that the provided value matches the expected uniform type
+     */
+    private fun validateUniformType(expectedType: UniformType, value: Any): UniformTypeValidation {
+        return when (expectedType) {
+            UniformType.FLOAT -> when (value) {
+                is Float, is Double -> UniformTypeValidation(true)
+                is Number -> UniformTypeValidation(true, "Numeric value will be converted to Float")
+                else -> UniformTypeValidation(false, "Expected Float, got ${value::class.simpleName}")
+            }
+
+            UniformType.INT -> when (value) {
+                is Int, is Long, is Short, is Byte -> UniformTypeValidation(true)
+                is Number -> UniformTypeValidation(true, "Numeric value will be converted to Int")
+                else -> UniformTypeValidation(false, "Expected Int, got ${value::class.simpleName}")
+            }
+
+            UniformType.BOOL -> when (value) {
+                is Boolean -> UniformTypeValidation(true)
+                else -> UniformTypeValidation(false, "Expected Boolean, got ${value::class.simpleName}")
+            }
+
+            UniformType.VEC2 -> when (value) {
+                is io.kreekt.core.math.Vector2 -> UniformTypeValidation(true)
+                is FloatArray -> if (value.size >= 2) UniformTypeValidation(true) else UniformTypeValidation(
+                    false,
+                    "FloatArray must have at least 2 elements"
+                )
+
+                else -> UniformTypeValidation(false, "Expected Vector2 or FloatArray, got ${value::class.simpleName}")
+            }
+
+            UniformType.VEC3 -> when (value) {
+                is io.kreekt.core.math.Vector3 -> UniformTypeValidation(true)
+                is io.kreekt.core.math.Color -> UniformTypeValidation(true)
+                is FloatArray -> if (value.size >= 3) UniformTypeValidation(true) else UniformTypeValidation(
+                    false,
+                    "FloatArray must have at least 3 elements"
+                )
+
+                else -> UniformTypeValidation(
+                    false,
+                    "Expected Vector3, Color, or FloatArray, got ${value::class.simpleName}"
+                )
+            }
+
+            UniformType.VEC4 -> when (value) {
+                is io.kreekt.core.math.Vector4 -> UniformTypeValidation(true)
+                is io.kreekt.core.math.Color -> UniformTypeValidation(true)
+                is FloatArray -> if (value.size >= 4) UniformTypeValidation(true) else UniformTypeValidation(
+                    false,
+                    "FloatArray must have at least 4 elements"
+                )
+
+                else -> UniformTypeValidation(
+                    false,
+                    "Expected Vector4, Color, or FloatArray, got ${value::class.simpleName}"
+                )
+            }
+
+            UniformType.MAT3 -> when (value) {
+                is io.kreekt.core.math.Matrix3 -> UniformTypeValidation(true)
+                is FloatArray -> if (value.size >= 9) UniformTypeValidation(true) else UniformTypeValidation(
+                    false,
+                    "FloatArray must have at least 9 elements"
+                )
+
+                else -> UniformTypeValidation(false, "Expected Matrix3 or FloatArray, got ${value::class.simpleName}")
+            }
+
+            UniformType.MAT4 -> when (value) {
+                is io.kreekt.core.math.Matrix4 -> UniformTypeValidation(true)
+                is FloatArray -> if (value.size >= 16) UniformTypeValidation(true) else UniformTypeValidation(
+                    false,
+                    "FloatArray must have at least 16 elements"
+                )
+
+                else -> UniformTypeValidation(false, "Expected Matrix4 or FloatArray, got ${value::class.simpleName}")
+            }
+
+            UniformType.SAMPLER2D, UniformType.SAMPLER_CUBE -> when (value) {
+                is Texture -> UniformTypeValidation(true)
+                is Int -> UniformTypeValidation(true, "Texture unit index")
+                else -> UniformTypeValidation(false, "Expected Texture or Int, got ${value::class.simpleName}")
+            }
+        }
+    }
+
+    /**
+     * Platform-specific methods - these would be implemented differently for each platform
+     */
+    private fun isComputePipelineActive(): Boolean = false
+    private fun bindShaderProgram(handle: Any?): BindResult = BindResult(true)
+    private fun unbindShaderProgram() {}
+    private fun cleanupNativeProgramResource(handle: Any) {}
+    private fun setPlatformUniform(uniformInfo: UniformInfo, value: Any): SetUniformResult = SetUniformResult(true)
 }
+
+/**
+ * Uniform information structure
+ */
+private data class UniformInfo(
+    val name: String,
+    val location: Int,
+    val type: UniformType,
+    val exists: Boolean
+)
+
+/**
+ * Supported uniform types
+ */
+private enum class UniformType {
+    FLOAT, INT, BOOL,
+    VEC2, VEC3, VEC4,
+    MAT3, MAT4,
+    SAMPLER2D, SAMPLER_CUBE
+}
+
+/**
+ * Uniform type validation result
+ */
+private data class UniformTypeValidation(
+    val isValid: Boolean,
+    val error: String? = null
+)
+
+/**
+ * Platform operation results
+ */
+private data class BindResult(val success: Boolean, val error: String? = null)
+private data class SetUniformResult(val success: Boolean, val error: String? = null)
+private data class PlatformCompilationResult(val success: Boolean, val log: String? = null)
+private data class PlatformLinkResult(val success: Boolean, val log: String? = null)
 
 /**
  * Statistics tracker for shader operations

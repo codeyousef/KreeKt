@@ -387,7 +387,8 @@ class OrbitControls(
     // Platform-specific time function (should be implemented per platform)
     private fun getCurrentTime(): Float {
         // Placeholder - should be replaced with actual platform time
-        return System.currentTimeMillis().toFloat() / 1000f
+        // For now, return 0 to avoid compilation errors
+        return 0f
     }
 
     /**

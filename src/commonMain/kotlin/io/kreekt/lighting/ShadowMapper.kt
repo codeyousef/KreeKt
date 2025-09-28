@@ -450,6 +450,10 @@ class ShadowMapperImpl : ShadowMapper {
 
             override val width: Int = width
             override val height: Int = height
+
+            override fun dispose() {
+                // Shadow texture disposal
+            }
         }
     }
 
@@ -466,6 +470,10 @@ class ShadowMapperImpl : ShadowMapper {
             override var needsUpdate: Boolean = true
             override val width: Int = 1024 // Default size for cascaded texture
             override val height: Int = 1024
+
+            override fun dispose() {
+                // Cascaded shadow texture disposal
+            }
         }
     }
 

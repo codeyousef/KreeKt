@@ -27,11 +27,9 @@ xcuserdata
 *.bak
 *.orig
 .claude/
-.specify/
 docs/private/
 
 # Specs directory (planning docs not for version control)
-/specs/
 
 # Node.js (for JS target dependencies)
 node_modules/

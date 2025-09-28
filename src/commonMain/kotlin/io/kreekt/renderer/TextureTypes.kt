@@ -30,7 +30,7 @@ class Texture2D(
         needsUpdate = true
     }
 
-    fun dispose() {
+    override fun dispose() {
         data = null
     }
 
@@ -75,7 +75,7 @@ class CubeTextureImpl(
 
     fun getFaceData(face: CubeFace): FloatArray? = faces[face.ordinal]
 
-    fun dispose() {
+    override fun dispose() {
         for (i in faces.indices) {
             faces[i] = null
         }

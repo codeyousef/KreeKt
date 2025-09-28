@@ -12,6 +12,11 @@ interface Texture {
     val width: Int
     val height: Int
     val size: Int get() = width // For square textures
+
+    /**
+     * Dispose texture resources
+     */
+    fun dispose()
 }
 
 /**
