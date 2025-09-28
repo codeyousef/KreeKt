@@ -141,6 +141,8 @@ class DefaultClipAction(
     private var fadeDirection = 0f // -1 for fade out, 1 for fade in, 0 for no fade
     private var fadeDuration = 0f
     private var fadeTime = 0f
+    private var fadeStartWeight = 0f
+    private var fadeInitialized = false
 
     override fun play(): AnimationAction {
         if (_isDisposed) return this
@@ -158,6 +160,7 @@ class DefaultClipAction(
         time = 0f
         weight = 1f
         fadeDirection = 0f
+        fadeInitialized = false
         return this
     }
 
@@ -209,12 +212,15 @@ class DefaultClipAction(
         fadeDirection = direction
         fadeDuration = duration
         fadeTime = 0f
+        fadeInitialized = false
 
         if (direction > 0) {
             // Fade in: start from 0
+            fadeStartWeight = 0f
             weight = 0f
+            fadeInitialized = true
         }
-        // For fade out (direction < 0), keep current weight as starting point
+        // For fade out, we'll capture the start weight on first update
     }
 
     override fun update(deltaTime: Float) {
@@ -234,18 +240,29 @@ class DefaultClipAction(
 
         // Update fading
         if (fadeDirection != 0f) {
+            // Initialize fade start weight on first update for fade out
+            if (!fadeInitialized) {
+                fadeStartWeight = weight
+                fadeInitialized = true
+            }
+
             fadeTime += deltaTime
             val fadeProgress = (fadeTime / fadeDuration).coerceIn(0f, 1f)
 
             weight = when {
-                fadeDirection > 0 -> fadeProgress // Fade in
-                else -> 1f - fadeProgress // Fade out
+                fadeDirection > 0 -> fadeProgress // Fade in: 0 -> 1
+                else -> fadeStartWeight * (1f - fadeProgress) // Fade out: start weight -> 0
             }
 
             if (fadeProgress >= 1f) {
                 fadeDirection = 0f
-                if (weight <= 0f) {
-                    stop()
+                val shouldStop = weight <= 0f
+                if (shouldStop) {
+                    // Stop the action but preserve the final weight (0)
+                    _isRunning = false
+                    _isPaused = false
+                    time = 0f
+                    // Don't reset weight - keep it at 0 for fade out completion
                 }
             }
         }

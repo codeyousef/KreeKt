@@ -84,7 +84,7 @@ class AnimationActionTest {
         action.update(0.5f)
         assertEquals(1f, action.weight, 0.01f, "Weight should be 1 after fade in completes")
 
-        // Test fade out - need to ensure action is running
+        // Test fade out - Set weight first, then call fadeOut
         action.play()  // Make sure it's running
         action.weight = 1f  // Start from weight 1
         action.fadeOut(0.5f)
