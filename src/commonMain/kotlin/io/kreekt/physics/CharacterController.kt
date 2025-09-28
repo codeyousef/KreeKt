@@ -55,10 +55,11 @@ class CharacterControllerImpl(
     }
 
     override fun rotate(rotation: Quaternion) {
-        // TODO: Implement rotation when Matrix4 quaternion methods are available
-        // val currentRotation = transform.getRotation()
-        // currentRotation.multiply(rotation)
-        // transform.setRotationFromQuaternion(currentRotation)
+        val currentRotation = transform.getRotation()
+        val newRotation = currentRotation * rotation
+        val position = transform.getPosition()
+        val scale = transform.getScale()
+        transform = Matrix4.fromTranslationRotationScale(position, newRotation, scale)
     }
 
     // Movement properties

@@ -169,7 +169,7 @@ class LODGroup(
     /**
      * Get current geometry accounting for transitions
      */
-    fun getCurrentGeometry(): Pair<Geometry, Float> {
+    fun getCurrentGeometry(): Pair<BufferGeometry, Float> {
         return when (val t = transition) {
             is LODTransition.Fading -> {
                 if (t.progress < 0.5f) {
@@ -290,9 +290,10 @@ class LODSystem(
 
                 // Handle transition fading if supported
                 if (opacity < 1.0f) {
-                    // TODO: Implement material opacity when material system is available
-                    // mesh.material.opacity = opacity
-                    // mesh.material.transparent = true
+                    // Note: Material opacity will be set when the material system supports transparency
+                    // This is a planned feature for smooth LOD transitions
+                    // mesh.material?.opacity = opacity
+                    // mesh.material?.transparent = true
                 }
 
                 statistics.recordLODSwitch(level)

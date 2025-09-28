@@ -5,7 +5,10 @@ import io.kreekt.camera.PerspectiveCamera
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Vector2
 import io.kreekt.core.math.Vector3
-import kotlin.math.*
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.tan
 
 /**
  * Orbit camera controls implementation
@@ -384,11 +387,10 @@ class OrbitControls(
         return t * t * (3f - 2f * t)
     }
 
-    // Platform-specific time function (should be implemented per platform)
+    // Platform-specific time function
     private fun getCurrentTime(): Float {
-        // Placeholder - should be replaced with actual platform time
-        // For now, return 0 to avoid compilation errors
-        return 0f
+        // Use Kotlin's system time in milliseconds converted to seconds
+        return (kotlin.time.TimeSource.Monotonic.markNow().elapsedNow().inWholeMilliseconds / 1000.0f)
     }
 
     /**

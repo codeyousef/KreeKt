@@ -6,6 +6,7 @@ import platform.posix.*
 /**
  * Windows Native implementation of FileSystem for verification module
  */
+@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 actual object FileSystem {
 
     actual suspend fun readFile(filePath: String): String {

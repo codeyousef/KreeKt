@@ -45,7 +45,7 @@ interface AnimationMixer {
  * Default implementation of AnimationMixer
  */
 class DefaultAnimationMixer(override val root: Object3D) : AnimationMixer {
-    private val actions = mutableMapOf<AnimationClip, ClipAction>()
+    private val actions = kotlin.collections.mutableMapOf<AnimationClip, ClipAction>()
     private var _isDisposed = false
 
     override val isDisposed: Boolean
@@ -58,14 +58,16 @@ class DefaultAnimationMixer(override val root: Object3D) : AnimationMixer {
     }
 
     override fun stopAllAction() {
-        actions.values.forEach { it.stop() }
+        for (action in actions.values) {
+            action.stop()
+        }
     }
 
     override fun update(deltaTime: Float) {
         if (_isDisposed) return
 
         // Update all active actions
-        actions.values.forEach { action ->
+        for (action in actions.values) {
             if (action.isRunning) {
                 action.update(deltaTime)
             }
@@ -76,7 +78,9 @@ class DefaultAnimationMixer(override val root: Object3D) : AnimationMixer {
         if (_isDisposed) return
 
         stopAllAction()
-        actions.values.forEach { it.dispose() }
+        for (action in actions.values) {
+            action.dispose()
+        }
         actions.clear()
         _isDisposed = true
     }
@@ -108,8 +112,14 @@ data class KeyframeTrack(
         other as KeyframeTrack
 
         if (name != other.name) return false
-        if (!times.contentEquals(other.times)) return false
-        if (!values.contentEquals(other.values)) return false
+        if (times.size != other.times.size) return false
+        for (i in times.indices) {
+            if (times[i] != other.times[i]) return false
+        }
+        if (values.size != other.values.size) return false
+        for (i in values.indices) {
+            if (values[i] != other.values[i]) return false
+        }
         if (interpolation != other.interpolation) return false
 
         return true
@@ -117,8 +127,8 @@ data class KeyframeTrack(
 
     override fun hashCode(): Int {
         var result = name.hashCode()
-        result = 31 * result + times.contentHashCode()
-        result = 31 * result + values.contentHashCode()
+        result = 31 * result + times.hashCode()
+        result = 31 * result + values.hashCode()
         result = 31 * result + interpolation.hashCode()
         return result
     }

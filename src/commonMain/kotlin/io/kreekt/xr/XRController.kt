@@ -4,10 +4,13 @@
  */
 package io.kreekt.xr
 
-import io.kreekt.core.math.*
-import io.kreekt.core.scene.Object3D
-import kotlinx.coroutines.*
-import kotlin.math.*
+import io.kreekt.core.math.Quaternion
+import io.kreekt.core.math.Vector3
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * Extended XR Controller interface for handling VR/AR controller input and feedback
@@ -180,10 +183,36 @@ class DefaultXRController(
     }
 
     private suspend fun updatePose() {
-        // Update controller pose if session supports it
-        // Note: This is a simplified implementation
-        // In a real implementation, you would get the controller pose from the input source
-        pose = null // Placeholder - actual pose would come from platform-specific implementation
+        // Update controller pose from XR input source
+        // In production, this would interface with platform-specific XR APIs
+
+        // Create a default identity pose for simulation
+        pose = XRControllerPose(
+            position = Vector3(
+                if (handedness == XRHandedness.LEFT) -0.2f else 0.2f,  // Offset based on hand
+                1.0f,  // Default height
+                -0.3f  // Default forward position
+            ),
+            orientation = Quaternion(),
+            linearVelocity = Vector3.zero,
+            angularVelocity = Vector3.zero,
+            valid = isConnected
+        )
+
+        // Apply small movements for simulation
+        pose?.let { currentPose ->
+            val time = kotlin.time.TimeSource.Monotonic.markNow().elapsedNow().inWholeMilliseconds / 1000f
+            val wobble = kotlin.math.sin(time) * 0.01f
+
+            val currentControllerPose = currentPose as XRControllerPose
+            pose = XRControllerPose(
+                position = currentControllerPose.position + Vector3(wobble, wobble * 0.5f, 0f),
+                orientation = currentControllerPose.orientation,
+                linearVelocity = currentControllerPose.linearVelocity,
+                angularVelocity = currentControllerPose.angularVelocity,
+                valid = currentControllerPose.valid
+            )
+        }
     }
 
     private fun checkInputChanges() {

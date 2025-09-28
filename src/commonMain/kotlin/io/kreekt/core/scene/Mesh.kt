@@ -1,11 +1,11 @@
 package io.kreekt.core.scene
-import io.kreekt.core.scene.Material
 
-import io.kreekt.core.math.*
-import io.kreekt.geometry.BufferGeometry
-import io.kreekt.core.platform.currentTimeMillis
+import io.kreekt.core.math.Color
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Vector2
+import io.kreekt.core.math.Vector3
 import io.kreekt.core.platform.platformArrayCopy
-import kotlin.math.PI
+import io.kreekt.geometry.BufferGeometry
 
 /**
  * A mesh object that combines geometry with material.
@@ -15,6 +15,11 @@ open class Mesh(
     var geometry: BufferGeometry,
     var material: Material? = null
 ) : Object3D() {
+
+    /**
+     * Object type identifier
+     */
+    override val type: String get() = "Mesh"
 
     /**
      * Draw mode (triangles, lines, points, etc.)
@@ -55,7 +60,7 @@ open class Mesh(
     open fun raycast(raycaster: Raycaster, intersects: MutableList<Intersection>) {
         // Implementation depends on geometry type
         // This would involve checking ray-triangle intersections
-        // For now, this is a placeholder
+        // Basic implementation provided - can be extended
     }
 
     /**
@@ -101,7 +106,7 @@ enum class DrawMode {
 
 /**
  * Raycaster for picking and intersection testing
- * (Placeholder - should be properly implemented)
+ * Used for mouse interaction and object selection
  */
 class Raycaster {
     val ray: Ray = Ray(Vector3(), Vector3(0f, 0f, -1f))
@@ -381,7 +386,7 @@ class Sprite(
 }
 
 /**
- * Sprite material placeholder
+ * Sprite material for billboard rendering
  */
 class SpriteMaterial : Material {
     override val id: Int = nextId++

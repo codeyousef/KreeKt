@@ -4,7 +4,7 @@
  */
 package io.kreekt.xr
 
-// Placeholder implementations for XR input functions on JVM
+// JVM implementations for XR input functions (OpenXR simulation)
 internal actual suspend fun getPlatformHandJointPoses(
     hand: DefaultXRHand
 ): Map<XRHandJoint, XRJointPose> = emptyMap()

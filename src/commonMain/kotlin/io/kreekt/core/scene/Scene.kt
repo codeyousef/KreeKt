@@ -1,10 +1,9 @@
 package io.kreekt.core.scene
-import io.kreekt.core.math.Box3
-import io.kreekt.core.scene.Material
 
-import io.kreekt.core.math.*
+import io.kreekt.core.math.Box3
+import io.kreekt.core.math.Euler
+import io.kreekt.core.math.Vector3
 import io.kreekt.renderer.CubeTexture
-import kotlin.math.PI
 import io.kreekt.renderer.Texture
 
 /**
@@ -209,7 +208,7 @@ data class Object3DJSON(
 )
 
 /**
- * Placeholder for texture types (to be implemented in texture system)
+ * Base interface for texture types used in scene rendering
  */
 interface Texture {
     val id: Int

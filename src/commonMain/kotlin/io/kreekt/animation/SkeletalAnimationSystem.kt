@@ -287,6 +287,12 @@ private class SkeletalAnimationAction(
     private var _isRunning = false
     private var _isPaused = false
 
+    // Fading state
+    private var fadeDirection = 0f // -1 for fade out, 1 for fade in, 0 for no fade
+    private var fadeDuration = 0f
+    private var fadeTime = 0f
+    private var fadeStartWeight = 0f
+
     override val isRunning: Boolean get() = _isRunning && !_isPaused
     override val isPaused: Boolean get() = _isPaused
 
@@ -300,6 +306,9 @@ private class SkeletalAnimationAction(
         _isRunning = false
         _isPaused = false
         time = 0f
+        fadeDirection = 0f
+        fadeDuration = 0f
+        fadeTime = 0f
         return this
     }
 
@@ -314,34 +323,108 @@ private class SkeletalAnimationAction(
     }
 
     override fun fadeIn(duration: Float): AnimationAction {
-        // TODO: Implement fading
-        weight = 1f
-        return play()
+        if (duration <= 0f) {
+            weight = 1f
+            fadeDirection = 0f
+            return play()
+        }
+
+        // Initialize fade in
+        fadeDirection = 1f
+        fadeDuration = duration
+        fadeTime = 0f
+        fadeStartWeight = weight
+
+        // Start playing if not already playing
+        if (!_isRunning) {
+            weight = 0f
+            fadeStartWeight = 0f
+            play()
+        }
+
+        return this
     }
 
     override fun fadeOut(duration: Float): AnimationAction {
-        // TODO: Implement fading
-        weight = 0f
+        if (duration <= 0f) {
+            weight = 0f
+            fadeDirection = 0f
+            stop()
+            return this
+        }
+
+        // Initialize fade out
+        fadeDirection = -1f
+        fadeDuration = duration
+        fadeTime = 0f
+        fadeStartWeight = weight
+
         return this
     }
 
     override fun crossFadeTo(toAction: AnimationAction, duration: Float): AnimationAction {
-        // TODO: Implement cross-fading
-        fadeOut(duration)
-        toAction.fadeIn(duration)
+        // Ensure both actions are SkeletalAnimationAction for proper coordination
+        if (toAction is SkeletalAnimationAction) {
+            // Start fade out on this action
+            fadeOut(duration)
+
+            // Start fade in on target action
+            toAction.fadeIn(duration)
+
+            // Synchronize time if needed (optional - depends on desired behavior)
+            if (toAction.time == 0f) {
+                // Start target animation from the beginning
+                toAction.time = 0f
+            }
+        } else {
+            // Fallback for non-skeletal actions
+            fadeOut(duration)
+            toAction.fadeIn(duration)
+        }
+
         return this
     }
 
     override fun update(deltaTime: Float) {
         if (!_isRunning || _isPaused) return
 
+        // Update animation time
         time += deltaTime * timeScale
 
+        // Handle looping
         if (loop && time > clip.duration) {
             time = time % clip.duration
         } else if (!loop && time > clip.duration) {
             time = clip.duration
             stop()
+            return
+        }
+
+        // Update fading
+        if (fadeDirection != 0f && fadeDuration > 0f) {
+            fadeTime += deltaTime
+            val fadeProgress = (fadeTime / fadeDuration).coerceIn(0f, 1f)
+
+            when {
+                fadeDirection > 0f -> {
+                    // Fade in
+                    weight = fadeStartWeight + (1f - fadeStartWeight) * fadeProgress
+                }
+
+                fadeDirection < 0f -> {
+                    // Fade out
+                    weight = fadeStartWeight * (1f - fadeProgress)
+                }
+            }
+
+            // Check if fade is complete
+            if (fadeProgress >= 1f) {
+                fadeDirection = 0f
+                if (weight <= 0f) {
+                    // Fade out complete - stop the animation
+                    stop()
+                }
+            }
         }
     }
 

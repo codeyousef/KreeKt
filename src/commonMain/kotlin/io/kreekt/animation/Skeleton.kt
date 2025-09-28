@@ -1,5 +1,6 @@
 package io.kreekt.animation
 
+import io.kreekt.core.math.Euler
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Quaternion
 import io.kreekt.core.math.Vector3
@@ -510,33 +511,82 @@ class Skeleton(
 
 // Extension functions for math operations
 private fun Quaternion.toEuler(): Vector3 {
-    // Simplified euler conversion - in real implementation, use proper math
-    return Vector3(0f, 0f, 0f) // Placeholder
+    // Convert quaternion to Euler angles
+    val euler = Euler().setFromQuaternion(this)
+    return Vector3(euler.x, euler.y, euler.z)
 }
 
 private fun Quaternion.setFromEuler(x: Float, y: Float, z: Float): Quaternion {
-    // Simplified euler to quaternion - in real implementation, use proper math
-    return this // Placeholder
+    // Set quaternion from Euler angles
+    val euler = Euler(x, y, z)
+    return this.setFromEuler(euler)
 }
 
 private fun Vector3.setFromMatrixPosition(matrix: Matrix4): Vector3 {
-    // Extract position from matrix - in real implementation, use matrix extraction
-    return this // Placeholder
+    // Extract position from matrix
+    val e = matrix.elements
+    this.x = e[12]
+    this.y = e[13]
+    this.z = e[14]
+    return this
 }
 
-// Matrix4.compose is now available from io.kreekt.core.scene.Object3D
+// Matrix4.compose is now available from io.kreekt.core.scene.compose
 
 private fun Matrix4.decompose(position: Vector3, quaternion: Quaternion, scale: Vector3): Matrix4 {
-    // Simplified matrix decomposition - in real implementation, use proper math
-    return this // Placeholder
+    // Decompose matrix into position, quaternion, and scale components
+    val te = elements
+
+    // Extract scale
+    var sx = Vector3(te[0], te[1], te[2]).length()
+    val sy = Vector3(te[4], te[5], te[6]).length()
+    val sz = Vector3(te[8], te[9], te[10]).length()
+
+    // Check for negative determinant
+    val det = determinant()
+    if (det < 0) sx = -sx
+
+    // Extract position
+    position.x = te[12]
+    position.y = te[13]
+    position.z = te[14]
+
+    // Scale the rotation part
+    val matrix = this.clone()
+    val invSX = 1f / sx
+    val invSY = 1f / sy
+    val invSZ = 1f / sz
+
+    matrix.elements[0] *= invSX
+    matrix.elements[1] *= invSX
+    matrix.elements[2] *= invSX
+
+    matrix.elements[4] *= invSY
+    matrix.elements[5] *= invSY
+    matrix.elements[6] *= invSY
+
+    matrix.elements[8] *= invSZ
+    matrix.elements[9] *= invSZ
+    matrix.elements[10] *= invSZ
+
+    // Extract rotation as quaternion
+    quaternion.setFromRotationMatrix(matrix)
+
+    // Set scale
+    scale.x = sx
+    scale.y = sy
+    scale.z = sz
+
+    return this
 }
 
 private fun Matrix4.copy(other: Matrix4): Matrix4 {
     // Copy matrix elements
-    return this // Placeholder
+    other.elements.copyInto(this.elements)
+    return this
 }
 
 private fun Matrix4.multiplyMatrices(a: Matrix4, b: Matrix4): Matrix4 {
-    // Matrix multiplication
-    return this // Placeholder
+    // Matrix multiplication - delegates to the existing Matrix4 method
+    return this.multiplyMatrices(a, b)
 }

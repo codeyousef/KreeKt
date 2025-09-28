@@ -2,7 +2,9 @@ package io.kreekt.verification
 
 import io.kreekt.verification.impl.DefaultImplementationVerifier
 import io.kreekt.verification.impl.DefaultPlaceholderDetector
-import io.kreekt.verification.model.*
+import io.kreekt.verification.model.ImplementationArtifact
+import io.kreekt.verification.model.ModuleType
+import io.kreekt.verification.model.Priority
 
 /**
  * Utility for running verification scans on the KreeKt codebase
@@ -177,12 +179,14 @@ object VerificationRunner {
 
         println("\n📋 BY MODULE:")
         val byModule = results.artifacts.groupBy { it.moduleType }
-        for ((module, artifacts) in byModule.toSortedMap(compareBy { it.name })) {
+        val sortedModules = byModule.keys.sortedBy { it.toString() }
+        for (module in sortedModules) {
+            val artifacts = byModule[module] ?: continue
             val totalPlaceholders = artifacts.sumOf { it.placeholderCount }
             val compliantFiles = artifacts.count { it.constitutionalCompliance }
             val status = if (totalPlaceholders == 0) "✅" else "❌"
 
-            println("   $status ${module.name}: ${artifacts.size} files, $totalPlaceholders placeholders, $compliantFiles compliant")
+            println("   $status ${module.toString()}: ${artifacts.size} files, $totalPlaceholders placeholders, $compliantFiles compliant")
         }
 
         if (results.complianceReport != null && results.complianceReport.violations.isNotEmpty()) {

@@ -6,6 +6,7 @@ import platform.posix.*
 /**
  * Linux Native implementation of FileSystem for verification module
  */
+@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 actual object FileSystem {
 
     actual suspend fun readFile(filePath: String): String {
@@ -56,7 +57,9 @@ actual object FileSystem {
         return memScoped {
             val stat = alloc<stat>()
             if (platform.posix.stat(filePath, stat.ptr) == 0) {
-                stat.st_mtime * 1000L // Convert to milliseconds
+                // Use st_mtim.tv_sec or st_mtime depending on platform
+                val modificationTime = stat.st_mtim.tv_sec
+                modificationTime * 1000L // Convert to milliseconds
             } else {
                 0L
             }

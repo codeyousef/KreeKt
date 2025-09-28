@@ -7,6 +7,7 @@ package io.kreekt.xr
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Vector2
 import io.kreekt.core.math.Vector3
+import io.kreekt.core.scene.compose
 
 /**
  * Represents an XR device
@@ -546,6 +547,22 @@ enum class XRDepthDataFormat {
     RGBA32F
 }
 
+/**
+ * XR Controller Pose data class
+ */
+data class XRControllerPose(
+    val position: Vector3,
+    val orientation: io.kreekt.core.math.Quaternion,
+    override val linearVelocity: Vector3?,
+    override val angularVelocity: Vector3?,
+    val valid: Boolean
+) : XRPose {
+    override val transform: Matrix4
+        get() = Matrix4().compose(position, orientation, Vector3(1f, 1f, 1f))
+
+    override val emulatedPosition: Boolean
+        get() = false
+}
 
 /**
  * Default implementation of XRSystem

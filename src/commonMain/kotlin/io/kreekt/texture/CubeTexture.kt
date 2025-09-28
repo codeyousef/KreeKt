@@ -301,6 +301,43 @@ class CubeTexture(
     }
 
     /**
+     * Sample a face of the cube texture at UV coordinates
+     */
+    override fun sampleFace(face: Int, u: Float, v: Float): Vector3 {
+        val cubeFace = CubeFace.values().getOrNull(face) ?: return Vector3.ZERO.clone()
+
+        // Convert UV coordinates [0,1] to pixel coordinates
+        val x = (u * (size - 1)).toInt().coerceIn(0, size - 1)
+        val y = (v * (size - 1)).toInt().coerceIn(0, size - 1)
+
+        // Sample the face data
+        val data = faceData[cubeFace.ordinal]
+        val floatData = faceFloatData[cubeFace.ordinal]
+
+        return when {
+            data != null -> {
+                val index = (y * size + x) * 4
+                Vector3(
+                    data[index].toUByte().toFloat() / 255f,
+                    data[index + 1].toUByte().toFloat() / 255f,
+                    data[index + 2].toUByte().toFloat() / 255f
+                )
+            }
+
+            floatData != null -> {
+                val index = (y * size + x) * 4
+                Vector3(
+                    floatData[index],
+                    floatData[index + 1],
+                    floatData[index + 2]
+                )
+            }
+
+            else -> Vector3.ZERO.clone()
+        }
+    }
+
+    /**
      * Sample the cube texture in a given direction
      */
     private fun sampleDirection(direction: Vector3): Color {

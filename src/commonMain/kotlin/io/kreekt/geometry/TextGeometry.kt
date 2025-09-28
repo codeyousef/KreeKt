@@ -252,7 +252,7 @@ class TextGeometry(
                 TextAlign.LEFT -> 0f
                 TextAlign.CENTER -> -line.width / 2f
                 TextAlign.RIGHT -> -line.width
-                TextAlign.JUSTIFY -> 0f // TODO: Implement justify
+                TextAlign.JUSTIFY -> 0f // Justify will be handled in layoutLine
             }
 
             val adjustedLine = line.copy(offsetX = offsetX, offsetY = offsetY)
@@ -271,6 +271,7 @@ class TextGeometry(
         var currentX = 0f
         val scale = options.size / font.unitsPerEm
 
+        // First pass: layout normally to measure width
         for (i in text.indices) {
             val char = text[i]
             val glyph = font.getGlyph(char) ?: continue
@@ -296,6 +297,47 @@ class TextGeometry(
 
         val lineWidth = currentX - options.letterSpacing * scale
         val lineHeight = options.size
+
+        // Apply justify alignment if needed
+        if (options.textAlign == TextAlign.JUSTIFY && options.maxWidth != null && glyphs.size > 1) {
+            val targetWidth = options.maxWidth
+            val currentWidth = lineWidth
+            val widthDiff = targetWidth - currentWidth
+
+            // Count spaces in the line
+            val spaceCount = text.count { it == ' ' }
+
+            if (spaceCount > 0) {
+                // Distribute extra width among spaces
+                val extraSpaceWidth = widthDiff / spaceCount
+                var adjustedX = 0f
+                var spacesSeen = 0
+
+                for (i in glyphs.indices) {
+                    val glyph = glyphs[i]
+                    val char = text.getOrNull(i) ?: continue
+
+                    // Update position with justify adjustment
+                    glyphs[i] = glyph.copy(x = adjustedX)
+
+                    // Calculate next position
+                    adjustedX += glyph.glyph.width * scale + options.letterSpacing * scale
+
+                    // Add extra space after space characters
+                    if (char == ' ' && spacesSeen < spaceCount) {
+                        adjustedX += extraSpaceWidth
+                        spacesSeen++
+                    }
+                }
+            } else {
+                // No spaces, distribute width between all characters
+                val extraCharWidth = widthDiff / (glyphs.size - 1)
+                for (i in glyphs.indices) {
+                    val glyph = glyphs[i]
+                    glyphs[i] = glyph.copy(x = glyph.x + i * extraCharWidth)
+                }
+            }
+        }
 
         return TextLine(text, lineWidth, lineHeight, 0f, 0f, glyphs)
     }

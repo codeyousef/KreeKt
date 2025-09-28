@@ -6,7 +6,10 @@ import io.kreekt.camera.PerspectiveCamera
 import io.kreekt.core.math.Box3
 import io.kreekt.core.math.Vector2
 import io.kreekt.core.math.Vector3
-import kotlin.math.*
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.tan
 
 /**
  * Map camera controls implementation
@@ -319,18 +322,41 @@ class MapControls(
      * Convert screen coordinates to world coordinates
      */
     fun screenToWorld(screenX: Float, screenY: Float): Vector3? {
-        // This would require the renderer's viewport and projection matrix
-        // Placeholder implementation
-        return Vector3(screenX, 0f, screenY)
+        // Ray casting from screen to world space
+        val ndcX = (screenX / 1920f) * 2f - 1f // Assuming standard viewport width
+        val ndcY = 1f - (screenY / 1080f) * 2f // Assuming standard viewport height
+
+        // Create ray from camera through screen point
+        val rayOrigin = camera.position.clone()
+        val rayDirection = Vector3(ndcX, ndcY, -1f).unproject(camera)
+        rayDirection.sub(rayOrigin).normalize()
+
+        // Intersect with ground plane (y = 0)
+        val t = -rayOrigin.y / rayDirection.y
+        if (t < 0) return null // Ray pointing away from ground
+
+        return Vector3(
+            rayOrigin.x + rayDirection.x * t,
+            0f,
+            rayOrigin.z + rayDirection.z * t
+        )
     }
 
     /**
      * Convert world coordinates to screen coordinates
      */
     fun worldToScreen(worldPos: Vector3): Vector2? {
-        // This would require the renderer's viewport and projection matrix
-        // Placeholder implementation
-        return Vector2(worldPos.x, worldPos.z)
+        // Project world position to screen space
+        val projected = worldPos.clone().project(camera)
+
+        // Convert from NDC to screen coordinates
+        val screenX = (projected.x + 1f) * 960f // Half of standard viewport width
+        val screenY = (1f - projected.y) * 540f // Half of standard viewport height
+
+        // Check if behind camera
+        if (projected.z < -1f || projected.z > 1f) return null
+
+        return Vector2(screenX, screenY)
     }
 
     // Internal methods
@@ -532,8 +558,7 @@ class MapControls(
 
     // Platform-specific time function
     private fun getCurrentTime(): Float {
-        // Placeholder - should be replaced with actual platform time
-        // For now, return 0 to avoid compilation errors
-        return 0f
+        // Use Kotlin's system time in milliseconds converted to seconds
+        return (kotlin.time.TimeSource.Monotonic.markNow().elapsedNow().inWholeMilliseconds / 1000.0f)
     }
 }

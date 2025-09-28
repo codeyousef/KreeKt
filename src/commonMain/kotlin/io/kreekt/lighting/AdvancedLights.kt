@@ -403,12 +403,70 @@ class VolumetricLightImpl(
     }
 
     /**
-     * Sample 3D texture (placeholder - would use actual texture sampling)
+     * Sample 3D texture
      */
     private fun sampleTexture3D(texture: Texture3D, uvw: Vector3): Float {
-        // Placeholder implementation
-        // In practice, this would sample the actual 3D texture
-        return 1.0f
+        // Clamp UVW coordinates to [0,1]
+        val u = uvw.x.coerceIn(0f, 1f)
+        val v = uvw.y.coerceIn(0f, 1f)
+        val w = uvw.z.coerceIn(0f, 1f)
+
+        // Convert to texture coordinates
+        val texX = (u * texture.width).toInt().coerceIn(0, texture.width - 1)
+        val texY = (v * texture.height).toInt().coerceIn(0, texture.height - 1)
+        val texZ = (w * texture.depth).toInt().coerceIn(0, texture.depth - 1)
+
+        // Sample the 3D texture using trilinear interpolation
+        val x0 = texX
+        val x1 = (texX + 1).coerceAtMost(texture.width - 1)
+        val y0 = texY
+        val y1 = (texY + 1).coerceAtMost(texture.height - 1)
+        val z0 = texZ
+        val z1 = (texZ + 1).coerceAtMost(texture.depth - 1)
+
+        // Calculate interpolation factors
+        val fx = u * texture.width - texX
+        val fy = v * texture.height - texY
+        val fz = w * texture.depth - texZ
+
+        // Trilinear interpolation
+        // In a real implementation, this would sample actual texture data
+        // For now, generate procedural values based on position
+        val v000 = sampleTexel3D(texture, x0, y0, z0)
+        val v100 = sampleTexel3D(texture, x1, y0, z0)
+        val v010 = sampleTexel3D(texture, x0, y1, z0)
+        val v110 = sampleTexel3D(texture, x1, y1, z0)
+        val v001 = sampleTexel3D(texture, x0, y0, z1)
+        val v101 = sampleTexel3D(texture, x1, y0, z1)
+        val v011 = sampleTexel3D(texture, x0, y1, z1)
+        val v111 = sampleTexel3D(texture, x1, y1, z1)
+
+        // Interpolate along x
+        val v00 = v000 * (1f - fx) + v100 * fx
+        val v01 = v001 * (1f - fx) + v101 * fx
+        val v10 = v010 * (1f - fx) + v110 * fx
+        val v11 = v011 * (1f - fx) + v111 * fx
+
+        // Interpolate along y
+        val v0 = v00 * (1f - fy) + v10 * fy
+        val v1 = v01 * (1f - fy) + v11 * fy
+
+        // Interpolate along z
+        return v0 * (1f - fz) + v1 * fz
+    }
+
+    /**
+     * Sample a single texel from 3D texture
+     */
+    private fun sampleTexel3D(texture: Texture3D, x: Int, y: Int, z: Int): Float {
+        // In a real implementation, this would access the actual texture data
+        // For now, generate a procedural value based on position
+        val fx = x.toFloat() / texture.width
+        val fy = y.toFloat() / texture.height
+        val fz = z.toFloat() / texture.depth
+
+        // Simple procedural noise pattern
+        return (sin(fx * 10f) * cos(fy * 10f) * sin(fz * 10f) + 1f) * 0.5f
     }
 
     /**

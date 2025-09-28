@@ -66,6 +66,7 @@ kotlin {
         // Common source set
         val commonMain by getting {
             dependencies {
+                implementation(libs.kotlin.stdlib)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.atomicfu)

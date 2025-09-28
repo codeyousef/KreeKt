@@ -1,5 +1,9 @@
 package io.kreekt.animation
 
+import io.kreekt.core.math.Euler
+import io.kreekt.core.math.Quaternion
+import io.kreekt.core.math.Vector3
+
 /**
  * Animation action interface for controlling individual animation playback
  * Provides play, pause, stop, and fade functionality
@@ -183,6 +187,13 @@ class DefaultClipAction(
         if (_isDisposed) return this
 
         startFade(-1f, duration)
+
+        // Ensure the action is running so fade can be processed
+        if (!_isRunning) {
+            _isRunning = true
+            _isPaused = false
+        }
+
         return this
     }
 
@@ -200,8 +211,10 @@ class DefaultClipAction(
         fadeTime = 0f
 
         if (direction > 0) {
+            // Fade in: start from 0
             weight = 0f
         }
+        // For fade out (direction < 0), keep current weight as starting point
     }
 
     override fun update(deltaTime: Float) {
@@ -301,15 +314,134 @@ class DefaultClipAction(
 
     private fun applyTrackValue(trackName: String, value: FloatArray) {
         // Apply the animated value to the target object
-        // This would be implemented based on the specific property being animated
-        // For now, this is a placeholder that would need to integrate with the scene graph
+        val root = mixer.root
 
-        // Example implementation:
-        // when (trackName) {
-        //     "position" -> mixer.root.position.set(value[0], value[1], value[2])
-        //     "rotation" -> mixer.root.rotation.set(value[0], value[1], value[2], value[3])
-        //     "scale" -> mixer.root.scale.set(value[0], value[1], value[2])
-        // }
+        // Parse track name to extract property and potential sub-paths
+        val parts = trackName.split(".")
+        val propertyName = parts.lastOrNull() ?: return
+
+        // Handle standard Three.js-style track names
+        when {
+            propertyName == "position" || trackName.endsWith(".position") -> {
+                if (value.size >= 3) {
+                    val blendedPos = root.position.clone()
+                    val newPos = Vector3(value[0], value[1], value[2])
+
+                    // Apply with blending based on weight
+                    if (weight >= 1f) {
+                        root.position.copy(newPos)
+                    } else if (weight > 0f) {
+                        root.position.copy(blendedPos.lerp(newPos, weight))
+                    }
+                }
+            }
+
+            propertyName == "quaternion" || trackName.endsWith(".quaternion") -> {
+                if (value.size >= 4) {
+                    val blendedRot = root.quaternion.clone()
+                    val newRot = Quaternion(value[0], value[1], value[2], value[3]).normalize()
+
+                    // Apply with blending based on weight
+                    if (weight >= 1f) {
+                        root.quaternion.copy(newRot)
+                    } else if (weight > 0f) {
+                        root.quaternion.copy(blendedRot.slerp(newRot, weight))
+                    }
+                }
+            }
+
+            propertyName == "rotation" || trackName.endsWith(".rotation") -> {
+                // Euler rotation support
+                if (value.size >= 3) {
+                    val euler = Euler(value[0], value[1], value[2])
+                    val newRot = Quaternion().setFromEuler(euler)
+                    val blendedRot = root.quaternion.clone()
+
+                    // Apply with blending based on weight
+                    if (weight >= 1f) {
+                        root.quaternion.copy(newRot)
+                    } else if (weight > 0f) {
+                        root.quaternion.copy(blendedRot.slerp(newRot, weight))
+                    }
+                }
+            }
+
+            propertyName == "scale" || trackName.endsWith(".scale") -> {
+                if (value.size >= 3) {
+                    val blendedScale = root.scale.clone()
+                    val newScale = Vector3(value[0], value[1], value[2])
+
+                    // Apply with blending based on weight
+                    if (weight >= 1f) {
+                        root.scale.copy(newScale)
+                    } else if (weight > 0f) {
+                        root.scale.copy(blendedScale.lerp(newScale, weight))
+                    }
+                }
+            }
+
+            // Support for morph targets
+            propertyName.startsWith("morphTargetInfluences[") -> {
+                val index = propertyName.substringAfter("[").substringBefore("]").toIntOrNull()
+                if (index != null && value.isNotEmpty()) {
+                    // This would apply to morph target influences if the object supports them
+                    // For now, store in userData for potential use by mesh renderers
+                    val morphTargets = root.userData["morphTargetInfluences"] as? MutableList<Float>
+                        ?: mutableListOf<Float>().also { root.userData["morphTargetInfluences"] = it }
+
+                    while (morphTargets.size <= index) {
+                        morphTargets.add(0f)
+                    }
+
+                    val currentValue = morphTargets[index]
+                    morphTargets[index] = if (weight >= 1f) {
+                        value[0]
+                    } else {
+                        currentValue + (value[0] - currentValue) * weight
+                    }
+                }
+            }
+
+            // Support for material properties
+            propertyName == "opacity" || trackName.contains("material.opacity") -> {
+                if (value.isNotEmpty()) {
+                    val materials = root.userData["materials"] as? MutableMap<String, Any>
+                        ?: mutableMapOf<String, Any>().also { root.userData["materials"] = it }
+
+                    val currentOpacity = (materials["opacity"] as? Float) ?: 1f
+                    materials["opacity"] = if (weight >= 1f) {
+                        value[0]
+                    } else {
+                        currentOpacity + (value[0] - currentOpacity) * weight
+                    }
+                }
+            }
+
+            // Support for visibility
+            propertyName == "visible" -> {
+                if (value.isNotEmpty()) {
+                    // Visibility is typically binary, but we can use weight as threshold
+                    root.visible = value[0] > 0.5f || (weight < 0.5f && root.visible)
+                }
+            }
+
+            // Support for custom properties via userData
+            else -> {
+                // Store in userData for custom property animation
+                val animatedProps = root.userData["animatedProperties"] as? MutableMap<String, FloatArray>
+                    ?: mutableMapOf<String, FloatArray>().also { root.userData["animatedProperties"] = it }
+
+                if (weight >= 1f) {
+                    animatedProps[trackName] = value.copyOf()
+                } else if (weight > 0f) {
+                    val current = animatedProps[trackName] ?: FloatArray(value.size) { 0f }
+                    val blended = FloatArray(value.size) { i ->
+                        current[i] + (value[i] - current[i]) * weight
+                    }
+                    animatedProps[trackName] = blended
+                }
+            }
+        }
     }
 
     override fun dispose() {

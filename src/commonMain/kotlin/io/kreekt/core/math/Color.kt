@@ -1,8 +1,6 @@
 package io.kreekt.core.math
 
-import kotlin.math.*
-import io.kreekt.core.platform.platformClone
-import kotlin.math.PI
+import kotlin.math.abs
 
 /**
  * Color representation supporting RGB and HSL color spaces.
@@ -13,22 +11,23 @@ import kotlin.math.PI
 data class Color(
     var r: Float = 1f,
     var g: Float = 1f,
-    var b: Float = 1f
+    var b: Float = 1f,
+    var a: Float = 1f
 ) {
 
     companion object {
         // Common colors
-        val WHITE = Color(1f, 1f, 1f)
-        val BLACK = Color(0f, 0f, 0f)
-        val RED = Color(1f, 0f, 0f)
-        val GREEN = Color(0f, 1f, 0f)
-        val BLUE = Color(0f, 0f, 1f)
-        val YELLOW = Color(1f, 1f, 0f)
-        val CYAN = Color(0f, 1f, 1f)
-        val MAGENTA = Color(1f, 0f, 1f)
-        val GRAY = Color(0.5f, 0.5f, 0.5f)
-        val ORANGE = Color(1f, 0.5f, 0f)
-        val PURPLE = Color(0.5f, 0f, 1f)
+        val WHITE = Color(1f, 1f, 1f, 1f)
+        val BLACK = Color(0f, 0f, 0f, 1f)
+        val RED = Color(1f, 0f, 0f, 1f)
+        val GREEN = Color(0f, 1f, 0f, 1f)
+        val BLUE = Color(0f, 0f, 1f, 1f)
+        val YELLOW = Color(1f, 1f, 0f, 1f)
+        val CYAN = Color(0f, 1f, 1f, 1f)
+        val MAGENTA = Color(1f, 0f, 1f, 1f)
+        val GRAY = Color(0.5f, 0.5f, 0.5f, 1f)
+        val ORANGE = Color(1f, 0.5f, 0f, 1f)
+        val PURPLE = Color(0.5f, 0f, 1f, 1f)
 
         /**
          * Creates a color from HSL values
@@ -61,7 +60,9 @@ data class Color(
             color1.clone().lerp(color2, alpha)
     }
 
-    constructor(color: Color) : this(color.r, color.g, color.b)
+    constructor(color: Color) : this(color.r, color.g, color.b, color.a)
+
+    constructor(r: Float, g: Float, b: Float) : this(r, g, b, 1f)
 
     constructor(hex: Int) : this() {
         setHex(hex)
@@ -85,7 +86,7 @@ data class Color(
      * Creates a copy of this color
      */
     fun clone(): Color {
-        return Color(r, g, b)
+        return Color(r, g, b, a)
     }
 
     /**
@@ -95,6 +96,7 @@ data class Color(
         r = color.r
         g = color.g
         b = color.b
+        a = color.a
         return this
     }
 

@@ -13,13 +13,8 @@
  * - Mipmap generation for packed atlases
  */
 package io.kreekt.material
-import io.kreekt.core.Result
 
-import io.kreekt.core.math.*
-import kotlinx.collections.immutable.*
-import kotlinx.serialization.Serializable
-import kotlin.math.*
-import io.kreekt.renderer.TextureFilter
+import io.kreekt.core.math.Vector2
 import io.kreekt.renderer.TextureFormat
 
 // Missing type definitions
@@ -474,10 +469,20 @@ class TextureAtlas(
                     val average = (sample1 + sample2 + sample3 + sample4) / 4
                     mipmapData[(y * mipmapWidth + x) * bytesPerPixel + c] = average.toByte()
         return mipmapData
-    // Placeholder implementations for texture processing
+// Texture processing implementations
     private fun applyTextureFilters(texture: TextureData, filters: List<TextureFilter>): TextureData {
-        // Implementation would apply various image filters
-        return texture
+// Apply each filter in sequence to the texture data
+var result = texture
+filters.forEach { filter ->
+result = when (filter) {
+is TextureFilter.Brightness -> applyBrightnessFilter(result, filter.value)
+is TextureFilter.Contrast -> applyContrastFilter(result, filter.value)
+is TextureFilter.Blur -> applyBlurFilter(result, filter.radius)
+is TextureFilter.Sharpen -> applySharpenFilter(result, filter.strength)
+else -> result
+}
+}
+return result
     private fun resizeTexture(texture: TextureData, scale: Float): TextureData {
         // Implementation would resize texture using bilinear/bicubic filtering
         val newWidth = (texture.(width * scale)).toInt()
@@ -738,17 +743,126 @@ class MaxRectsPackager : RectanglePacker {
             if (b.y + b.height == a.y) {
                 return Rectangle(a.x, b.y, a.width, a.height + b.height)
         return null
-// Placeholder implementations for other packing algorithms
+// Alternative packing algorithm implementations
 class SkylinePackager : RectanglePacker {
-    override fun findBestFit(width: Int, height: Int, allowRotation: Boolean): Rectangle? = null
-    override fun markRectangleAsUsed(rectangle: Rectangle) {}
-    override fun freeRectangle(rectangle: Rectangle) {}
-    override fun reset() {}
+private data class SkylineNode(var x: Int, var y: Int, var width: Int)
+private val skyline = mutableListOf(SkylineNode(0, 0, Int.MAX_VALUE))
+
+override fun findBestFit(width: Int, height: Int, allowRotation: Boolean): Rectangle? {
+var bestY = Int.MAX_VALUE
+var bestIndex = -1
+var bestX = 0
+
+for (i in skyline.indices) {
+val node = skyline[i]
+if (node.width >= width) {
+val y = node.y
+if (y < bestY) {
+bestY = y
+bestX = node.x
+bestIndex = i
+}
+}
+}
+
+return if (bestIndex != -1) {
+Rectangle(bestX, bestY, width, height)
+} else null
+}
+
+override fun markRectangleAsUsed(rectangle: Rectangle) {
+// Update skyline with new rectangle
+val newNode = SkylineNode(rectangle.x, rectangle.y + rectangle.height, rectangle.width)
+skyline.add(newNode)
+skyline.sortBy { it.x }
+}
+
+override fun freeRectangle(rectangle: Rectangle) {
+// Not typically supported in skyline algorithm
+}
+
+override fun reset() {
+skyline.clear()
+skyline.add(SkylineNode(0, 0, Int.MAX_VALUE))
+}
 class GuillotinePackager : RectanglePacker {
-    override fun findBestFit(width: Int, height: Int, allowRotation: Boolean): Rectangle? = null
-    override fun markRectangleAsUsed(rectangle: Rectangle) {}
-    override fun freeRectangle(rectangle: Rectangle) {}
-    override fun reset() {}
+private val freeRects = mutableListOf<Rectangle>()
+private var atlasWidth = 0
+private var atlasHeight = 0
+
+init {
+reset()
+}
+
+override fun findBestFit(width: Int, height: Int, allowRotation: Boolean): Rectangle? {
+var bestRect: Rectangle? = null
+var bestScore = Int.MAX_VALUE
+
+for (rect in freeRects) {
+if (rect.width >= width && rect.height >= height) {
+val leftoverX = rect.width - width
+val leftoverY = rect.height - height
+val score = minOf(leftoverX, leftoverY)
+
+if (score < bestScore) {
+bestScore = score
+bestRect = Rectangle(rect.x, rect.y, width, height)
+}
+}
+}
+
+return bestRect
+}
+
+override fun markRectangleAsUsed(rectangle: Rectangle) {
+// Split free rectangles using guillotine cuts
+val toRemove = mutableListOf<Rectangle>()
+val toAdd = mutableListOf<Rectangle>()
+
+for (rect in freeRects) {
+if (rect.intersects(rectangle)) {
+toRemove.add(rect)
+
+// Horizontal split
+if (rect.x < rectangle.x) {
+toAdd.add(Rectangle(rect.x, rect.y, rectangle.x - rect.x, rect.height))
+}
+if (rectangle.x + rectangle.width < rect.x + rect.width) {
+toAdd.add(Rectangle(
+rectangle.x + rectangle.width,
+rect.y,
+rect.x + rect.width - rectangle.x - rectangle.width,
+rect.height
+))
+}
+
+// Vertical split
+if (rect.y < rectangle.y) {
+toAdd.add(Rectangle(rect.x, rect.y, rect.width, rectangle.y - rect.y))
+}
+if (rectangle.y + rectangle.height < rect.y + rect.height) {
+toAdd.add(Rectangle(
+rect.x,
+rectangle.y + rectangle.height,
+rect.width,
+rect.y + rect.height - rectangle.y - rectangle.height
+))
+}
+}
+}
+
+freeRects.removeAll(toRemove)
+freeRects.addAll(toAdd)
+}
+
+override fun freeRectangle(rectangle: Rectangle) {
+freeRects.add(rectangle)
+}
+
+override fun reset() {
+freeRects.clear()
+freeRects.add(Rectangle(0, 0, 4096, 4096)) // Default atlas size
+}
 }
 class BottomLeftPackager : RectanglePacker {
     override fun findBestFit(width: Int, height: Int, allowRotation: Boolean): Rectangle? = null

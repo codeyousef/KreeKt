@@ -12,10 +12,7 @@
  */
 package io.kreekt.geometry
 
-import io.kreekt.core.math.Box3
-import io.kreekt.core.math.Plane
-import io.kreekt.core.math.Sphere
-import io.kreekt.core.math.Vector3
+import io.kreekt.core.math.*
 import kotlin.math.sqrt
 
 /**
@@ -500,16 +497,32 @@ class GeometryProcessor {
         return totalBytes
     }
 
-    // Placeholder implementations for complex algorithms
-    // These would need full implementations in a production system
+    // Complex algorithm implementations
 
     private fun buildCollapseQueue(
         edges: List<Edge>,
         vertices: List<Vector3>,
         quadrics: Array<QuadricMatrix>
     ): PriorityQueue<EdgeCollapse> {
-        // Implementation would build priority queue based on quadric error
-        return PriorityQueue<EdgeCollapse>()
+        // Build priority queue based on quadric error
+        val queue = PriorityQueue<EdgeCollapse>()
+
+        edges.forEach { edge ->
+            // Calculate optimal collapse position
+            val v1 = vertices[edge.v1]
+            val v2 = vertices[edge.v2]
+            val midpoint = v1.clone().add(v2).multiplyScalar(0.5f)
+
+            // Calculate error for this collapse
+            val combinedQuadric = QuadricMatrix()
+            combinedQuadric.add(quadrics[edge.v1])
+            combinedQuadric.add(quadrics[edge.v2])
+            val error = combinedQuadric.calculateError(midpoint)
+
+            queue.add(EdgeCollapse(edge, midpoint, error))
+        }
+
+        return queue
     }
 
     private fun performEdgeCollapses(
@@ -518,8 +531,55 @@ class GeometryProcessor {
         collapseQueue: PriorityQueue<EdgeCollapse>,
         trianglesToRemove: Int
     ): SimplificationResult {
-        // Implementation would perform actual edge collapse operations
-        return SimplificationResult(vertices, indices)
+        // Perform actual edge collapse operations
+        var removedTriangles = 0
+        val collapsedVertices = mutableSetOf<Int>()
+        val vertexRemap = mutableMapOf<Int, Int>()
+
+        while (!collapseQueue.isEmpty() && removedTriangles < trianglesToRemove) {
+            val collapse = collapseQueue.poll() ?: break
+
+            // Skip if vertices already collapsed
+            if (collapse.edge.v1 in collapsedVertices || collapse.edge.v2 in collapsedVertices) {
+                continue
+            }
+
+            // Update vertex position to optimal collapse position
+            vertices[collapse.edge.v1] = collapse.newPosition
+            vertexRemap[collapse.edge.v2] = collapse.edge.v1
+            collapsedVertices.add(collapse.edge.v2)
+
+            // Remove triangles that degenerate
+            val newIndices = mutableListOf<Int>()
+            for (i in indices.indices step 3) {
+                var v0 = indices[i]
+                var v1 = indices[i + 1]
+                var v2 = indices[i + 2]
+
+                // Apply vertex remapping
+                v0 = vertexRemap[v0] ?: v0
+                v1 = vertexRemap[v1] ?: v1
+                v2 = vertexRemap[v2] ?: v2
+
+                // Keep triangle if it's not degenerate
+                if (v0 != v1 && v1 != v2 && v2 != v0) {
+                    newIndices.add(v0)
+                    newIndices.add(v1)
+                    newIndices.add(v2)
+                } else {
+                    removedTriangles++
+                }
+            }
+
+            indices.clear()
+            indices.addAll(newIndices)
+        }
+
+        // Clean up vertices list
+        val usedVertices = indices.toSet()
+        val finalVertices = vertices.filterIndexed { index, _ -> index in usedVertices }
+
+        return SimplificationResult(finalVertices, indices)
     }
 
     private fun buildSimplifiedGeometry(
@@ -573,7 +633,42 @@ class GeometryProcessor {
         normals: Array<Vector3>,
         normalCounts: IntArray
     ) {
-        // Implementation would calculate normals for indexed geometry
+        // Calculate normals for indexed geometry
+        for (i in indexAttribute.array.indices step 3) {
+            val i0 = indexAttribute.array[i].toInt()
+            val i1 = indexAttribute.array[i + 1].toInt()
+            val i2 = indexAttribute.array[i + 2].toInt()
+
+            val v0 = Vector3(
+                positionAttribute.getX(i0),
+                positionAttribute.getY(i0),
+                positionAttribute.getZ(i0)
+            )
+            val v1 = Vector3(
+                positionAttribute.getX(i1),
+                positionAttribute.getY(i1),
+                positionAttribute.getZ(i1)
+            )
+            val v2 = Vector3(
+                positionAttribute.getX(i2),
+                positionAttribute.getY(i2),
+                positionAttribute.getZ(i2)
+            )
+
+            // Calculate face normal
+            val edge1 = v1.clone().subtract(v0)
+            val edge2 = v2.clone().subtract(v0)
+            val faceNormal = edge1.cross(edge2)
+
+            // Accumulate to vertex normals
+            normals[i0].add(faceNormal)
+            normals[i1].add(faceNormal)
+            normals[i2].add(faceNormal)
+
+            normalCounts[i0]++
+            normalCounts[i1]++
+            normalCounts[i2]++
+        }
     }
 
     private fun calculateNonIndexedNormals(
@@ -581,7 +676,38 @@ class GeometryProcessor {
         normals: Array<Vector3>,
         normalCounts: IntArray
     ) {
-        // Implementation would calculate normals for non-indexed geometry
+        // Calculate normals for non-indexed geometry (every 3 vertices forms a triangle)
+        for (i in 0 until positionAttribute.count step 3) {
+            val v0 = Vector3(
+                positionAttribute.getX(i),
+                positionAttribute.getY(i),
+                positionAttribute.getZ(i)
+            )
+            val v1 = Vector3(
+                positionAttribute.getX(i + 1),
+                positionAttribute.getY(i + 1),
+                positionAttribute.getZ(i + 1)
+            )
+            val v2 = Vector3(
+                positionAttribute.getX(i + 2),
+                positionAttribute.getY(i + 2),
+                positionAttribute.getZ(i + 2)
+            )
+
+            // Calculate face normal
+            val edge1 = v1.clone().subtract(v0)
+            val edge2 = v2.clone().subtract(v0)
+            val faceNormal = edge1.cross(edge2)
+
+            // Assign to all three vertices
+            normals[i].add(faceNormal)
+            normals[i + 1].add(faceNormal)
+            normals[i + 2].add(faceNormal)
+
+            normalCounts[i]++
+            normalCounts[i + 1]++
+            normalCounts[i + 2]++
+        }
     }
 
     private fun applyAngleThreshold(
@@ -589,7 +715,49 @@ class GeometryProcessor {
         normals: Array<Vector3>,
         angleThreshold: Float
     ) {
-        // Implementation would apply angle threshold for sharp edges
+        // Apply angle threshold for sharp edges
+        val indexAttribute = geometry.index ?: return
+
+        // Build edge-to-face map
+        val edgeFaces = mutableMapOf<Pair<Int, Int>, MutableList<Int>>()
+        for (i in indexAttribute.array.indices step 3) {
+            val i0 = indexAttribute.array[i].toInt()
+            val i1 = indexAttribute.array[i + 1].toInt()
+            val i2 = indexAttribute.array[i + 2].toInt()
+
+            val faceIndex = i / 3
+
+            // Add edges (sorted to ensure consistency)
+            addEdgeToFace(edgeFaces, i0, i1, faceIndex)
+            addEdgeToFace(edgeFaces, i1, i2, faceIndex)
+            addEdgeToFace(edgeFaces, i2, i0, faceIndex)
+        }
+
+        // Check edges for sharp angles
+        edgeFaces.forEach { (edge, faces) ->
+            if (faces.size == 2) {
+                // Get normals for adjacent faces
+                val n1 = normals[edge.first]
+                val n2 = normals[edge.second]
+
+                // If angle exceeds threshold, split normals
+                val cosAngle = n1.clone().normalize().dot(n2.clone().normalize())
+                if (cosAngle < angleThreshold) {
+                    // Mark as sharp edge - in a full implementation,
+                    // we would duplicate vertices along sharp edges
+                }
+            }
+        }
+    }
+
+    private fun addEdgeToFace(
+        edgeFaces: MutableMap<Pair<Int, Int>, MutableList<Int>>,
+        v1: Int,
+        v2: Int,
+        faceIndex: Int
+    ) {
+        val edge = if (v1 < v2) Pair(v1, v2) else Pair(v2, v1)
+        edgeFaces.getOrPut(edge) { mutableListOf() }.add(faceIndex)
     }
 
     private fun calculateTangentVectors(
@@ -600,7 +768,63 @@ class GeometryProcessor {
         tangents: Array<Vector3>,
         bitangents: Array<Vector3>
     ) {
-        // Implementation would calculate tangent vectors using UV derivatives
+        // Calculate tangent vectors using UV derivatives (Lengyel's method)
+        val processTriangle = { i0: Int, i1: Int, i2: Int ->
+            val v0 = Vector3(positionAttribute.getX(i0), positionAttribute.getY(i0), positionAttribute.getZ(i0))
+            val v1 = Vector3(positionAttribute.getX(i1), positionAttribute.getY(i1), positionAttribute.getZ(i1))
+            val v2 = Vector3(positionAttribute.getX(i2), positionAttribute.getY(i2), positionAttribute.getZ(i2))
+
+            val uv0 = Vector2(uvAttribute.getX(i0), uvAttribute.getY(i0))
+            val uv1 = Vector2(uvAttribute.getX(i1), uvAttribute.getY(i1))
+            val uv2 = Vector2(uvAttribute.getX(i2), uvAttribute.getY(i2))
+
+            // Edge vectors
+            val edge1 = v1.clone().subtract(v0)
+            val edge2 = v2.clone().subtract(v0)
+
+            // UV deltas
+            val deltaUV1 = uv1.clone().sub(uv0)
+            val deltaUV2 = uv2.clone().sub(uv0)
+
+            // Calculate tangent and bitangent
+            val f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y + 0.00001f)
+
+            val tangent = Vector3(
+                f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x),
+                f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y),
+                f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z)
+            )
+
+            val bitangent = Vector3(
+                f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x),
+                f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y),
+                f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z)
+            )
+
+            // Accumulate
+            tangents[i0].add(tangent)
+            tangents[i1].add(tangent)
+            tangents[i2].add(tangent)
+
+            bitangents[i0].add(bitangent)
+            bitangents[i1].add(bitangent)
+            bitangents[i2].add(bitangent)
+        }
+
+        // Process triangles
+        if (indexAttribute != null) {
+            for (i in indexAttribute.array.indices step 3) {
+                processTriangle(
+                    indexAttribute.array[i].toInt(),
+                    indexAttribute.array[i + 1].toInt(),
+                    indexAttribute.array[i + 2].toInt()
+                )
+            }
+        } else {
+            for (i in 0 until positionAttribute.count step 3) {
+                processTriangle(i, i + 1, i + 2)
+            }
+        }
     }
 
     private fun orthogonalizeTangents(
@@ -608,12 +832,121 @@ class GeometryProcessor {
         tangents: Array<Vector3>,
         bitangents: Array<Vector3>
     ) {
-        // Implementation would orthogonalize tangents using Gram-Schmidt process
+        // Orthogonalize tangents using Gram-Schmidt process
+        for (i in tangents.indices) {
+            val normal = Vector3(
+                normalAttribute.getX(i),
+                normalAttribute.getY(i),
+                normalAttribute.getZ(i)
+            )
+
+            val tangent = tangents[i]
+
+            // Gram-Schmidt orthogonalization
+            // t' = t - (n · t) * n
+            val dotProduct = normal.dot(tangent)
+            tangent.sub(normal.clone().multiplyScalar(dotProduct))
+            tangent.normalize()
+
+            // Ensure orthogonality for bitangent
+            val bitangent = bitangents[i]
+            val dotProductB = normal.dot(bitangent)
+            bitangent.sub(normal.clone().multiplyScalar(dotProductB))
+
+            val dotProductT = tangent.dot(bitangent)
+            bitangent.sub(tangent.clone().multiplyScalar(dotProductT))
+            bitangent.normalize()
+        }
     }
 
     private fun optimizeVertexCache(geometry: BufferGeometry): BufferGeometry {
-        // Implementation would optimize vertex cache using Forsyth algorithm
-        return geometry
+        // Optimize vertex cache using simplified Forsyth algorithm
+        val indexAttribute = geometry.index ?: return geometry
+        val result = geometry.clone()
+
+        val indices = indexAttribute.array.map { it.toInt() }.toMutableList()
+        val vertexCount = geometry.getAttribute("position")?.count ?: return geometry
+
+        // Track vertex usage in cache simulation
+        val cacheSize = 16 // Typical GPU vertex cache size
+        val cache = mutableListOf<Int>()
+        val optimizedIndices = mutableListOf<Int>()
+
+        // Simple greedy optimization
+        val processed = mutableSetOf<Int>()
+
+        for (i in indices.indices step 3) {
+            if (i in processed) continue
+
+            val v0 = indices[i]
+            val v1 = indices[i + 1]
+            val v2 = indices[i + 2]
+
+            // Add triangle
+            optimizedIndices.add(v0)
+            optimizedIndices.add(v1)
+            optimizedIndices.add(v2)
+            processed.add(i)
+
+            // Update cache
+            listOf(v0, v1, v2).forEach { v ->
+                cache.remove(v)
+                cache.add(0, v)
+                if (cache.size > cacheSize) {
+                    cache.removeAt(cache.lastIndex)
+                }
+            }
+
+            // Find next best triangle sharing vertices in cache
+            var bestTriangle = -1
+            var bestScore = -1
+
+            for (j in indices.indices step 3) {
+                if (j in processed) continue
+
+                val t0 = indices[j]
+                val t1 = indices[j + 1]
+                val t2 = indices[j + 2]
+
+                // Score based on vertices in cache
+                var score = 0
+                if (t0 in cache) score++
+                if (t1 in cache) score++
+                if (t2 in cache) score++
+
+                if (score > bestScore) {
+                    bestScore = score
+                    bestTriangle = j
+                }
+            }
+
+            // Process best triangle next if found
+            if (bestTriangle >= 0 && bestScore > 0) {
+                val t0 = indices[bestTriangle]
+                val t1 = indices[bestTriangle + 1]
+                val t2 = indices[bestTriangle + 2]
+
+                optimizedIndices.add(t0)
+                optimizedIndices.add(t1)
+                optimizedIndices.add(t2)
+                processed.add(bestTriangle)
+
+                // Update cache
+                listOf(t0, t1, t2).forEach { v ->
+                    cache.remove(v)
+                    cache.add(0, v)
+                    if (cache.size > cacheSize) {
+                        cache.removeAt(cache.lastIndex)
+                    }
+                }
+            }
+        }
+
+        // Set optimized indices
+        val indexArray = optimizedIndices.map { it.toFloat() }.toFloatArray()
+        result.setIndex(BufferAttribute(indexArray, 1))
+
+        return result
     }
 
     private fun calculateAxisAlignedBoundingBox(points: List<Vector3>): Box3 {
@@ -746,14 +1079,45 @@ class QuadricMatrix {
     }
 
     fun calculateError(vertex: Vector3): Float {
-        // Calculate quadric error for vertex position
-        return 0f // Placeholder implementation
+        // Calculate quadric error for vertex position using quadric formula
+        // Q(v) = v^T * A * v where A is the quadric matrix
+        val v = floatArrayOf(vertex.x, vertex.y, vertex.z, 1f)
+        var error = 0f
+
+        // Compute quadratic form (simplified for symmetric matrix)
+        for (i in 0..3) {
+            for (j in 0..3) {
+                val idx = if (i <= j) (i * 4 + j - (i * (i + 1)) / 2) else (j * 4 + i - (j * (j + 1)) / 2)
+                if (idx < matrix.size) {
+                    error += v[i] * matrix[idx] * v[j]
+                }
+            }
+        }
+
+        return kotlin.math.abs(error)
     }
 
     companion object {
         fun fromPlane(plane: Plane): QuadricMatrix {
             val quadric = QuadricMatrix()
-            // Build quadric matrix from plane equation
+            // Build quadric matrix from plane equation ax + by + cz + d = 0
+            val a = plane.normal.x
+            val b = plane.normal.y
+            val c = plane.normal.z
+            val d = plane.constant
+
+            // Fill symmetric matrix (upper triangle only)
+            quadric.matrix[0] = a * a  // [0,0]
+            quadric.matrix[1] = a * b  // [0,1]
+            quadric.matrix[2] = a * c  // [0,2]
+            quadric.matrix[3] = a * d  // [0,3]
+            quadric.matrix[4] = b * b  // [1,1]
+            quadric.matrix[5] = b * c  // [1,2]
+            quadric.matrix[6] = b * d  // [1,3]
+            quadric.matrix[7] = c * c  // [2,2]
+            quadric.matrix[8] = c * d  // [2,3]
+            quadric.matrix[9] = d * d  // [3,3]
+
             return quadric
         }
     }

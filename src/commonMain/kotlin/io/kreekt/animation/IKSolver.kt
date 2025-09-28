@@ -1,12 +1,10 @@
 package io.kreekt.animation
 
-import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Quaternion
 import io.kreekt.core.math.Vector3
-import io.kreekt.core.platform.platformClone
-import kotlin.math.*
 import kotlin.math.PI
-import kotlin.math.cos
+import kotlin.math.abs
+import kotlin.math.acos
 
 /**
  * Advanced IK Solver with multiple algorithms:

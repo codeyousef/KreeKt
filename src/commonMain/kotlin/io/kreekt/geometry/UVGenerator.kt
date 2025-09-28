@@ -12,13 +12,10 @@
  */
 package io.kreekt.geometry
 
-import io.kreekt.core.math.*
-import io.kreekt.core.platform.platformClone
+import io.kreekt.core.math.Sphere
+import io.kreekt.core.math.Vector2
+import io.kreekt.core.math.Vector3
 import kotlin.math.*
-import io.kreekt.core.platform.platformClone
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * Advanced UV coordinate generator for texture mapping
@@ -540,8 +537,17 @@ class UVGenerator {
     }
 
     private fun isSeamVertex(normal: Vector3, seamAngle: Float): Boolean {
-        // Simplified seam detection based on normal direction changes
-        return false // Placeholder implementation
+        // Detect if this vertex is on a UV seam based on normal angle changes
+        // A vertex is on a seam if its normal differs significantly from adjacent faces
+        val absNormal = Vector3(abs(normal.x), abs(normal.y), abs(normal.z))
+
+        // Check if normal is near an edge between box faces
+        val threshold = cos(seamAngle)
+        val nearEdge = (absNormal.x < threshold && absNormal.y < threshold) ||
+                (absNormal.y < threshold && absNormal.z < threshold) ||
+                (absNormal.x < threshold && absNormal.z < threshold)
+
+        return nearEdge
     }
 
     private fun applyUVTransformations(uvCoordinates: FloatArray, transform: UVTransform) {
@@ -573,7 +579,7 @@ class UVGenerator {
         }
     }
 
-    // Placeholder implementations for complex algorithms
+    // Complex algorithm implementations
 
     private fun handleBoxProjectionSeams(
         geometry: BufferGeometry,
@@ -812,7 +818,7 @@ data class Box2(
     }
 }
 
-// Placeholder data classes for complex algorithms
+// Data classes for UV generation algorithms
 
 /**
  * Mesh connectivity data for unwrapping

@@ -143,6 +143,25 @@ abstract class Texture(
         return uv.applyMatrix3(matrix)
     }
 
+    /**
+     * Sample a face of the texture (for cube textures)
+     */
+    open fun sampleFace(face: Int, u: Float, v: Float): io.kreekt.core.math.Vector3 {
+        // Default implementation returns zero vector
+        return io.kreekt.core.math.Vector3.ZERO.clone()
+    }
+
+    /**
+     * Get the number of mip levels
+     */
+    open fun getMipLevelCount(): Int {
+        return if (generateMipmaps && mipmaps != null) {
+            mipmaps!!.size
+        } else {
+            1
+        }
+    }
+
     override fun toString(): String = "Texture(id=$id, name='$name', ${width}x$height)"
 }
 

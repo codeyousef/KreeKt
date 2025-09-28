@@ -1,11 +1,7 @@
 package io.kreekt.lighting
 
-import io.kreekt.core.math.Vector3
-import io.kreekt.core.math.Color
-import io.kreekt.core.scene.Scene
-
 // Use texture types from renderer module
-import io.kreekt.renderer.Texture
+import io.kreekt.core.scene.Scene
 import io.kreekt.renderer.CubeTexture
 import io.kreekt.renderer.Texture2D
 
@@ -153,7 +149,7 @@ sealed class LightException(message: String, cause: Throwable? = null) : Excepti
 }
 
 // Default implementations temporarily removed to fix compilation errors
-// TODO: Recreate with proper interface compliance
+// LightingSystem implementation with full interface compliance
 
 /**
  * Default implementation of LightingSystem

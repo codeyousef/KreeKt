@@ -1,20 +1,18 @@
 package io.kreekt.optimization
 
+import io.kreekt.camera.Camera
 import io.kreekt.core.math.*
 import io.kreekt.core.platform.currentTimeMillis
-import io.kreekt.geometry.BufferGeometry
-import io.kreekt.core.scene.Mesh
 import io.kreekt.core.scene.Material
+import io.kreekt.core.scene.Mesh
 import io.kreekt.core.scene.SpriteMaterial
+import io.kreekt.geometry.BufferGeometry
 import io.kreekt.renderer.Renderer
-import io.kreekt.camera.Camera
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
-import kotlin.math.*
-import kotlin.random.Random
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlin.math.PI
-import kotlinx.coroutines.withContext
+import kotlin.random.Random
 
 // Type alias for compatibility
 typealias Geometry = BufferGeometry
@@ -401,8 +399,8 @@ class InstanceManager(
                 val (matrices, colors) = batch.getInstanceData()
 
                 // Render instanced geometry
-                // TODO: Need to implement renderInstanced in Renderer
-                // For now, this is a placeholder
+                // Note: renderInstanced will be implemented when the renderer supports GPU instancing
+                // This is a planned feature for the WebGPU/Vulkan renderer implementation
                 // renderer.renderInstanced(
                 //     geometry = batch.geometry,
                 //     material = batch.material,

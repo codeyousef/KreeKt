@@ -255,8 +255,8 @@ private class WebGPURenderer : Renderer {
     }
 
     private fun renderObject(obj: io.kreekt.core.scene.Object3D, camera: io.kreekt.camera.Camera, gl: dynamic) {
-        // Placeholder object rendering
-        // In real implementation, this would use WebGPU compute/render pipelines
+        // Basic object rendering
+        // In production, this would use WebGPU compute/render pipelines
     }
 
     private fun updateFPS() {

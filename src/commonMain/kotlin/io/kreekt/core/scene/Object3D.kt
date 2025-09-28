@@ -1,8 +1,6 @@
 package io.kreekt.core.scene
 
 import io.kreekt.core.math.*
-import kotlin.random.Random
-import kotlin.math.PI
 
 /**
  * Base class for all objects in the 3D scene.
@@ -58,6 +56,9 @@ abstract class Object3D {
     // Event callbacks
     var onBeforeRender: ((Object3D) -> Unit)? = null
     var onAfterRender: ((Object3D) -> Unit)? = null
+
+    // Object type for identification
+    open val type: String get() = "Object3D"
 
     init {
         // Ensure rotation and quaternion stay in sync
@@ -326,6 +327,24 @@ abstract class Object3D {
      */
     fun worldToLocal(vector: Vector3): Vector3 {
         return vector.applyMatrix4(Matrix4().copy(matrixWorld).invert())
+    }
+
+    /**
+     * Gets the bounding box of this object
+     */
+    open fun getBoundingBox(): Box3 {
+        // Default implementation returns empty box
+        return Box3()
+    }
+
+    /**
+     * Applies a matrix transformation to this object
+     */
+    fun applyMatrix4(matrix: Matrix4): Object3D {
+        if (matrixAutoUpdate) updateMatrix()
+        this.matrix.premultiply(matrix)
+        this.matrix.decompose(position, quaternion, scale)
+        return this
     }
 
     /**

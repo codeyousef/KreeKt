@@ -345,6 +345,22 @@ data class Vector3(
         }
     }
 
+    /**
+     * Projects this vector from world coordinates to normalized device coordinates using the camera
+     */
+    fun project(camera: io.kreekt.camera.Camera): Vector3 {
+        camera.worldToNDC(this, this)
+        return this
+    }
+
+    /**
+     * Unprojects this vector from normalized device coordinates to world coordinates using the camera
+     */
+    fun unproject(camera: io.kreekt.camera.Camera): Vector3 {
+        camera.ndcToWorld(this, this)
+        return this
+    }
+
     override fun toString(): String = "Vector3($x, $y, $z)"
 
     companion object {
@@ -359,6 +375,10 @@ data class Vector3(
         val RIGHT = Vector3(1f, 0f, 0f)
         val FORWARD = Vector3(0f, 0f, -1f)
         val BACK = Vector3(0f, 0f, 1f)
+
+        // Aliases for compatibility
+        val zero get() = ZERO
+        val one get() = ONE
     }
 }
 

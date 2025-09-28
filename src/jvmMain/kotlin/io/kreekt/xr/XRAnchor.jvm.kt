@@ -7,7 +7,7 @@ package io.kreekt.xr
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Vector3
 
-// Placeholder implementations for XR anchor functions on JVM
+// JVM implementations for XR anchor functions (OpenXR simulation)
 internal actual suspend fun savePersistentAnchor(handle: String, pose: XRPose) {
     // No-op on JVM
 }

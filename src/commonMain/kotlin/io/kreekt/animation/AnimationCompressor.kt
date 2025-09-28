@@ -3,8 +3,8 @@ package io.kreekt.animation
 import io.kreekt.core.math.Quaternion
 import io.kreekt.core.math.Vector3
 import io.kreekt.core.platform.currentTimeMillis
-import kotlinx.serialization.Serializable
-import kotlin.math.*
+import kotlin.math.abs
+import kotlin.math.sqrt
 
 /**
  * Advanced Animation Compressor for optimizing animation tracks and reducing memory usage.

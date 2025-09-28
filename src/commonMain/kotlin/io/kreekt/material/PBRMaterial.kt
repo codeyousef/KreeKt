@@ -13,16 +13,10 @@
  * - Advanced texture mapping and UV animation
  */
 package io.kreekt.material
-import io.kreekt.renderer.Texture3D
+import io.kreekt.core.math.Color
+import io.kreekt.core.math.Vector2
+import io.kreekt.core.math.Vector3
 import io.kreekt.renderer.Texture2D
-import io.kreekt.renderer.CubeTexture
-import io.kreekt.core.scene.Material
-import io.kreekt.lighting.IBLResult
-import io.kreekt.core.math.*
-import io.kreekt.core.platform.platformClone
-import io.kreekt.core.platform.currentTimeMillis
-import kotlinx.serialization.Serializable
-import kotlin.math.*
 
 // Missing type definitions for PBR features
 data class ClearcoatSettings(
@@ -563,7 +557,7 @@ data class FloatKeyframe(
     val value: Float
     fun copy(): FloatKeyframe {
         return FloatKeyframe(time, value)
-// Placeholder classes for texture types
+// Texture type definitions for PBR materials
 /**
  * Base texture class
 */

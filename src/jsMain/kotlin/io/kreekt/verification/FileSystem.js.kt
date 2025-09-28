@@ -53,8 +53,8 @@ actual object FileSystem {
     }
 
     actual suspend fun getLastModified(filePath: String): Long {
-        // Return current time as placeholder
-        return kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        // Return current time as placeholder - using JS Date for simplicity
+        return js("Date.now()") as Long
     }
 
     actual fun shouldExclude(filePath: String, excludePatterns: List<String>): Boolean {
