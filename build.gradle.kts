@@ -79,12 +79,17 @@ kotlin {
 
                 // Asset loading and compression
                 implementation(libs.okio)
+
+                // Production readiness validation dependencies
+                implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.3.0")
+                implementation("org.jetbrains.kotlin:kotlin-reflect:${libs.versions.kotlin.get()}")
             }
         }
 
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
+                implementation(libs.kotlinx.coroutines.test)
             }
         }
 

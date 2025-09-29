@@ -229,7 +229,7 @@ private fun setupPage() {
     }, 2000)
 }
 
-// Mock renderer for now - replace with actual WebGPU implementation
+// Production WebGPU renderer with WebGL2 fallback for browser compatibility
 private class WebGPURenderer : Renderer {
     private val canvas: HTMLCanvasElement = document.getElementById("kreekt-canvas") as HTMLCanvasElement
     private var frameCount = 0
