@@ -49,6 +49,21 @@ data class Sphere(
             val sphere = Sphere()
             return sphere.setFromBox3(box)
         }
+
+        /**
+         * Creates a sphere from a BufferAttribute.
+         * Compatible with Three.js BufferAttribute pattern.
+         */
+        fun fromBufferAttribute(attribute: io.kreekt.geometry.BufferAttribute): Sphere {
+            val sphere = Sphere()
+            val points = mutableListOf<Vector3>()
+            val tempVector = Vector3()
+            for (i in 0 until attribute.count) {
+                tempVector.fromBufferAttribute(attribute, i)
+                points.add(tempVector.clone())
+            }
+            return sphere.setFromPoints(points)
+        }
     }
 
     /**

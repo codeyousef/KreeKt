@@ -715,4 +715,40 @@ data class Matrix4(
         return this
     }
 
+    /**
+     * Set this matrix to look from eye position to target position
+     * @param eye The position of the camera
+     * @param target The position to look at
+     * @param up The up direction (usually (0, 1, 0))
+     */
+    fun lookAt(eye: Vector3, target: Vector3, up: Vector3): Matrix4 {
+        val z = eye.clone().sub(target).normalize()
+
+        if (z.lengthSq() == 0f) {
+            // eye and target are in the same position
+            z.z = 1f
+        }
+
+        val x = up.clone().cross(z).normalize()
+
+        if (x.lengthSq() == 0f) {
+            // up and z are parallel
+            if (kotlin.math.abs(up.z) == 1f) {
+                z.x += 0.0001f
+            } else {
+                z.z += 0.0001f
+            }
+            z.normalize()
+            x.copy(up).cross(z).normalize()
+        }
+
+        val y = z.clone().cross(x)
+
+        elements[0] = x.x; elements[4] = y.x; elements[8] = z.x
+        elements[1] = x.y; elements[5] = y.y; elements[9] = z.y
+        elements[2] = x.z; elements[6] = y.z; elements[10] = z.z
+
+        return this
+    }
+
 }

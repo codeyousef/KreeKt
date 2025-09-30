@@ -51,6 +51,20 @@ data class Box3(
             points.forEach { box.expandByPoint(it) }
             return box
         }
+
+        /**
+         * Creates a box from a BufferAttribute.
+         * Compatible with Three.js BufferAttribute pattern.
+         */
+        fun fromBufferAttribute(attribute: io.kreekt.geometry.BufferAttribute): Box3 {
+            val box = empty()
+            val tempVector = Vector3()
+            for (i in 0 until attribute.count) {
+                tempVector.fromBufferAttribute(attribute, i)
+                box.expandByPoint(tempVector)
+            }
+            return box
+        }
     }
 
     /**
@@ -75,6 +89,20 @@ data class Box3(
     fun copy(box: Box3): Box3 {
         min.copy(box.min)
         max.copy(box.max)
+        return this
+    }
+
+    /**
+     * Sets this box from a BufferAttribute.
+     * Compatible with Three.js BufferAttribute pattern.
+     */
+    fun setFromBufferAttribute(attribute: io.kreekt.geometry.BufferAttribute): Box3 {
+        makeEmpty()
+        val tempVector = Vector3()
+        for (i in 0 until attribute.count) {
+            tempVector.fromBufferAttribute(attribute, i)
+            expandByPoint(tempVector)
+        }
         return this
     }
 

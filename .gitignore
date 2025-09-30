@@ -27,7 +27,6 @@ xcuserdata
 *.bak
 *.orig
 .claude/
-docs/private/
 
 # Specs directory (planning docs not for version control)
 
