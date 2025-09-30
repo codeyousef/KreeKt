@@ -76,14 +76,8 @@ class PerformanceValidationTest {
         )
 
         val sizeMB = performanceResult.librarySize / (1024.0 * 1024.0)
-        println(
-            "✅ Library size validation passed - ${
-                String.format(
-                    "%.2f",
-                    sizeMB
-                )
-            }MB is under 5MB constitutional limit"
-        )
+        val sizeMBFormatted = sizeMB.format(2)
+        println("✅ Library size validation passed - ${sizeMBFormatted}MB is under 5MB constitutional limit")
     }
 
     @Test

@@ -2,6 +2,7 @@ package io.kreekt.validation
 
 import io.kreekt.validation.model.*
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Clock
 import kotlin.test.*
 
 /**
@@ -31,13 +32,13 @@ class ProductionReadinessIntegrationTest {
         val config = ValidationConfiguration.strict()
 
         // Execute complete workflow
-        val result: ProductionReadinessResult = TODO("validator.validateProductionReadiness(config)")
+        val result: ValidationResult = TODO("validator.validateProductionReadiness(config)")
 
         // Verify complete workflow execution
         assertNotNull(result.validationTimestamp)
         assertTrue(result.scanDurationMs > 0)
         assertNotNull(result.overallStatus)
-        assertTrue(result.overallScore >= 0.0 && result.overallScore <= 100.0)
+        assertTrue(result.overallScore >= 0.0 && result.overallScore <= 1.0)
 
         // Verify all validation components executed
         assertNotNull(result.placeholderScan)
@@ -358,19 +359,19 @@ class ProductionReadinessIntegrationTest {
             requireAllPlatforms = true
         )
 
-        val startTime = System.currentTimeMillis()
+        val startTime = currentTimeMillis()
         val stressResult: ValidationResult = TODO("validator.validateProductionReadiness(stressConfig)")
-        val endTime = System.currentTimeMillis()
+        val endTime = currentTimeMillis()
 
         // Performance assertions for stress test
         val totalDuration = endTime - startTime
-        assertTrue(totalDuration < 300000, "Complete validation should finish within 5 minutes")
+        assertTrue(totalDuration < 300000L, "Complete validation should finish within 5 minutes")
         assertTrue(stressResult.scanDurationMs > 0)
 
         // Verify stress test completeness
         assertTrue(stressResult.placeholderScan.totalFilesScanned > 0)
         assertTrue(stressResult.implementationGaps.totalExpectDeclarations >= 0)
-        assertTrue(stressResult.componentScores.isNotEmpty() || stressResult.overallScore == 0.0)
+        assertTrue(stressResult.componentScores.isNotEmpty() || stressResult.overallScore == 0.0f)
     }
 }
 

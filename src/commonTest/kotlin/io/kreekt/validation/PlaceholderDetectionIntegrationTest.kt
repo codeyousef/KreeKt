@@ -2,6 +2,7 @@ package io.kreekt.validation
 
 import io.kreekt.validation.model.*
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Clock
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
@@ -213,19 +214,20 @@ class PlaceholderDetectionIntegrationTest {
             enablePerformanceTests = true
         )
 
-        val startTime = System.currentTimeMillis()
+        val startTime = currentTimeMillis()
         val result: ScanResult = TODO("scanner.scanKreeKtCodebase(config)")
-        val endTime = System.currentTimeMillis()
+        val endTime = currentTimeMillis()
 
         // Performance assertions
         val scanDuration = endTime - startTime
-        assertTrue(scanDuration < 30000, "Scan should complete within 30 seconds")
+        assertTrue(scanDuration < 30000L, "Scan should complete within 30 seconds")
         assertTrue(result.scanDurationMs > 0)
         assertTrue(result.totalFilesScanned > 0)
 
         // Memory efficiency
-        val memoryUsed = TODO("scanner.getMemoryUsage()")
-        assertTrue(memoryUsed < 100 * 1024 * 1024, "Memory usage should be under 100MB")
+        val memoryUsed: Long = TODO("scanner.getMemoryUsage()")
+        val maxMemory = 100L * 1024 * 1024
+        assertTrue(memoryUsed < maxMemory, "Memory usage should be under 100MB")
     }
 
     @Test

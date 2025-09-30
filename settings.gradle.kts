@@ -25,5 +25,8 @@ rootProject.name = "kreekt"
 // include(":tools:cicd")
 // include(":tools:api-server")
 
+// Validation module
+include(":kreekt-validation")
+
 // Example projects
 include(":examples:basic-scene")

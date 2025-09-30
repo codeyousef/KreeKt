@@ -2,6 +2,7 @@ package io.kreekt.validation
 
 import io.kreekt.validation.model.*
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Clock
 import kotlin.test.*
 
 /**
@@ -252,7 +253,7 @@ class ImplementationGapIntegrationTest {
         val resolvedGaps = listOf(
             GapResolution(
                 gapId = "renderer-vulkan-001",
-                resolvedAt = System.currentTimeMillis(),
+                resolvedAt = currentTimeMillis(),
                 resolution = ResolutionType.IMPLEMENTED,
                 verificationStatus = VerificationStatus.VERIFIED
             )
@@ -373,7 +374,7 @@ data class EffortEstimate(
 data class DependencyGapAnalysis(
     val brokenDependencies: List<BrokenDependency>,
     val circularDependencies: List<CircularDependency>,
-    val missingDependencies: List<MissingDependency>,
+    val missingDependencies: List<String>,
     val moduleImpacts: List<ModuleImpact>
 )
 

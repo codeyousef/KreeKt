@@ -1,6 +1,7 @@
 package io.kreekt.validation
 
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Clock
 import kotlin.test.*
 
 /**
@@ -241,8 +242,8 @@ class ProductionReadinessCheckerTest {
     }
 
     // Additional helper functions would be implemented when creating actual tests
-    private fun createTestProjectRoot(): String = "/tmp/test-project-${System.currentTimeMillis()}"
-    private fun createProjectWithIssues(): String = "/tmp/project-with-issues-${System.currentTimeMillis()}"
+    private fun createTestProjectRoot(): String = "/tmp/test-project-${currentTimeMillis()}"
+    private fun createProjectWithIssues(): String = "/tmp/project-with-issues-${currentTimeMillis()}"
     private fun createMixedValidationResult(): ValidationResult = TODO("Mock validation result not yet available")
     private fun createValidationResultWithIssues(): ValidationResult = TODO("Mock validation result not yet available")
     private fun createCompleteValidationResult(): ValidationResult = TODO("Mock validation result not yet available")

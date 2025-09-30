@@ -1,0 +1,214 @@
+name: Production Readiness Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Daily build at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      config:
+        description: 'Validation configuration'
+        required: true
+        default: 'strict'
+        type: choice
+        options:
+          - strict
+          - permissive
+          - incremental
+
+jobs:
+  validate-production-readiness:
+    name: Validate Production Readiness
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java-version: [ '17', '21' ]
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for git analysis
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.java-version }}
+
+      - name: 🔧 Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: '8.5'
+
+      - name: 📱 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 🍎 Setup Xcode (macOS only)
+        if: runner.os == 'macOS'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest-stable'
+
+      - name: 🔍 Run Production Readiness Validation
+        run: |
+          ./gradlew :kreekt-validation:validateProductionReadiness \
+            -PvalidationConfig=${{ github.event.inputs.config || 'strict' }}
+        env:
+          GRADLE_OPTS: -Xmx4g -XX:+HeapDumpOnOutOfMemoryError
+
+      - name: 📊 Upload Validation Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-reports-java${{ matrix.java-version }}
+          path: |
+            kreekt-validation/build/validation-reports/
+            build/reports/
+
+      - name: 📈 Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: |
+            **/build/test-results/**/*.xml
+            **/build/reports/tests/**/*.xml
+
+      - name: 💬 Comment PR with Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = 'kreekt-validation/build/validation-reports/report.json';
+
+            if (fs.existsSync(reportPath)) {
+              const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+              const emoji = report.overallStatus === 'PASSED' ? '✅' : '❌';
+              const score = (report.overallScore * 100).toFixed(1);
+
+              const comment = `## ${emoji} Production Readiness Check
+
+              **Overall Status:** ${report.overallStatus}
+              **Score:** ${score}%
+
+              ### Category Results:
+              ${report.categories.map(cat =>
+                `- **${cat.name}:** ${cat.status} (${(cat.score * 100).toFixed(1)}%)`
+              ).join('\n')}
+
+              ${report.remediationActions.length > 0 ?
+                `### Required Actions:\n${report.remediationActions.slice(0, 5).map(action =>
+                  `- ${action.title}`
+                ).join('\n')}` : ''}
+
+              [View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+              `;
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+
+      - name: 🚨 Check Production Ready Status
+        run: |
+          REPORT_FILE="kreekt-validation/build/validation-reports/report.json"
+          if [ -f "$REPORT_FILE" ]; then
+            STATUS=$(jq -r '.overallStatus' $REPORT_FILE)
+            SCORE=$(jq -r '.overallScore' $REPORT_FILE)
+
+            echo "Production Ready Status: $STATUS"
+            echo "Overall Score: $SCORE"
+
+            if [ "$STATUS" != "PASSED" ]; then
+              echo "❌ Production readiness check failed!"
+              echo "See the validation report for details."
+              exit 1
+            else
+              echo "✅ Production readiness check passed!"
+            fi
+          else
+            echo "❌ Validation report not found!"
+            exit 1
+          fi
+
+  validate-multiplatform:
+    name: Validate Cross-Platform
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🔧 Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: 🏗️ Compile All Platforms
+        run: |
+          ./gradlew :kreekt-validation:compileKotlinJvm
+          ./gradlew :kreekt-validation:compileKotlinJs
+          ./gradlew :kreekt-validation:compileKotlinNative
+
+      - name: 🧪 Run Tests
+        run: |
+          ./gradlew :kreekt-validation:allTests
+
+      - name: 📊 Generate Coverage Report
+        run: |
+          ./gradlew :kreekt-validation:koverHtmlReport
+          ./gradlew :kreekt-validation:koverVerify
+
+      - name: 📈 Upload Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./kreekt-validation/build/reports/kover/report.xml
+          flags: unittests
+          name: codecov-${{ matrix.os }}
+
+  performance-benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🏃 Run Performance Benchmarks
+        run: |
+          ./gradlew :kreekt-validation:benchmark
+
+      - name: 📊 Store Benchmark Results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'customBiggerIsBetter'
+          output-file-path: kreekt-validation/build/reports/benchmark/results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          comment-on-alert: true
+          alert-threshold: '120%'  # Alert if performance degrades by 20%
+          fail-on-alert: true

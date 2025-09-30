@@ -73,9 +73,11 @@ class TestSuiteValidationTest {
 
             // Ideally aim for 100% success rate
             if (successRate >= 0.99f) {
-                println("✅ Excellent test success rate: ${String.format("%.1f", successRate * 100)}%")
+                val successRateFormatted = (successRate * 100).format(1)
+                println("✅ Excellent test success rate: ${successRateFormatted}%")
             } else {
-                println("⚠️ Test success rate: ${String.format("%.1f", successRate * 100)}% - improvement recommended")
+                val successRateFormatted = (successRate * 100).format(1)
+                println("⚠️ Test success rate: ${successRateFormatted}% - improvement recommended")
             }
         }
 
@@ -106,14 +108,8 @@ class TestSuiteValidationTest {
             "Integration test coverage ${testResult.integrationTestResults.coverage} should be >= 60%"
         )
 
-        println(
-            "✅ Test coverage validation passed - ${
-                String.format(
-                    "%.1f",
-                    testResult.codeCoverage * 100
-                )
-            }% overall coverage"
-        )
+        val coverageFormatted = (testResult.codeCoverage * 100).format(1)
+        println("✅ Test coverage validation passed - ${coverageFormatted}% overall coverage")
     }
 
     @Test
@@ -258,14 +254,10 @@ class TestSuiteValidationTest {
             val unitTestRatio = testResult.unitTestResults.totalTests.toFloat() / testResult.totalTests.toFloat()
 
             // Unit tests should dominate the test suite (>60%)
+            val unitTestRatioFormatted = (unitTestRatio * 100).format(1)
             assertTrue(
                 unitTestRatio >= 0.6f,
-                "Unit tests should comprise >= 60% of test suite (found: ${
-                    String.format(
-                        "%.1f",
-                        unitTestRatio * 100
-                    )
-                }%)"
+                "Unit tests should comprise >= 60% of test suite (found: ${unitTestRatioFormatted}%)"
             )
         }
 

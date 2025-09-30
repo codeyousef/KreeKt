@@ -2,6 +2,7 @@ package io.kreekt.validation
 
 import io.kreekt.validation.validator.DefaultImplementationValidator
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Clock
 import kotlin.test.*
 
 /**
@@ -208,7 +209,7 @@ class ImplementationValidatorTest {
     }
 
     // Additional helper functions would be implemented when creating actual tests
-    private fun createTestSourceRoot(): String = "/tmp/test-source-${System.currentTimeMillis()}"
+    private fun createTestSourceRoot(): String = "/tmp/test-source-${currentTimeMillis()}"
     private fun createExpectFile(sourceRoot: String, fileName: String, content: String): String =
         "$sourceRoot/commonMain/kotlin/$fileName"
 

@@ -1,6 +1,7 @@
 package io.kreekt.validation
 
 import io.kreekt.validation.scanner.DefaultPlaceholderScanner
+import kotlinx.datetime.Clock
 import kotlin.test.*
 
 /**
@@ -125,7 +126,7 @@ class PlaceholderScannerTest {
     }
 
     // Additional helper functions would be implemented when creating actual tests
-    private fun createTempDirectory(): String = "/tmp/test-${System.currentTimeMillis()}"
+    private fun createTempDirectory(): String = "/tmp/test-${currentTimeMillis()}"
     private fun createTestFile(dir: String, name: String, content: String): String = "$dir/$name"
     private fun createBuildFile(dir: String, path: String, content: String): String = "$dir/$path"
     private fun createTempFile(name: String, content: String): String = "/tmp/$name"
