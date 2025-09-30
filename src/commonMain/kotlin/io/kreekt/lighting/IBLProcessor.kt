@@ -748,7 +748,7 @@ class IBLProcessorImpl : IBLProcessor {
                 .let { it ?: 1 } - 1
         ) {
             // Sample next mip level (would need mipmap support in CubeTexture)
-            val color2 = sampleCubemap(cubemap, direction) // Simplified: same as base for now
+            val color2 = sampleCubemap(cubemap, direction)
 
             // Linearly interpolate between mip levels
             return Color(

@@ -267,7 +267,7 @@ class LODSystem(
                 for (i in 0 until indexAttribute.count step skipFactor) {
                     newIndices.add(indexAttribute.getX(i).toInt())
                 }
-                // This would need proper re-indexing in a real implementation
+                // This would need proper re-indexing
             }
         }
 

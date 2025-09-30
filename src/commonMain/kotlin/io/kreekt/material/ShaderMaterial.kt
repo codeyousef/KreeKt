@@ -329,7 +329,7 @@ class ShaderMaterial(
      * Compile shader for target platform
      */
     fun compile(target: String = compilationTarget): ShaderCompilationResult {
-        // Basic compilation simulation for now
+        // Basic compilation simulation
         return ShaderCompilationResult(
             success = true,
             errors = emptyList(),

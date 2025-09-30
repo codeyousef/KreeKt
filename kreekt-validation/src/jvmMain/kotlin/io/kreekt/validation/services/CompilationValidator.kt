@@ -53,7 +53,23 @@ actual class CompilationValidator actual constructor() : Validator<CompilationRe
     actual override suspend fun validate(context: ValidationContext): CompilationResult = withContext(Dispatchers.IO) {
         val projectDir = File(context.projectPath)
         if (!projectDir.exists() || !projectDir.isDirectory) {
-            throw ValidationException("Project directory does not exist: ${context.projectPath}")
+            return@withContext CompilationResult(
+                status = ValidationStatus.FAILED,
+                score = 0.0f,
+                message = "Project directory does not exist: ${context.projectPath}",
+                platformResults = emptyMap(),
+                errors = listOf(
+                    CompilationError(
+                        file = context.projectPath,
+                        line = 0,
+                        column = 0,
+                        message = "Project directory does not exist: ${context.projectPath}",
+                        severity = "ERROR"
+                    )
+                ),
+                warnings = emptyList(),
+                compilationTime = 0L
+            )
         }
 
         val platforms = helper.validatePlatforms(context.platforms)

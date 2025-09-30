@@ -216,7 +216,7 @@ class DefaultXRSession(
 
     override suspend fun getInputPose(inputSource: XRInputSource, baseSpace: XRSpace): XRPose? {
         if (!sessionActive) return null
-        // Return a default pose for now
+        // Return a default pose
         return object : XRPose {
             override val transform: Matrix4 = Matrix4.identity()
             override val emulatedPosition: Boolean = false

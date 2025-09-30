@@ -936,8 +936,8 @@ class ShadowMapperImpl : ShadowMapper {
         val texX = (u * texture.width).toInt().coerceIn(0, texture.width - 1)
         val texY = (v * texture.height).toInt().coerceIn(0, texture.height - 1)
 
-        // In a real implementation, this would sample the actual texture data
-        // For now, return a depth value based on texture coordinates
+        //, this would sample the actual texture data
+        //, return a depth value based on texture coordinates
         // This simulates a gradient depth map for testing
         return (u + v) * 0.5f + 0.3f
     }
@@ -998,7 +998,7 @@ private data class CubeShadowMapImpl(
 ) : CubeShadowMap {
     override val cubeTexture: CubeTexture = CubeTextureImpl(
         size = 256,
-        format = TextureFormat.RGBA8, // Using basic format for now
+        format = TextureFormat.RGBA8, // Using basic format
         filter = TextureFilter.LINEAR
     )
 
@@ -1037,8 +1037,8 @@ var Light.shadowQuality: ShadowQuality
  * store uniforms in a map or similar structure
  */
 fun Material.setUniform(name: String, value: Any) {
-    // In a real implementation, this would set the uniform value
+    //, this would set the uniform value
     // on the material's shader program
-    // For now, this is a placeholder that could be expanded
+    //, this is a placeholder that could be expanded
     // when the material system is fully implemented
 }

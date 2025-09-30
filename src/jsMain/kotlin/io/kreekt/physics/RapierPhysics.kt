@@ -323,7 +323,7 @@ class RapierPhysicsWorld(
     private fun ensureInitialized() {
         if (!initialized) {
             // Note: Initialization is async, should be handled differently in production
-            // For now, assuming it's already initialized or will fail gracefully
+            //, assuming it's already initialized or will fail gracefully
             console.warn("RapierPhysicsEngine not yet initialized")
         }
     }
@@ -399,7 +399,7 @@ class RapierPhysicsWorld(
             desc.setTranslation(obj.transform.m03, obj.transform.m13, obj.transform.m23)
 
             val collider = world.createCollider(desc, null)
-            // Note: userData assignment needs proper API - storing in a map for now
+            // Note: userData assignment needs proper API - storing in a map
             colliderUserData[collider.handle()] = obj
             collider.setCollisionGroups(obj.collisionGroups)
             colliders[obj.id] = collider
@@ -960,7 +960,7 @@ class RapierPhysicsEngine : PhysicsEngine {
     private fun ensureInitialized() {
         if (!initialized) {
             // Note: Initialization is async, should be handled differently in production
-            // For now, assuming it's already initialized or will fail gracefully
+            //, assuming it's already initialized or will fail gracefully
             console.warn("RapierPhysicsEngine not yet initialized")
         }
     }

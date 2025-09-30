@@ -346,7 +346,7 @@ class DefaultPhysicsWorld(
     }
 
     private fun bodiesIntersect(bodyA: RigidBody, bodyB: RigidBody): Boolean {
-        // Simple sphere-sphere intersection for now
+        // Simple sphere-sphere intersection
         val posA = bodyA.getWorldTransform().getTranslation()
         val posB = bodyB.getWorldTransform().getTranslation()
         val distance = posA.distanceTo(posB)

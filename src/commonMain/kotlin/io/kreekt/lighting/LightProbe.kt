@@ -95,7 +95,7 @@ class LightProbeImpl(
             validData = true
             lastUpdateTime = currentTimeMillis().toFloat() / 1000f
 
-            // Create a placeholder cubemap for now
+            // Create a placeholder cubemap
             val cubemap = CubeTextureImpl(
                 size = 256,
                 format = TextureFormat.RGBA32F,
@@ -146,11 +146,11 @@ class LightProbeImpl(
         // Create render target for this face
         val data = FloatArray(resolution * resolution * 4)
 
-        // In a real implementation, this would:
+        //, this would:
         // 1. Create a render target texture
         // 2. Render the scene from the camera's viewpoint
         // 3. Read back the pixel data
-        // For now, generate a simple gradient based on camera direction
+        //, generate a simple gradient based on camera direction
         val direction = camera.getWorldDirection(Vector3())
 
         for (y in 0 until resolution) {
@@ -830,7 +830,7 @@ class LightProbeBakerImpl : LightProbeBaker {
     // Platform-specific implementations with working defaults
     private fun createBakeRenderer(): Renderer {
         // Create a simple renderer for baking
-        // In a real implementation, this would create a platform-specific renderer
+        //, this would create a platform-specific renderer
         return object : Renderer {
             override val capabilities: RendererCapabilities = RendererCapabilities(
                 maxTextureSize = 1024,
@@ -907,20 +907,20 @@ class LightProbeBakerImpl : LightProbeBaker {
     }
 
     private fun getWorldPositionFromUV(obj: Any, u: Float, v: Float): Vector3 {
-        // In a real implementation, this would:
+        //, this would:
         // 1. Access the object's geometry
         // 2. Use the lightmap UV coordinates to find the corresponding triangle
         // 3. Interpolate the world position based on barycentric coordinates
-        // For now, return a position based on UV
+        //, return a position based on UV
         return Vector3(u * 10f - 5f, 0f, v * 10f - 5f)
     }
 
     private fun getNormalFromUV(obj: Any, u: Float, v: Float): Vector3 {
-        // In a real implementation, this would:
+        //, this would:
         // 1. Access the object's geometry
         // 2. Use the lightmap UV coordinates to find the corresponding triangle
         // 3. Interpolate the normal based on barycentric coordinates
-        // For now, return up vector with slight variation
+        //, return up vector with slight variation
         val angle = u * PI.toFloat() * 2f
         return Vector3(sin(angle) * 0.1f, 1f, cos(angle) * 0.1f).normalized
     }

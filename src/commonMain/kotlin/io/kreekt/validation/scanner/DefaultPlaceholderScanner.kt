@@ -1,6 +1,8 @@
 package io.kreekt.validation.scanner
 
+import io.kreekt.core.platform.currentTimeMillis
 import io.kreekt.validation.*
+import io.kreekt.validation.platform.FileScannerFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -25,15 +27,15 @@ class DefaultPlaceholderScanner : PlaceholderScanner {
     companion object {
         // Core placeholder patterns from research.md
         private val PLACEHOLDER_PATTERNS = listOf(
-            "(?i)\\bTODO\\b",
-            "(?i)\\bFIXME\\b",
-            "(?i)\\bplaceholder\\b",
-            "(?i)\\bstub\\b(?!\\s*\\(\\))",  // Exclude stub() function calls in tests
-            "(?i)\\bin\\s+the\\s+meantime\\b",
-            "(?i)\\bfor\\s+now\\b",
-            "(?i)\\bin\\s+a\\s+real\\s+implementation\\b",
-            "(?i)\\bmock\\b(?=.*implementation|.*class|.*object)", // Mock in implementation context
-            "(?i)\\btemporary\\b(?=.*implementation|.*solution|.*fix)" // Temporary in implementation context
+            "\\bTODO\\b",
+            "\\bFIXME\\b",
+            "\\bplaceholder\\b",
+            "\\bstub\\b(?!\\s*\\(\\))",  // Exclude stub() function calls in tests
+            "\\bin\\s+the\\s+meantime\\b",
+            "\\bfor\\s+now\\b",
+            "\\bin\\s+a\\s+real\\s+implementation\\b",
+            "\\bmock\\b(?=.*implementation|.*class|.*object)", // Mock in implementation context
+            "\\btemporary\\b(?=.*implementation|.*solution|.*fix)" // Temporary in implementation context
         )
 
         // File extensions to scan
@@ -45,10 +47,10 @@ class DefaultPlaceholderScanner : PlaceholderScanner {
 
         // Patterns that indicate documentation context (likely false positives)
         private val DOCUMENTATION_INDICATORS = listOf(
-            "(?i)\\b(example|sample|demo|tutorial|guide|documentation)\\b",
-            "(?i)\\b(see|check|refer\\s+to|according\\s+to)\\b",
-            "(?i)\\b(contract|interface|spec|specification)\\b",
-            "(?i)\\b(test|should|verify|validate|assert)\\b"
+            "\\b(example|sample|demo|tutorial|guide|documentation)\\b",
+            "\\b(see|check|refer\\s+to|according\\s+to)\\b",
+            "\\b(contract|interface|spec|specification)\\b",
+            "\\b(test|should|verify|validate|assert)\\b"
         )
 
         // Module importance for criticality assessment
@@ -71,24 +73,25 @@ class DefaultPlaceholderScanner : PlaceholderScanner {
     }
 
     override suspend fun scanDirectory(
+
         rootPath: String,
         filePatterns: List<String>,
         excludePatterns: List<String>
     ): ScanResult = withContext(Dispatchers.Default) {
-        val startTime =
-            1672531200000L // Fixed timestamp for now - in real implementation use Clock.System.now().toEpochMilliseconds()
+        val startTime = currentTimeMillis()
         val scannedPaths = mutableListOf<String>()
         val allPlaceholders = mutableListOf<PlaceholderInstance>()
         var totalFilesScanned = 0
 
         try {
             if (!fileExists(rootPath)) {
+                val duration = currentTimeMillis() - startTime
                 return@withContext ScanResult(
                     scanTimestamp = startTime,
                     scannedPaths = emptyList(),
                     placeholders = emptyList(),
                     totalFilesScanned = 0,
-                    scanDurationMs = 0L // Fixed duration for now - in real implementation calculate properly
+                    scanDurationMs = duration
                 )
             }
 
@@ -122,12 +125,14 @@ class DefaultPlaceholderScanner : PlaceholderScanner {
             // Return partial results even if scanning fails
         }
 
+        val duration = currentTimeMillis() - startTime
+
         ScanResult(
             scanTimestamp = startTime,
             scannedPaths = scannedPaths,
             placeholders = allPlaceholders,
             totalFilesScanned = totalFilesScanned,
-            scanDurationMs = 100L // Fixed duration for now - in real implementation calculate properly
+            scanDurationMs = duration
         )
     }
 
@@ -152,7 +157,7 @@ class DefaultPlaceholderScanner : PlaceholderScanner {
                 val lineNumber = lineIndex + 1
 
                 for (pattern in PLACEHOLDER_PATTERNS) {
-                    val regex = Regex(pattern)
+                    val regex = Regex(pattern, RegexOption.IGNORE_CASE)
                     val matches = regex.findAll(line)
 
                     for (match in matches) {
@@ -192,7 +197,7 @@ class DefaultPlaceholderScanner : PlaceholderScanner {
 
         // Check if this appears to be in documentation context
         for (docIndicator in DOCUMENTATION_INDICATORS) {
-            if (Regex(docIndicator).containsMatchIn(context)) {
+            if (Regex(docIndicator, RegexOption.IGNORE_CASE).containsMatchIn(context)) {
                 // Additional checks for documentation context
                 if (context.contains("example") ||
                     context.contains("sample") ||
@@ -272,46 +277,31 @@ class DefaultPlaceholderScanner : PlaceholderScanner {
         filePatterns: List<String>,
         excludePatterns: List<String>
     ): List<String> = withContext(Dispatchers.Default) {
-        val files = mutableListOf<String>()
+        try {
+            val fileScanner = FileScannerFactory.createFileScanner()
 
-        fun collectRecursively(path: String) {
-            try {
-                if (!fileExists(path)) return
+            // Use FileScanner to find all matching files
+            val allFiles = fileScanner.findFiles(rootPath, filePatterns)
 
-                // Check exclude patterns
-                for (excludePattern in excludePatterns) {
-                    val pattern = excludePattern.replace("**", ".*").replace("*", "[^/]*")
-                    if (Regex(pattern).containsMatchIn(path)) {
-                        return
-                    }
+            // Filter out excluded paths
+            allFiles
+                .map { it.path }
+                .filter { path ->
+                    !shouldExcludePath(path, excludePatterns)
                 }
-
-                if (isDirectory(path)) {
-                    try {
-                        listDirectory(path).forEach { child ->
-                            collectRecursively(child)
-                        }
-                    } catch (e: Exception) {
-                        // Skip directories we can't read
-                    }
-                } else {
-                    // Check if file matches any file pattern
-                    val fileName = getFileName(path)
-                    for (filePattern in filePatterns) {
-                        val pattern = filePattern.replace("*", ".*")
-                        if (Regex(pattern).matches(fileName)) {
-                            files.add(path)
-                            break
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                // Skip files/directories we can't access
-            }
+        } catch (e: Exception) {
+            // Return empty list if scanning fails
+            emptyList()
         }
+    }
 
-        collectRecursively(rootPath)
-        files
+    private fun shouldExcludePath(path: String, excludePatterns: List<String>): Boolean {
+        val normalizedPath = path.replace("\\", "/")
+
+        return excludePatterns.any { pattern ->
+            val regexPattern = pattern.replace("**", ".*").replace("*", "[^/]*")
+            Regex(regexPattern).containsMatchIn(normalizedPath)
+        }
     }
 
     private fun extractContext(lines: List<String>, lineIndex: Int): String {
@@ -422,37 +412,19 @@ class DefaultPlaceholderScanner : PlaceholderScanner {
         }
     }
 
-    // Platform-specific file system operations
-    private fun fileExists(path: String): Boolean = try {
-        // For now, use a simple stub that returns true to avoid blocking tests
-        // In a real implementation, this would check if file exists
-        true
+    // Platform-specific file system operations using FileScanner
+    private suspend fun fileExists(path: String): Boolean = try {
+        val fileScanner = FileScannerFactory.createFileScanner()
+        fileScanner.exists(path)
     } catch (e: Exception) {
         false
     }
 
-    private fun readFileContent(path: String): String = try {
-        // For now, return empty content to avoid blocking tests
-        // In a real implementation, this would read the actual file content
-        ""
+    private suspend fun readFileContent(path: String): String = try {
+        val fileScanner = FileScannerFactory.createFileScanner()
+        fileScanner.readFileContent(path) ?: ""
     } catch (e: Exception) {
         ""
-    }
-
-    private fun isDirectory(path: String): Boolean = try {
-        // For now, use a simple heuristic
-        // In a real implementation, this would check if path is a directory
-        !path.contains(".")
-    } catch (e: Exception) {
-        false
-    }
-
-    private fun listDirectory(path: String): List<String> = try {
-        // For now, return empty list to avoid blocking tests
-        // In a real implementation, this would list directory contents
-        emptyList()
-    } catch (e: Exception) {
-        emptyList()
     }
 
     private fun getFileName(path: String): String {

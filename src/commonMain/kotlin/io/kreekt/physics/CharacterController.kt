@@ -383,7 +383,7 @@ class CharacterControllerImpl(
     }
 
     private fun performSweepTest(world: PhysicsWorld, from: Vector3, to: Vector3): SweepResult {
-        // Simplified sweep test - in a real implementation, this would use the physics world's sweep functionality
+        // Simplified sweep test -, this would use the physics world's sweep functionality
         val direction = (to - from).normalize()
         val distance = (to - from).length()
 

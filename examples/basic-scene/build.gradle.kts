@@ -16,7 +16,11 @@ kotlin {
     js(IR) {
         browser {
             binaries.executable()
+            testTask {
+                enabled = false
+            }
         }
+        nodejs()
     }
 
     sourceSets {

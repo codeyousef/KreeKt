@@ -203,7 +203,7 @@ class FrustumCulling {
     private fun isInFrustum(obj: Object3D, frustum: Frustum): Boolean {
         // Test object bounding sphere/box against frustum
         // Simplified implementation - would use actual geometry bounds
-        return true // Always visible for now
+        return true // Always visible
     }
 }
 

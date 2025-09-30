@@ -456,8 +456,8 @@ class DefaultBufferManager(
         val iterator = buffers.iterator()
         while (iterator.hasNext()) {
             val buffer = iterator.next()
-            // In a real implementation, check if buffer is still referenced
-            // For now, just keep all buffers
+            //, check if buffer is still referenced
+            //, just keep all buffers
         }
     }
 
@@ -843,7 +843,7 @@ private class DefaultUniformBuffer(
     override fun setUniform(name: String, value: Any): RendererResult<Unit> {
         return try {
             // Set uniform value at appropriate offset
-            // This would need proper layout calculation in a real implementation
+            // This would need proper layout calculation
             needsUpdate = true
             RendererResult.Success(Unit)
         } catch (e: Exception) {

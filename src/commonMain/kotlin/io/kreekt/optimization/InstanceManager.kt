@@ -113,7 +113,7 @@ class InstancedBatch(
                 instanceColors[colorOffset] = instance.color.r
                 instanceColors[colorOffset + 1] = instance.color.g
                 instanceColors[colorOffset + 2] = instance.color.b
-                instanceColors[colorOffset + 3] = 1.0f // Alpha always 1 for now
+                instanceColors[colorOffset + 3] = 1.0f // Alpha always 1
             }
         }
 

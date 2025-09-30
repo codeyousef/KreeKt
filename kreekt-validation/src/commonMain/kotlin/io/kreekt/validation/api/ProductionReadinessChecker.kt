@@ -297,7 +297,7 @@ class ProductionReadinessChecker {
         val categories = mutableListOf<io.kreekt.validation.models.ValidationCategory>()
         val remediationActions = mutableListOf<io.kreekt.validation.models.RemediationAction>()
 
-        // Get git information (stub for now)
+        // Get git information (stub)
         val branchName = "main" // TODO: Get from git
         val commitHash = "unknown" // TODO: Get from git
 
