@@ -493,6 +493,21 @@ data class Matrix4(
     fun toArray(): FloatArray = elements.copyOf()
 
     /**
+     * Copy matrix elements to an array at the specified offset
+     */
+    fun toArray(array: FloatArray, offset: Int = 0) {
+        elements.copyInto(array, offset, 0, 16)
+    }
+
+    /**
+     * Set matrix elements from an array at the specified offset
+     */
+    fun fromArray(array: FloatArray, offset: Int = 0): Matrix4 {
+        array.copyInto(elements, 0, offset, offset + 16)
+        return this
+    }
+
+    /**
      * Get translation component as Vector3
      */
     fun getTranslation(): Vector3 = Vector3(m03, m13, m23)
@@ -711,6 +726,42 @@ data class Matrix4(
             quaternion.y = (m23 + m32) / s
             quaternion.z = 0.25f * s
         }
+
+        return this
+    }
+
+    /**
+     * Set this matrix to look from eye position to target position
+     * @param eye The position of the camera
+     * @param target The position to look at
+     * @param up The up direction (usually (0, 1, 0))
+     */
+    fun lookAt(eye: Vector3, target: Vector3, up: Vector3): Matrix4 {
+        val z = eye.clone().sub(target).normalize()
+
+        if (z.lengthSq() == 0f) {
+            // eye and target are in the same position
+            z.z = 1f
+        }
+
+        val x = up.clone().cross(z).normalize()
+
+        if (x.lengthSq() == 0f) {
+            // up and z are parallel
+            if (kotlin.math.abs(up.z) == 1f) {
+                z.x += 0.0001f
+            } else {
+                z.z += 0.0001f
+            }
+            z.normalize()
+            x.copy(up).cross(z).normalize()
+        }
+
+        val y = z.clone().cross(x)
+
+        elements[0] = x.x; elements[4] = y.x; elements[8] = z.x
+        elements[1] = x.y; elements[5] = y.y; elements[9] = z.y
+        elements[2] = x.z; elements[6] = y.z; elements[10] = z.z
 
         return this
     }

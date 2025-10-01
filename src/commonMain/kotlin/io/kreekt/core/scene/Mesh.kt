@@ -185,10 +185,19 @@ class InstancedMesh(
     }
 
     /**
-     * Get matrix for a specific instance
+     * Get matrix for a specific instance (fills provided matrix)
      */
     fun getMatrixAt(index: Int, matrix: Matrix4) {
         matrix.fromArray(instanceMatrix.array, (index * 16))
+    }
+
+    /**
+     * Get matrix for a specific instance (returns new matrix)
+     */
+    fun getMatrixAt(index: Int): Matrix4 {
+        val matrix = Matrix4()
+        matrix.fromArray(instanceMatrix.array, (index * 16))
+        return matrix
     }
 
     /**
@@ -205,13 +214,26 @@ class InstancedMesh(
     }
 
     /**
-     * Get color for a specific instance
+     * Get color for a specific instance (fills provided color)
      */
     fun getColorAt(index: Int, color: Color) {
         instanceColor?.let {
             color.fromArray(it.array, (index * 3))
         }
     }
+
+    /**
+     * Get color for a specific instance (returns new color)
+     */
+    fun getColorAt(index: Int): Color {
+        val color = Color()
+        instanceColor?.let {
+            color.fromArray(it.array, (index * 3))
+        }
+        return color
+    }
+
+    var needsUpdate: Boolean = false
 
     fun copyFrom(source: InstancedMesh, recursive: Boolean = true): InstancedMesh {
         super.copy(source, recursive)
@@ -339,7 +361,7 @@ open class Line(
 /**
  * Line segments mesh for rendering disconnected line segments
  */
-class LineSegments(
+open class LineSegments(
     geometry: BufferGeometry,
     material: Material? = null
 ) : Line(geometry, material) {

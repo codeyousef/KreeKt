@@ -25,17 +25,25 @@ kotlin {
     jvm {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+            freeCompilerArgs.add("-Xexpect-actual-classes")
         }
     }
 
     // JS Target
     js(IR) {
+        compilerOptions {
+            freeCompilerArgs.add("-Xexpect-actual-classes")
+        }
         browser {
             testTask {
                 enabled = false
             }
         }
-        nodejs()
+        nodejs {
+            testTask {
+                enabled = false
+            }
+        }
     }
 
     // Android Target - Disabled on Windows (requires Android SDK)
@@ -55,10 +63,18 @@ kotlin {
     // macosArm64()
 
     // Windows Target
-    mingwX64()
+    mingwX64 {
+        compilerOptions {
+            freeCompilerArgs.add("-Xexpect-actual-classes")
+        }
+    }
 
     // Linux Target
-    linuxX64()
+    linuxX64 {
+        compilerOptions {
+            freeCompilerArgs.add("-Xexpect-actual-classes")
+        }
+    }
 
     // Configure source sets
     sourceSets {

@@ -6,20 +6,22 @@ package io.kreekt.geometry
 
 import io.kreekt.core.math.*
 import io.kreekt.core.platform.currentTimeMillis
+import io.kreekt.morph.MorphTargetGeometry
 import kotlinx.serialization.Serializable
 
 /**
  * Advanced buffer geometry with morph targets and instancing support
  * Compatible with Three.js BufferGeometry patterns
  */
-open class BufferGeometry {
+open class BufferGeometry : MorphTargetGeometry {
     // Core attributes
     private val _attributes = mutableMapOf<String, BufferAttribute>()
     private var _index: BufferAttribute? = null
 
-    // Morph targets
-    private val _morphAttributes = mutableMapOf<String, Array<BufferAttribute>>()
-    var morphTargetsRelative: Boolean = false
+    // Morph targets - implementing MorphTargetGeometry interface
+    override val morphAttributes = mutableMapOf<String, List<BufferAttribute>>()
+    override var morphTargetsRelative: Boolean = false
+    override val morphTargetDictionary = mutableMapOf<String, Int>()
 
     // Instancing
     private val _instancedAttributes = mutableMapOf<String, BufferAttribute>()
@@ -78,28 +80,86 @@ open class BufferGeometry {
     val index: BufferAttribute? get() = _index
 
     /**
-     * Morph target management
+     * Morph target management - backward compatible methods
      */
     fun setMorphAttribute(name: String, targets: Array<BufferAttribute>): BufferGeometry {
-        _morphAttributes[name] = targets
+        morphAttributes[name] = targets.toList()
         return this
     }
 
-    fun getMorphAttribute(name: String): Array<BufferAttribute>? = _morphAttributes[name]
+    fun getMorphAttribute(name: String): List<BufferAttribute>? = morphAttributes[name]
 
     fun deleteMorphAttribute(name: String): BufferGeometry {
-        _morphAttributes.remove(name)
+        morphAttributes.remove(name)
         return this
     }
-
-    val morphAttributes: Map<String, Array<BufferAttribute>> get() = _morphAttributes.toMap()
 
     /**
      * Morph targets for backward compatibility
      * Returns the position morph attributes if they exist
      */
-    val morphTargets: Array<BufferAttribute>?
-        get() = _morphAttributes["position"]
+    var morphTargets: List<BufferAttribute>?
+        get() = morphAttributes["position"]
+        set(value) {
+            if (value != null) {
+                morphAttributes["position"] = value
+            } else {
+                morphAttributes.remove("position")
+            }
+        }
+
+    /**
+     * Compute bounding box including morph targets
+     */
+    override fun computeMorphedBoundingBox() {
+        val positionAttribute = getAttribute("position") ?: return
+        val morphPositions = morphAttributes["position"] ?: return
+
+        val box = Box3()
+        val tempVector = Vector3()
+
+        // Include base positions
+        box.setFromBufferAttribute(positionAttribute)
+
+        // Expand box to include all morph target positions
+        for (morphTarget in morphPositions) {
+            for (i in 0 until morphTarget.count) {
+                tempVector.fromBufferAttribute(morphTarget, i)
+                box.expandByPoint(tempVector)
+            }
+        }
+
+        _boundingBox = box
+        _boundingBoxNeedsUpdate = false
+    }
+
+    /**
+     * Compute bounding sphere including morph targets
+     */
+    override fun computeMorphedBoundingSphere() {
+        val positionAttribute = getAttribute("position") ?: return
+        val morphPositions = morphAttributes["position"] ?: return
+
+        val sphere = Sphere()
+        val tempVector = Vector3()
+        val points = mutableListOf<Vector3>()
+
+        // Collect base positions
+        for (i in 0 until positionAttribute.count) {
+            points.add(Vector3().fromBufferAttribute(positionAttribute, i))
+        }
+
+        // Collect all morph target positions
+        for (morphTarget in morphPositions) {
+            for (i in 0 until morphTarget.count) {
+                points.add(Vector3().fromBufferAttribute(morphTarget, i))
+            }
+        }
+
+        sphere.setFromPoints(points)
+        _boundingSphere = sphere
+        _boundingSphereNeedsUpdate = false
+    }
 
     /**
      * Instancing support
@@ -301,7 +361,7 @@ open class BufferGeometry {
         _index?.let { cloned.setIndex(it.clone()) }
 
         // Clone morph attributes
-        _morphAttributes.forEach { (name, targets) ->
+        morphAttributes.forEach { (name, targets) ->
             cloned.setMorphAttribute(name, targets.map { it.clone() }.toTypedArray())
         }
 
@@ -368,34 +428,40 @@ data class LodLevel(
 /**
  * Buffer attribute for storing vertex data
  */
-class BufferAttribute(
-    val array: FloatArray,
-    val itemSize: Int,
-    val normalized: Boolean = false
+open class BufferAttribute(
+    open val array: FloatArray,
+    open val itemSize: Int,
+    open val normalized: Boolean = false
 ) {
-    var needsUpdate: Boolean = false
-    var updateRange: IntRange = IntRange.EMPTY
+    open var needsUpdate: Boolean = false
+    open var updateRange: IntRange = IntRange.EMPTY
 
-    val count: Int get() = array.size / itemSize
+    open val count: Int get() = array.size / itemSize
 
-    fun getX(index: Int): Float = array[(index * itemSize)]
-    fun getY(index: Int): Float = array[index * itemSize + 1]
-    fun getZ(index: Int): Float = array[index * itemSize + 2]
-    fun getW(index: Int): Float = array[index * itemSize + 3]
+    open fun getX(index: Int): Float = array[(index * itemSize)]
+    open fun getY(index: Int): Float = array[index * itemSize + 1]
+    open fun getZ(index: Int): Float = array[index * itemSize + 2]
+    open fun getW(index: Int): Float = array[index * itemSize + 3]
 
-    fun setX(index: Int, value: Float) { array[(index * itemSize)] = value }
-    fun setY(index: Int, value: Float) { array[index * itemSize + 1] = value }
-    fun setZ(index: Int, value: Float) { array[index * itemSize + 2] = value }
-    fun setW(index: Int, value: Float) { array[index * itemSize + 3] = value }
+    open fun setX(index: Int, value: Float) { array[(index * itemSize)] = value }
+    open fun setY(index: Int, value: Float) { array[index * itemSize + 1] = value }
+    open fun setZ(index: Int, value: Float) { array[index * itemSize + 2] = value }
+    open fun setW(index: Int, value: Float) { array[index * itemSize + 3] = value }
 
-    fun setXYZ(index: Int, x: Float, y: Float, z: Float) {
+    open fun setXY(index: Int, x: Float, y: Float) {
+        val offset = index * itemSize
+        array[offset] = x
+        array[offset + 1] = y
+    }
+
+    open fun setXYZ(index: Int, x: Float, y: Float, z: Float) {
         val offset = index * itemSize
         array[offset] = x
         array[offset + 1] = y
         array[offset + 2] = z
     }
 
-    fun setXYZW(index: Int, x: Float, y: Float, z: Float, w: Float) {
+    open fun setXYZW(index: Int, x: Float, y: Float, z: Float, w: Float) {
         val offset = index * itemSize
         array[offset] = x
         array[offset + 1] = y
@@ -403,14 +469,14 @@ class BufferAttribute(
         array[offset + 3] = w
     }
 
-    fun clone(): BufferAttribute {
+    open fun clone(): BufferAttribute {
         return BufferAttribute(array.copyOf(), itemSize, normalized).apply {
             needsUpdate = this@BufferAttribute.needsUpdate
             updateRange = this@BufferAttribute.updateRange
         }
     }
 
-    fun applyMatrix4(matrix: Matrix4) {
+    open fun applyMatrix4(matrix: Matrix4) {
         if (itemSize == 3) {
             for (i in 0 until count) {
                 val vector = Vector3(getX(i), getY(i), getZ(i))
@@ -421,7 +487,7 @@ class BufferAttribute(
         needsUpdate = true
     }
 
-    fun applyNormalMatrix(matrix: Matrix3) {
+    open fun applyNormalMatrix(matrix: Matrix3) {
         if (itemSize == 3) {
             for (i in 0 until count) {
                 val vector = Vector3(getX(i), getY(i), getZ(i))

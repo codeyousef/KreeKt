@@ -296,6 +296,23 @@ data class Vector3(
         return this
     }
 
+    /**
+     * Transform direction vector by matrix (ignores translation)
+     */
+    fun transformDirection(matrix: Matrix4): Vector3 {
+        val e = matrix.elements
+        val oldX = x
+        val oldY = y
+        val oldZ = z
+
+        // Apply only the rotational/scale part of the matrix (ignore translation)
+        x = e[0] * oldX + e[4] * oldY + e[8] * oldZ
+        y = e[1] * oldX + e[5] * oldY + e[9] * oldZ
+        z = e[2] * oldX + e[6] * oldY + e[10] * oldZ
+
+        return this
+    }
+
     fun applyQuaternion(quaternion: Quaternion): Vector3 {
         val qx = quaternion.x
         val qy = quaternion.y
@@ -358,6 +375,17 @@ data class Vector3(
      */
     fun unproject(camera: io.kreekt.camera.Camera): Vector3 {
         camera.ndcToWorld(this, this)
+        return this
+    }
+
+    /**
+     * Set this vector from a BufferAttribute at the given index.
+     * Compatible with Three.js BufferAttribute pattern.
+     */
+    fun fromBufferAttribute(attribute: io.kreekt.geometry.BufferAttribute, index: Int): Vector3 {
+        x = attribute.getX(index)
+        y = if (attribute.itemSize >= 2) attribute.getY(index) else 0f
+        z = if (attribute.itemSize >= 3) attribute.getZ(index) else 0f
         return this
     }
 
