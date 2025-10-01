@@ -11,10 +11,9 @@
  */
 package io.kreekt.audio
 
-import io.kreekt.camera.Camera
 import io.kreekt.camera.PerspectiveCamera
-import io.kreekt.math.Vector3
-import io.kreekt.math.Quaternion
+import io.kreekt.core.math.Quaternion
+import io.kreekt.core.math.Vector3
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
