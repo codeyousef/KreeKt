@@ -240,38 +240,4 @@ class CubeCamera(
     }
 }
 
-/**
- * Render target placeholder for cube rendering
- * This would be implemented with platform-specific render targets
- */
-class WebGPUCubeRenderTarget(
-    val width: Int,
-    val height: Int
-) {
-    var texture: CubeTexture? = CubeTexture(size = 1024)
-
-    fun dispose() {
-        texture = null
-    }
-}
-
-/**
- * Renderer placeholder
- */
-class WebGPURenderer {
-    private var currentRenderTarget: Any? = null
-
-    fun getRenderTarget(): Any? = currentRenderTarget
-
-    fun setRenderTarget(target: Any?, activeCubeFace: Int = 0) {
-        currentRenderTarget = target
-    }
-
-    fun clear() {
-        // Clear current render target
-    }
-
-    fun render(scene: Scene, camera: Camera) {
-        // Render scene with camera
-    }
-}
+// WebGPURenderer and WebGPUCubeRenderTarget are defined in ArrayCamera.kt

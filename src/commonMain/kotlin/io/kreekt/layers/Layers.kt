@@ -89,6 +89,36 @@ class Layers {
     }
 
     /**
+     * Alias for test() - check if this layer mask intersects with another.
+     *
+     * @param layers Another Layers object to test against
+     * @return true if any layers overlap
+     */
+    fun intersects(layers: Layers): Boolean {
+        return test(layers)
+    }
+
+    /**
+     * Test if a specific layer is enabled.
+     *
+     * @param layer Layer number (0-31)
+     * @return true if the layer is enabled
+     */
+    fun test(layer: Int): Boolean {
+        return testLayer(layer)
+    }
+
+    /**
+     * Get the index of the first set bit (lowest enabled layer).
+     *
+     * @return Layer number of the first set bit, or -1 if no layers are enabled
+     */
+    fun firstSetBit(): Int {
+        if (mask == 0) return -1
+        return mask.countTrailingZeroBits()
+    }
+
+    /**
      * Test if this layer mask overlaps with a specific layer.
      *
      * @param layer Layer number to test (0-31)

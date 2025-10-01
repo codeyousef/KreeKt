@@ -73,13 +73,19 @@ class MorphTargetContractTest {
             )
         )
 
-        geometry.morphTargets = morphTargets
+        // Convert MorphTarget list to BufferAttribute list
+        geometry.morphTargets = morphTargets.map { it.position!! }
+
+        // Store mapping for name lookups
+        morphTargets.forEachIndexed { index, target ->
+            geometry.morphTargetDictionary[target.name] = index
+        }
 
         // Verify storage
-        assertEquals(3, geometry.morphTargets.size)
-        assertEquals("expand", geometry.morphTargets[0].name)
-        assertEquals("forward", geometry.morphTargets[1].name)
-        assertEquals("twist", geometry.morphTargets[2].name)
+        assertEquals(3, geometry.morphTargets!!.size)
+        assertEquals(0, geometry.morphTargetDictionary["expand"])
+        assertEquals(1, geometry.morphTargetDictionary["forward"])
+        assertEquals(2, geometry.morphTargetDictionary["twist"])
     }
 
     @Test
@@ -92,8 +98,8 @@ class MorphTargetContractTest {
         blender.setInfluence(0, 0.5f) // 50% blend to first target
 
         val blendedPositions = blender.computeBlendedPositions()
-        val basePos = geometry.getAttribute("position")
-        val targetPos = geometry.morphTargets[0].position!!
+        val basePos = geometry.getAttribute("position")!!
+        val targetPos = geometry.morphTargets!![0]
 
         // Verify interpolation
         for (i in 0 until basePos.count) {
@@ -174,7 +180,9 @@ class MorphTargetContractTest {
             position = BufferAttribute(targetPositions, 3),
             normal = BufferAttribute(targetNormals, 3)
         )
-        geometry.morphTargets = listOf(morphTarget)
+        // Convert and store morph target
+        geometry.morphTargets = listOf(morphTarget.position!!)
+        geometry.morphAttributes["normal"] = listOf(morphTarget.normal!!)
 
         // Test morphing both attributes
         val blender = MorphBlender(geometry)
@@ -238,7 +246,7 @@ class MorphTargetContractTest {
             name = "colorShift",
             color = BufferAttribute(targetColors, 3)
         )
-        geometry.morphTargets = listOf(morphTarget)
+        geometry.morphAttributes["color"] = listOf(morphTarget.color!!)
 
         val blender = MorphBlender(geometry)
         blender.setInfluence(0, 0.5f)
@@ -275,25 +283,25 @@ class MorphTargetContractTest {
                 )
             )
         }
-        geometry.morphTargets = morphTargets
+        geometry.morphTargets = morphTargets.map { it.position!! }
 
         val blender = MorphBlender(geometry)
 
         // Set random influences
         for (i in 0 until targetCount) {
-            blender.setInfluence(i, Math.random().toFloat())
+            blender.setInfluence(i, kotlin.random.Random.nextDouble().toFloat())
         }
 
         // Measure blending performance
-        val startTime = System.currentTimeMillis()
+        val startTime = kotlin.time.TimeSource.Monotonic.markNow()
         val iterations = 100
 
         for (i in 0 until iterations) {
             blender.computeBlendedPositions()
         }
 
-        val duration = System.currentTimeMillis() - startTime
-        val avgTime = duration / iterations.toFloat()
+        val duration = startTime.elapsedNow()
+        val avgTime = duration.inWholeMilliseconds.toFloat() / iterations
 
         // Should be fast enough for real-time (< 16ms for 60 FPS)
         assertTrue(avgTime < 16f, "Morph blending should be fast, took ${avgTime}ms")
@@ -310,8 +318,8 @@ class MorphTargetContractTest {
         assertNotNull(texture)
 
         // Texture dimensions should accommodate all morph data
-        val vertexCount = geometry.getAttribute("position").count
-        val targetCount = geometry.morphTargets.size
+        val vertexCount = geometry.getAttribute("position")!!.count
+        val targetCount = geometry.morphTargets!!.size
         val componentsPerVertex = 3 // x, y, z
 
         val requiredPixels = vertexCount * targetCount
@@ -376,7 +384,13 @@ class MorphTargetContractTest {
                 )
             )
         )
-        geometry.morphTargets = morphTargets
+        // Convert MorphTarget list to BufferAttribute list
+        geometry.morphTargets = morphTargets.map { it.position!! }
+
+        // Store name->index mapping
+        morphTargets.forEachIndexed { index, target ->
+            geometry.morphTargetDictionary[target.name] = index
+        }
 
         return geometry
     }
@@ -391,21 +405,15 @@ data class MorphTarget(
     val color: BufferAttribute? = null
 )
 
-// Extension to BufferGeometry for morph targets
-var BufferGeometry.morphTargets: List<MorphTarget>
-    get() = _morphTargets ?: emptyList()
-    set(value) {
-        _morphTargets = value
-    }
-
-private var BufferGeometry._morphTargets: List<MorphTarget>? = null
-
+// Extension to BufferGeometry for morph target lookup by name
 fun BufferGeometry.getMorphTargetByName(name: String): MorphTarget? {
-    return morphTargets.find { it.name == name }
+    val index = morphTargetDictionary[name] ?: return null
+    val position = morphTargets?.getOrNull(index) ?: return null
+    return MorphTarget(name = name, position = position)
 }
 
 class MorphBlender(private val geometry: BufferGeometry) {
-    private val influences = FloatArray(geometry.morphTargets.size)
+    private val influences = FloatArray(geometry.morphTargets?.size ?: 0)
 
     fun setInfluence(index: Int, value: Float) {
         influences[index] = value.coerceIn(0f, 1f)
@@ -416,8 +424,8 @@ class MorphBlender(private val geometry: BufferGeometry) {
     }
 
     fun setInfluenceByName(name: String, value: Float) {
-        val index = geometry.morphTargets.indexOfFirst { it.name == name }
-        if (index >= 0) {
+        val index = geometry.morphTargetDictionary[name]
+        if (index != null && index >= 0) {
             setInfluence(index, value)
         }
     }
@@ -427,18 +435,18 @@ class MorphBlender(private val geometry: BufferGeometry) {
     }
 
     fun computeBlendedPositions(): BufferAttribute {
-        val basePositions = geometry.getAttribute("position")
+        val basePositions = geometry.getAttribute("position")!!
         val result = FloatArray(basePositions.array.size)
 
         // Start with base positions
         basePositions.array.copyInto(result)
 
         // Apply morph targets
-        geometry.morphTargets.forEachIndexed { index, target ->
+        geometry.morphTargets?.forEachIndexed { index, target ->
             val influence = influences[index]
-            if (influence > 0 && target.position != null) {
+            if (influence > 0) {
                 for (i in result.indices) {
-                    result[i] += (target.position.array[i] - basePositions.array[i]) * influence
+                    result[i] += (target.array[i] - basePositions.array[i]) * influence
                 }
             }
         }
@@ -454,11 +462,12 @@ class MorphBlender(private val geometry: BufferGeometry) {
         baseNormals.array.copyInto(result)
 
         // Apply morph targets
-        geometry.morphTargets.forEachIndexed { index, target ->
+        val morphNormals = geometry.morphAttributes["normal"]
+        morphNormals?.forEachIndexed { index, target ->
             val influence = influences[index]
-            if (influence > 0 && target.normal != null) {
+            if (influence > 0) {
                 for (i in result.indices) {
-                    result[i] += (target.normal.array[i] - baseNormals.array[i]) * influence
+                    result[i] += (target.array[i] - baseNormals.array[i]) * influence
                 }
             }
         }
@@ -488,11 +497,12 @@ class MorphBlender(private val geometry: BufferGeometry) {
         baseColors.array.copyInto(result)
 
         // Apply morph targets
-        geometry.morphTargets.forEachIndexed { index, target ->
+        val morphColors = geometry.morphAttributes["color"]
+        morphColors?.forEachIndexed { index, target ->
             val influence = influences[index]
-            if (influence > 0 && target.color != null) {
+            if (influence > 0) {
                 for (i in result.indices) {
-                    result[i] += (target.color.array[i] - baseColors.array[i]) * influence
+                    result[i] += (target.array[i] - baseColors.array[i]) * influence
                 }
             }
         }
@@ -503,8 +513,8 @@ class MorphBlender(private val geometry: BufferGeometry) {
 
 class MorphTargetTextureStorage(private val geometry: BufferGeometry) {
     fun createMorphTexture(): MorphTexture {
-        val vertexCount = geometry.getAttribute("position").count
-        val targetCount = geometry.morphTargets.size
+        val vertexCount = geometry.getAttribute("position")!!.count
+        val targetCount = geometry.morphTargets!!.size
 
         // Calculate texture dimensions
         val width = kotlin.math.ceil(kotlin.math.sqrt(vertexCount.toDouble() * targetCount)).toInt()
@@ -515,16 +525,13 @@ class MorphTargetTextureStorage(private val geometry: BufferGeometry) {
 
     fun getMorphDataFromTexture(targetIndex: Int, vertexIndex: Int): FloatArray {
         // Simulate retrieving morph data from texture
-        val target = geometry.morphTargets[targetIndex]
-        if (target.position != null) {
-            val offset = vertexIndex * 3
-            return floatArrayOf(
-                target.position.array[offset],
-                target.position.array[offset + 1],
-                target.position.array[offset + 2]
-            )
-        }
-        return floatArrayOf(0f, 0f, 0f)
+        val target = geometry.morphTargets!![targetIndex]
+        val offset = vertexIndex * 3
+        return floatArrayOf(
+            target.array[offset],
+            target.array[offset + 1],
+            target.array[offset + 2]
+        )
     }
 }
 

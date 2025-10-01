@@ -52,8 +52,8 @@ class AxesHelper(size: Float = 1f) : Object3D() {
 class GridHelper(
     size: Float = 10f,
     divisions: Int = 10,
-    color1: Color = Color(0x444444),
-    color2: Color = Color(0x888888)
+    colorCenterLine: Color = Color(0x444444),
+    colorGrid: Color = Color(0x888888)
 ) : Object3D() {
 
     init {
@@ -75,7 +75,7 @@ class GridHelper(
             vertices.addAll(listOf(pos, 0f, -halfSize, pos, 0f, halfSize))
 
             // Alternate colors for center lines
-            val color = if (i == center) color1 else color2
+            val color = if (i == center) colorCenterLine else colorGrid
 
             // Add colors for both lines
             colors.addAll(listOf(color.r, color.g, color.b, color.r, color.g, color.b))

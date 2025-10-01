@@ -56,7 +56,7 @@ class GeometryGeneratorTest {
         assertTrue("Cylinder should have uv attribute") { geometry.hasAttribute("uv") }
 
         // Test that cylinder has reasonable triangle count
-        val indices = geometry.getIndex()
+        val indices = geometry.index
         assertNotNull(indices, "Cylinder should have index buffer")
         assertTrue("Cylinder should have triangles") { indices.count >= 6 }
     }
@@ -257,34 +257,21 @@ private class MockGeometryGenerator : GeometryGenerator {
 private class MockBufferGeometry(
     private val vertexCount: Int = 8,
     private val triangleCount: Int = 12
-) : BufferGeometry {
-    private val attributes = mutableMapOf<String, BufferAttribute>()
-    private var indexAttribute: BufferAttribute? = null
-
+) : BufferGeometry() {
     init {
         // Add default attributes with calculated sizes
-        attributes["position"] = BufferAttribute(FloatArray(vertexCount * 3), 3)
-        attributes["normal"] = BufferAttribute(FloatArray(vertexCount * 3), 3)
-        attributes["uv"] = BufferAttribute(FloatArray(vertexCount * 2), 2)
-        indexAttribute = BufferAttribute(FloatArray(triangleCount * 3), 1)
+        setAttribute("position", io.kreekt.geometry.BufferAttribute(FloatArray(vertexCount * 3), 3))
+        setAttribute("normal", io.kreekt.geometry.BufferAttribute(FloatArray(vertexCount * 3), 3))
+        setAttribute("uv", io.kreekt.geometry.BufferAttribute(FloatArray(vertexCount * 2), 2))
+        setIndex(io.kreekt.geometry.BufferAttribute(FloatArray(triangleCount * 3), 1))
     }
-
-    override fun hasAttribute(name: String): Boolean = attributes.containsKey(name)
-    override fun getAttribute(name: String): BufferAttribute? = attributes[name]
-    override fun getIndex(): BufferAttribute? = indexAttribute
 }
 
 private class MockShape : Shape
 
 private class MockFont : Font
 
-// Mock BufferAttribute for testing
-private class BufferAttribute(
-    val array: FloatArray,
-    val itemSize: Int
-) {
-    val count: Int get() = array.size / itemSize
-}
+// BufferAttribute is already defined in io.kreekt.geometry package
 
 // Mock interfaces
 private interface GeometryGenerator {

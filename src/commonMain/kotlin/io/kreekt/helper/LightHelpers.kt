@@ -19,7 +19,7 @@ import io.kreekt.material.LineBasicMaterial
  * CameraHelper - Visualizes camera frustum
  */
 class CameraHelper(val camera: Camera) : Object3D() {
-    private val geometry = BufferGeometry()
+    val geometry = BufferGeometry()
     private val material = LineBasicMaterial()
     val pointMap = mutableMapOf<String, Int>()
 
@@ -58,7 +58,7 @@ class DirectionalLightHelper(
     val size: Float = 1f,
     val color: Color? = null
 ) : Object3D() {
-    private val geometry = BufferGeometry()
+    val geometry = BufferGeometry()
     private val material = LineBasicMaterial()
 
     init {
@@ -88,7 +88,7 @@ class PointLightHelper(
     val sphereSize: Float = 1f,
     val color: Color? = null
 ) : Object3D() {
-    private val geometry = BufferGeometry()
+    val geometry = BufferGeometry()
     private val material = LineBasicMaterial()
 
     init {
@@ -116,7 +116,7 @@ class SpotLightHelper(
     val light: SpotLightImpl,
     val color: Color? = null
 ) : Object3D() {
-    private val geometry = BufferGeometry()
+    val geometry = BufferGeometry()
     private val material = LineBasicMaterial()
 
     init {
@@ -147,7 +147,7 @@ class HemisphereLightHelper(
     val size: Float = 1f,
     val color: Color? = null
 ) : Object3D() {
-    private val geometry = BufferGeometry()
+    val geometry = BufferGeometry()
     private val material = LineBasicMaterial()
 
     init {

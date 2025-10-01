@@ -13,11 +13,14 @@
 package io.kreekt.instancing
 
 import io.kreekt.core.math.Color
+import io.kreekt.core.math.Euler
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Vector3
 import io.kreekt.core.math.Quaternion
 import io.kreekt.geometry.BoxGeometry
+import io.kreekt.geometry.BufferGeometry
 import io.kreekt.material.MeshBasicMaterial
+import io.kreekt.material.Material
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -31,8 +34,8 @@ class InstancedMeshContractTest {
     @Test
     fun testInstancedMeshCreation() {
         // Given: Geometry and material for instancing
-        val geometry = BoxGeometry(1f, 1f, 1f)
-        val material = MeshBasicMaterial()
+        val geometry: BufferGeometry = BoxGeometry(1f, 1f, 1f)
+        val material: Material = MeshBasicMaterial()
         val count = 10000
 
         // When: Creating instanced mesh
@@ -50,8 +53,8 @@ class InstancedMeshContractTest {
     fun testInstancedMeshSetMatrixAt() {
         // Given: Instanced mesh
         val instancedMesh = InstancedMesh(
-            BoxGeometry(1f, 1f, 1f),
-            MeshBasicMaterial(),
+            BoxGeometry(1f, 1f, 1f) as BufferGeometry,
+            MeshBasicMaterial() as Material,
             100
         )
 
@@ -59,7 +62,7 @@ class InstancedMeshContractTest {
         val matrix = Matrix4()
         matrix.compose(
             Vector3(10f, 5f, 0f),      // position
-            Quaternion().setFromEuler(0f, Math.PI.toFloat() / 4f, 0f), // rotation
+            Quaternion().setFromEuler(Euler(0f, kotlin.math.PI.toFloat() / 4f, 0f)), // rotation
             Vector3(2f, 2f, 2f)        // scale
         )
         instancedMesh.setMatrixAt(5, matrix)
@@ -77,8 +80,8 @@ class InstancedMeshContractTest {
     fun testInstancedMeshSetColorAt() {
         // Given: Instanced mesh
         val instancedMesh = InstancedMesh(
-            BoxGeometry(1f, 1f, 1f),
-            MeshBasicMaterial(),
+            BoxGeometry(1f, 1f, 1f) as BufferGeometry,
+            MeshBasicMaterial() as Material,
             100
         )
 
@@ -99,8 +102,8 @@ class InstancedMeshContractTest {
     fun testInstancedMeshBufferUpdate() {
         // Given: Instanced mesh with modifications
         val instancedMesh = InstancedMesh(
-            BoxGeometry(1f, 1f, 1f),
-            MeshBasicMaterial(),
+            BoxGeometry(1f, 1f, 1f) as BufferGeometry,
+            MeshBasicMaterial() as Material,
             100
         )
 
@@ -131,8 +134,8 @@ class InstancedMeshContractTest {
 
         // When: Creating instanced mesh
         val instancedMesh = InstancedMesh(
-            BoxGeometry(1f, 1f, 1f),
-            MeshBasicMaterial(),
+            BoxGeometry(1f, 1f, 1f) as BufferGeometry,
+            MeshBasicMaterial() as Material,
             count
         )
 
@@ -155,8 +158,8 @@ class InstancedMeshContractTest {
     fun testInstancedMeshRaycasting() {
         // Given: Instanced mesh with positioned instances
         val instancedMesh = InstancedMesh(
-            BoxGeometry(1f, 1f, 1f),
-            MeshBasicMaterial(),
+            BoxGeometry(1f, 1f, 1f) as BufferGeometry,
+            MeshBasicMaterial() as Material,
             10
         )
 
@@ -181,8 +184,8 @@ class InstancedMeshContractTest {
     fun testInstancedMeshFrustumCulling() {
         // Given: Instanced mesh
         val instancedMesh = InstancedMesh(
-            BoxGeometry(1f, 1f, 1f),
-            MeshBasicMaterial(),
+            BoxGeometry(1f, 1f, 1f) as BufferGeometry,
+            MeshBasicMaterial() as Material,
             1000
         )
 
@@ -202,8 +205,8 @@ class InstancedMeshContractTest {
     fun testInstancedMeshAttributeUpdate() {
         // Given: Instanced mesh
         val instancedMesh = InstancedMesh(
-            BoxGeometry(1f, 1f, 1f),
-            MeshBasicMaterial(),
+            BoxGeometry(1f, 1f, 1f) as BufferGeometry,
+            MeshBasicMaterial() as Material,
             100
         )
 
@@ -217,16 +220,15 @@ class InstancedMeshContractTest {
         }
 
         // When: Partial update
-        instancedMesh.instanceMatrix?.updateRange = UpdateRange(
-            offset = startIndex * 16,
-            count = count * 16
-        )
+        val updateStart = startIndex * 16
+        val updateEnd = (startIndex + count) * 16
+        instancedMesh.instanceMatrix?.updateRange = updateStart until updateEnd
 
         // Then: Should mark partial update
         assertNotNull(instancedMesh.instanceMatrix?.updateRange, "Should have update range")
         assertEquals(
-            startIndex * 16,
-            instancedMesh.instanceMatrix?.updateRange?.offset,
+            updateStart,
+            instancedMesh.instanceMatrix?.updateRange?.first,
             "Update offset should be correct"
         )
     }
@@ -238,8 +240,8 @@ class InstancedMeshContractTest {
     fun testInstancedMeshDispose() {
         // Given: Instanced mesh
         val instancedMesh = InstancedMesh(
-            BoxGeometry(1f, 1f, 1f),
-            MeshBasicMaterial(),
+            BoxGeometry(1f, 1f, 1f) as BufferGeometry,
+            MeshBasicMaterial() as Material,
             100
         )
 
@@ -257,16 +259,16 @@ class InstancedMeshContractTest {
     fun testInstancedMeshVariety() {
         // Test with different geometries
         val sphereInstanced = InstancedMesh(
-            SphereGeometry(1f),
-            MeshBasicMaterial(),
+            SphereGeometry(1f) as BufferGeometry,
+            MeshBasicMaterial() as Material,
             100
         )
         assertNotNull(sphereInstanced, "Should work with sphere geometry")
 
         // Test with different materials
         val physicalInstanced = InstancedMesh(
-            BoxGeometry(1f, 1f, 1f),
-            MeshPhysicalMaterial(),
+            BoxGeometry(1f, 1f, 1f) as BufferGeometry,
+            MeshPhysicalMaterial() as Material,
             100
         )
         assertNotNull(physicalInstanced, "Should work with physical material")
@@ -327,28 +329,17 @@ class InstancedMesh(
     }
 }
 
-// InstancedBufferAttribute placeholder
-class InstancedBufferAttribute(
-    val array: FloatArray,
-    val itemSize: Int
-) {
-    var needsUpdate: Boolean = false
-    var updateRange: UpdateRange? = null
+// Import real classes instead of placeholders
+// (InstancedBufferAttribute is in InstancedBufferAttributeContractTest)
+// (BufferGeometry is imported from io.kreekt.geometry)
+
+// Mock Material classes for testing
+class MeshPhysicalMaterial : Material() {
+    override val type: String = "MeshPhysicalMaterial"
+    override fun clone(): Material = MeshPhysicalMaterial()
 }
 
-// UpdateRange placeholder
-data class UpdateRange(
-    val offset: Int,
-    val count: Int
-)
-
-// Geometry placeholders
-open class BufferGeometry
 class SphereGeometry(radius: Float) : BufferGeometry()
-
-// Material placeholders
-open class Material
-class MeshPhysicalMaterial : Material()
 
 // Extension functions for Matrix4
 fun Matrix4.toArray(array: FloatArray, offset: Int) {

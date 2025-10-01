@@ -9,10 +9,12 @@ import io.kreekt.camera.Camera
 import io.kreekt.camera.PerspectiveCamera
 import io.kreekt.raycaster.Raycaster
 import io.kreekt.raycaster.Intersection
+import io.kreekt.Math
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.math.PI
 import kotlin.math.abs
 
@@ -186,9 +188,9 @@ class SpriteContractTest {
         for (i in 0 until 1000) {
             val sprite = Sprite(material).apply {
                 position.set(
-                    (Math.random() * 100 - 50).toFloat(),
-                    (Math.random() * 100 - 50).toFloat(),
-                    (Math.random() * 100 - 50).toFloat()
+                    (kotlin.random.Random.nextDouble() * 100 - 50).toFloat(),
+                    (kotlin.random.Random.nextDouble() * 100 - 50).toFloat(),
+                    (kotlin.random.Random.nextDouble() * 100 - 50).toFloat()
                 )
             }
             sprites.add(sprite)
@@ -432,11 +434,10 @@ class Sprite(
 class SpriteMaterial : PointsMaterial() {
     var rotation: Float = 0f
     val center = Vector2(0.5f, 0.5f)
-    var depthTest: Boolean = true
-    var depthWrite: Boolean = true
-    var sizeAttenuation: Boolean = true
 
-    fun clone(): SpriteMaterial {
+    override val type: String = "SpriteMaterial"
+
+    override fun clone(): SpriteMaterial {
         return SpriteMaterial().also {
             it.color = color.clone()
             it.rotation = rotation
@@ -445,10 +446,9 @@ class SpriteMaterial : PointsMaterial() {
             it.opacity = opacity
             it.transparent = transparent
             it.alphaTest = alphaTest
-            it.depthTest = depthTest
-            it.depthWrite = depthWrite
-            it.fog = fog
+            it.size = size
             it.sizeAttenuation = sizeAttenuation
+            it.vertexColors = vertexColors
         }
     }
 }
@@ -457,7 +457,8 @@ class AnimatedSprite(
     material: SpriteMaterial,
     private val rows: Int,
     private val cols: Int
-) : Sprite(material) {
+) {
+    private val sprite = Sprite(material)
 
     var currentFrame = 0
     var isPlaying = false
@@ -474,13 +475,15 @@ class AnimatedSprite(
         val frameWidth = 1f / cols
         val frameHeight = 1f / rows
 
-        setTextureRegion(
+        sprite.setTextureRegion(
             col * frameWidth,
             row * frameHeight,
             frameWidth,
             frameHeight
         )
     }
+
+    fun getUVCoordinates(): List<Vector2> = sprite.getUVCoordinates()
 
     fun play(startFrame: Int, endFrame: Int, loop: Boolean, fps: Float) {
         this.startFrame = startFrame

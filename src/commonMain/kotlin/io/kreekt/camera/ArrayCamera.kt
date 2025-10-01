@@ -8,6 +8,7 @@ package io.kreekt.camera
 
 import io.kreekt.core.math.Vector4
 import io.kreekt.core.scene.Scene
+import io.kreekt.texture.CubeTexture
 
 // import io.kreekt.renderer.WebGPURenderer // TODO: Will be implemented
 
@@ -303,7 +304,43 @@ class ArrayCamera(
     }
 }
 
-// Extension to WebGPURenderer for viewport support
-fun WebGPURenderer.setViewport(x: Float, y: Float, width: Float, height: Float) {
-    // Implementation would set the rendering viewport
+/**
+ * Placeholder WebGPURenderer for testing
+ * Will be replaced with actual renderer implementation
+ */
+open class WebGPURenderer {
+    private var currentRenderTarget: WebGPUCubeRenderTarget? = null
+
+    open fun setViewport(x: Float, y: Float, width: Float, height: Float) {
+        // Placeholder implementation
+    }
+
+    open fun render(scene: Scene, camera: Camera) {
+        // Placeholder implementation
+    }
+
+    open fun getRenderTarget(): WebGPUCubeRenderTarget? {
+        return currentRenderTarget
+    }
+
+    open fun setRenderTarget(renderTarget: WebGPUCubeRenderTarget?, activeCubeFace: Int = 0) {
+        currentRenderTarget = renderTarget
+    }
+
+    open fun clear() {
+        // Placeholder implementation
+    }
+}
+
+/**
+ * Placeholder for WebGPUCubeRenderTarget
+ */
+class WebGPUCubeRenderTarget(
+    val width: Int,
+    val height: Int,
+    val texture: CubeTexture? = null
+) {
+    fun dispose() {
+        // Dispose of render target resources
+    }
 }

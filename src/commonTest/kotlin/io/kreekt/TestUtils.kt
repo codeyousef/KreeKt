@@ -1,5 +1,6 @@
 package io.kreekt
 
+import kotlin.math.pow
 import kotlin.random.Random
 
 /**
@@ -26,7 +27,9 @@ object Math {
     fun atan(x: Double): Double = kotlin.math.atan(x)
     fun atan2(y: Double, x: Double): Double = kotlin.math.atan2(y, x)
     fun sqrt(x: Double): Double = kotlin.math.sqrt(x)
+    fun sqrt(x: Float): Float = kotlin.math.sqrt(x)
     fun pow(x: Double, y: Double): Double = x.pow(y)
+    fun pow(x: Float, y: Float): Float = x.toDouble().pow(y.toDouble()).toFloat()
     fun floor(x: Double): Double = kotlin.math.floor(x)
     fun ceil(x: Double): Double = kotlin.math.ceil(x)
     fun round(x: Double): Double = kotlin.math.round(x)

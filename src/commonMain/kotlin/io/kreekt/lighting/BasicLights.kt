@@ -3,6 +3,7 @@ package io.kreekt.lighting
 import io.kreekt.core.math.Color
 import io.kreekt.core.math.Vector3
 import io.kreekt.core.scene.Object3D
+import io.kreekt.core.scene.Group
 
 /**
  * Basic light implementations for common lighting scenarios
@@ -80,7 +81,9 @@ class DirectionalLightImpl(
     override var shadowCameraFar: Float = 200f
 
     // Target for easier direction control
-    var target: Object3D? = null
+    var target: Object3D = Group().apply {
+        this.position.set(0f, 0f, 0f)
+    }
 
     companion object {
         /**
@@ -263,7 +266,9 @@ class SpotLightImpl(
     override val shadowCameraFar: Float = 100f
 
     // Target for easier direction control
-    var target: Object3D? = null
+    var target: Object3D = Group().apply {
+        this.position.set(0f, 0f, 0f)
+    }
 
     companion object {
         /**

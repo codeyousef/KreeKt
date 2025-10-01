@@ -9,7 +9,7 @@ import io.kreekt.core.math.Vector3
 class LineCurve3(
     val v1: Vector3,
     val v2: Vector3
-) : Curve() {
+) : Curve3() {
 
     override val type = "LineCurve3"
 

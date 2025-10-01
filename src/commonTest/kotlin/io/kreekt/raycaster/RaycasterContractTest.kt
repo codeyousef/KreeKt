@@ -13,12 +13,12 @@
 package io.kreekt.raycaster
 
 import io.kreekt.camera.PerspectiveCamera
-import io.kreekt.core.Object3D
+import io.kreekt.core.scene.Object3D
+import io.kreekt.core.scene.Mesh
 import io.kreekt.geometry.BoxGeometry
 import io.kreekt.material.MeshBasicMaterial
-import io.kreekt.math.Vector2
-import io.kreekt.math.Vector3
-import io.kreekt.mesh.Mesh
+import io.kreekt.core.math.Vector2
+import io.kreekt.core.math.Vector3
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -152,7 +152,7 @@ class RaycasterContractTest {
             origin = Vector3(0f, 0f, 5f),
             direction = Vector3(0f, 0f, -1f)
         )
-        val parent = Object3D()
+        val parent = TestObject3D()
         val geometry = BoxGeometry(1f, 1f, 1f)
         val material = MeshBasicMaterial()
         val childMesh = Mesh(geometry, material)
@@ -168,11 +168,9 @@ class RaycasterContractTest {
     @Test
     fun testNearFarClipping() {
         // Given: A raycaster with near/far clipping
-        val raycaster = Raycaster()
-        raycaster.near = 1f
-        raycaster.far = 10f
+        val raycaster = Raycaster(near = 1f, far = 10f)
 
-        // Then: Near/far should be settable
+        // Then: Near/far should be set
         assertEquals(1f, raycaster.near, 0.001f)
         assertEquals(10f, raycaster.far, 0.001f)
     }
@@ -214,3 +212,6 @@ class RaycasterContractTest {
         assertNotNull(raycaster.ray.direction, "Ray should have direction")
     }
 }
+
+// Test helper class since Object3D is abstract
+class TestObject3D : Object3D()

@@ -12,6 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.assertFalse
+import kotlin.time.TimeSource
 
 /**
  * Contract test for Global clipping planes - T033
@@ -33,14 +34,14 @@ class ClippingPlanesContractTest {
         val clippedGeometry = clipper.clipGeometry(geometry, listOf(clippingPlane))
 
         // Verify vertices above plane are clipped
-        val positions = clippedGeometry.getAttribute("position")
+        val positions = clippedGeometry.getAttribute("position")!!
         for (i in 0 until positions.count) {
             val y = positions.getY(i)
             assertTrue(y <= 0.01f, "All vertices should be below or on clipping plane")
         }
 
         // Verify new vertices created at intersection
-        assertTrue(clippedGeometry.getAttribute("position").count > 0)
+        assertTrue(clippedGeometry.getAttribute("position")!!.count > 0)
     }
 
     @Test
@@ -50,7 +51,7 @@ class ClippingPlanesContractTest {
 
         // Create 8 clipping planes
         val planes = List(8) { i ->
-            val angle = (i * Math.PI * 2 / 8).toFloat()
+            val angle = (i * kotlin.math.PI * 2 / 8).toFloat()
             Plane(
                 Vector3(kotlin.math.cos(angle), kotlin.math.sin(angle), 0f),
                 1f
@@ -114,7 +115,7 @@ class ClippingPlanesContractTest {
         val unionClipped = clipper.clipGeometry(geometry, listOf(planeX, planeY))
 
         // Should clip only the corner where both x>0 AND y>0
-        val unionPositions = unionClipped.getAttribute("position")
+        val unionPositions = unionClipped.getAttribute("position")!!
         var hasPositiveX = false
         var hasPositiveY = false
 
@@ -132,7 +133,7 @@ class ClippingPlanesContractTest {
         val intersectionClipped = clipper.clipGeometry(geometry, listOf(planeX, planeY))
 
         // Should clip if x>0 OR y>0
-        val intersectionPositions = intersectionClipped.getAttribute("position")
+        val intersectionPositions = intersectionClipped.getAttribute("position")!!
         for (i in 0 until intersectionPositions.count) {
             val x = intersectionPositions.getX(i)
             val y = intersectionPositions.getY(i)
@@ -156,7 +157,8 @@ class ClippingPlanesContractTest {
 
         // Transform to clip space for shader
         val clipPlane = viewPlane.toVector4()
-        assertEquals(4, clipPlane.components.size)
+        // Verify clip plane has 4 components (x, y, z, w)
+        assertTrue(clipPlane.x != 0f || clipPlane.y != 0f || clipPlane.z != 0f || clipPlane.w != 0f)
     }
 
     @Test
@@ -195,15 +197,15 @@ class ClippingPlanesContractTest {
 
         val clipper = GeometryClipper()
 
-        val startTime = System.currentTimeMillis()
+        val startMark = TimeSource.Monotonic.markNow()
         val iterations = 100
 
         for (i in 0 until iterations) {
             clipper.clipGeometry(geometry, planes)
         }
 
-        val duration = System.currentTimeMillis() - startTime
-        val avgTime = duration / iterations.toFloat()
+        val duration = startMark.elapsedNow().inWholeMilliseconds
+        val avgTime = duration.toFloat() / iterations.toFloat()
 
         // Should be fast enough for real-time
         assertTrue(avgTime < 16f, "Clipping should be <16ms for 60 FPS, was ${avgTime}ms")
@@ -230,7 +232,7 @@ class ClippingPlanesContractTest {
     private fun createComplexGeometry(vertexCount: Int): BufferGeometry {
         val geometry = BufferGeometry()
         val positions = FloatArray(vertexCount * 3) {
-            (Math.random() - 0.5).toFloat() * 10
+            (kotlin.random.Random.nextFloat() - 0.5f) * 10
         }
         geometry.setAttribute("position", io.kreekt.geometry.BufferAttribute(positions, 3))
         return geometry
@@ -260,10 +262,21 @@ class MockRenderer {
     }
 }
 
-class ClippingMaterial : Material() {
+class ClippingMaterial : io.kreekt.material.Material() {
     var clippingPlanes: List<Plane> = emptyList()
     var clippingPlanesMode = ClippingMode.OVERRIDE
     var clipShadows = false
+
+    override val type: String = "ClippingMaterial"
+
+    override fun clone(): io.kreekt.material.Material {
+        return ClippingMaterial().also {
+            it.copy(this)
+            it.clippingPlanes = clippingPlanes.toList()
+            it.clippingPlanesMode = clippingPlanesMode
+            it.clipShadows = clipShadows
+        }
+    }
 }
 
 class GeometryClipper {
@@ -272,7 +285,7 @@ class GeometryClipper {
     fun clipGeometry(geometry: BufferGeometry, planes: List<Plane>): BufferGeometry {
         // Simplified clipping simulation
         val result = BufferGeometry()
-        val positions = geometry.getAttribute("position")
+        val positions = geometry.getAttribute("position")!!
         val clippedPositions = mutableListOf<Float>()
 
         for (i in 0 until positions.count / 3) {
@@ -301,7 +314,7 @@ class GeometryClipper {
             }
         }
 
-        result.setAttribute("position", BufferAttribute(clippedPositions.toFloatArray(), 3))
+        result.setAttribute("position", io.kreekt.geometry.BufferAttribute(clippedPositions.toFloatArray(), 3))
         return result
     }
 }

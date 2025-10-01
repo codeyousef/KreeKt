@@ -22,7 +22,7 @@ import io.kreekt.texture.Texture
  * - Impostors for distant objects
  * - UI elements in 3D space
  */
-class Sprite(
+open class Sprite(
     var material: SpriteMaterial = SpriteMaterial()
 ) : Object3D() {
 

@@ -21,34 +21,34 @@ class CompressedTextureContractTest {
     fun testCompressionFormats() {
         // BC formats (Desktop)
         val bc7Texture = CompressedTexture(
-            format = CompressedTextureFormat.BC7_RGBA,
-            width = 512,
-            height = 512
+            compFormat = CompressedTextureFormat.BC7_RGBA,
+            texWidth = 512,
+            texHeight = 512
         )
         assertEquals(CompressedTextureFormat.BC7_RGBA, bc7Texture.format)
         assertTrue(bc7Texture.isCompressed, "Should be compressed")
 
         // ETC2 formats (Mobile - Android)
         val etc2Texture = CompressedTexture(
-            format = CompressedTextureFormat.ETC2_RGBA8,
-            width = 256,
-            height = 256
+            compFormat = CompressedTextureFormat.ETC2_RGBA8,
+            texWidth = 256,
+            texHeight = 256
         )
         assertEquals(CompressedTextureFormat.ETC2_RGBA8, etc2Texture.format)
 
         // ASTC formats (Modern mobile)
         val astcTexture = CompressedTexture(
-            format = CompressedTextureFormat.ASTC_4x4_RGBA,
-            width = 512,
-            height = 512
+            compFormat = CompressedTextureFormat.ASTC_4x4_RGBA,
+            texWidth = 512,
+            texHeight = 512
         )
         assertEquals(CompressedTextureFormat.ASTC_4x4_RGBA, astcTexture.format)
 
         // PVRTC formats (iOS)
         val pvrtcTexture = CompressedTexture(
-            format = CompressedTextureFormat.PVRTC_4BPP_RGB,
-            width = 256,
-            height = 256
+            compFormat = CompressedTextureFormat.PVRTC_4BPP_RGB,
+            texWidth = 256,
+            texHeight = 256
         )
         assertEquals(CompressedTextureFormat.PVRTC_4BPP_RGB, pvrtcTexture.format)
     }
@@ -91,10 +91,10 @@ class CompressedTextureContractTest {
     @Test
     fun testCompressedMipmaps() {
         val texture = CompressedTexture(
-            format = CompressedTextureFormat.BC7_RGBA,
-            width = 1024,
-            height = 1024,
-            generateMipmaps = false  // Using pre-compressed mipmaps
+            compFormat = CompressedTextureFormat.BC7_RGBA,
+            texWidth = 1024,
+            texHeight = 1024,
+            genMipmaps = false  // Using pre-compressed mipmaps
         )
 
         // Add mipmap levels
@@ -131,9 +131,9 @@ class CompressedTextureContractTest {
     @Test
     fun testDataLoading() {
         val texture = CompressedTexture(
-            format = CompressedTextureFormat.BC7_RGBA,
-            width = 256,
-            height = 256
+            compFormat = CompressedTextureFormat.BC7_RGBA,
+            texWidth = 256,
+            texHeight = 256
         )
 
         // Load compressed data
@@ -154,34 +154,34 @@ class CompressedTextureContractTest {
     fun testBlockSizes() {
         // BC formats use 4x4 blocks
         val bc7 = CompressedTexture(
-            format = CompressedTextureFormat.BC7_RGBA,
-            width = 256,
-            height = 256
+            compFormat = CompressedTextureFormat.BC7_RGBA,
+            texWidth = 256,
+            texHeight = 256
         )
         assertEquals(4, bc7.blockWidth)
         assertEquals(4, bc7.blockHeight)
 
         // ASTC can have various block sizes
         val astc4x4 = CompressedTexture(
-            format = CompressedTextureFormat.ASTC_4x4_RGBA,
-            width = 256,
-            height = 256
+            compFormat = CompressedTextureFormat.ASTC_4x4_RGBA,
+            texWidth = 256,
+            texHeight = 256
         )
         assertEquals(4, astc4x4.blockWidth)
         assertEquals(4, astc4x4.blockHeight)
 
         val astc6x6 = CompressedTexture(
-            format = CompressedTextureFormat.ASTC_6x6_RGBA,
-            width = 256,
-            height = 256
+            compFormat = CompressedTextureFormat.ASTC_6x6_RGBA,
+            texWidth = 256,
+            texHeight = 256
         )
         assertEquals(6, astc6x6.blockWidth)
         assertEquals(6, astc6x6.blockHeight)
 
         val astc8x8 = CompressedTexture(
-            format = CompressedTextureFormat.ASTC_8x8_RGBA,
-            width = 256,
-            height = 256
+            compFormat = CompressedTextureFormat.ASTC_8x8_RGBA,
+            texWidth = 256,
+            texHeight = 256
         )
         assertEquals(8, astc8x8.blockWidth)
         assertEquals(8, astc8x8.blockHeight)
@@ -203,7 +203,7 @@ class CompressedTextureContractTest {
         )
 
         formats.forEach { format ->
-            val texture = CompressedTexture(format, 256, 256)
+            val texture = CompressedTexture(format, 256, 256, false)
 
             // Check bits per pixel
             when (format) {
@@ -255,9 +255,9 @@ class CompressedTextureContractTest {
     @Test
     fun testTextureArrays() {
         val arrayTexture = CompressedTextureArray(
-            format = CompressedTextureFormat.BC7_RGBA,
-            width = 256,
-            height = 256,
+            compFormat = CompressedTextureFormat.BC7_RGBA,
+            texWidth = 256,
+            texHeight = 256,
             layers = 16
         )
 
@@ -300,7 +300,7 @@ class CompressedTextureContractTest {
     }
 }
 
-// Placeholder implementations
+// Placeholder implementations - simplified to avoid override conflicts
 enum class CompressedTextureFormat {
     // BC formats (Desktop)
     BC1_RGB, BC1_RGBA, BC3_RGBA, BC5_RG, BC7_RGBA,
@@ -316,14 +316,15 @@ enum class CompressedTextureFormat {
 }
 
 class CompressedTexture(
-    val format: CompressedTextureFormat,
-    override val width: Int,
-    override val height: Int,
-    override val generateMipmaps: Boolean = false
-) : Texture() {
+    val compFormat: CompressedTextureFormat,
+    val texWidth: Int,
+    val texHeight: Int,
+    val genMipmaps: Boolean = false
+) {
     var isCompressed = true
+    var needsUpdate = false
     val blockWidth: Int
-        get() = when (format) {
+        get() = when (compFormat) {
             CompressedTextureFormat.ASTC_4x4_RGBA -> 4
             CompressedTextureFormat.ASTC_6x6_RGBA -> 6
             CompressedTextureFormat.ASTC_8x8_RGBA -> 8
@@ -332,7 +333,7 @@ class CompressedTexture(
     val blockHeight: Int get() = blockWidth
 
     val bitsPerPixel: Int
-        get() = when (format) {
+        get() = when (compFormat) {
             CompressedTextureFormat.BC1_RGB,
             CompressedTextureFormat.PVRTC_4BPP_RGBA -> 4
 
@@ -340,7 +341,11 @@ class CompressedTexture(
             else -> 8
         }
 
-    val hasAlpha: Boolean get() = format != CompressedTextureFormat.BC1_RGB
+    val hasAlpha: Boolean get() = compFormat != CompressedTextureFormat.BC1_RGB
+    val format: CompressedTextureFormat get() = compFormat
+    val width: Int get() = texWidth
+    val height: Int get() = texHeight
+    val generateMipmaps: Boolean get() = genMipmaps
 
     var mipmapCount = 1
     private val mipmaps = mutableListOf<MipLevel>()
@@ -418,11 +423,14 @@ class CompressedTextureLoader {
 }
 
 class CompressedTextureArray(
-    format: CompressedTextureFormat,
-    width: Int,
-    height: Int,
+    compFormat: CompressedTextureFormat,
+    texWidth: Int,
+    texHeight: Int,
     val layers: Int
-) : CompressedTexture(format, width, height) {
+) {
+    val format = compFormat
+    val width = texWidth
+    val height = texHeight
     val isArray = true
     private val layerData = mutableMapOf<Int, ByteArray>()
 

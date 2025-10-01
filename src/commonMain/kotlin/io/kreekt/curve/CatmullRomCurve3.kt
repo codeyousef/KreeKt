@@ -10,7 +10,7 @@ class CatmullRomCurve3(
     val closed: Boolean = false,
     val curveType: String = "centripetal",
     val tension: Float = 0.5f
-) : Curve() {
+) : Curve3() {
 
     override val type = "CatmullRomCurve3"
 

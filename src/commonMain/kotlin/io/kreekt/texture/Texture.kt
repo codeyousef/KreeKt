@@ -15,6 +15,10 @@ abstract class Texture(
     var name: String = ""
 ) : io.kreekt.renderer.Texture {
 
+    // Width and height must be provided by subclasses
+    abstract override val width: Int
+    abstract override val height: Int
+
     // Image data properties
     var image: Any? = null
     var mipmaps: Array<Any>? = null

@@ -88,21 +88,20 @@ class TubeGeometryContractTest {
      */
     @Test
     fun testTubeGeometryFrenetFrames() {
-        // Given: A 3D curve
-        val path = object : Curve3() {
-            override fun getPoint(t: Float, optionalTarget: Vector3?): Vector3 {
-                val result = optionalTarget ?: Vector3()
-                // Helix curve
-                val angle = t * kotlin.math.PI.toFloat() * 2f
-                result.x = kotlin.math.cos(angle) * 5f
-                result.y = t * 10f
-                result.z = kotlin.math.sin(angle) * 5f
-                return result
-            }
+        // Given: A 3D helix curve (use CatmullRomCurve3 instead of anonymous class)
+        val helixPoints = (0..10).map { i ->
+            val t = i / 10f
+            val angle = t * kotlin.math.PI.toFloat() * 2f
+            Vector3(
+                kotlin.math.cos(angle) * 5f,
+                t * 10f,
+                kotlin.math.sin(angle) * 5f
+            )
         }
+        val path = CatmullRomCurve3(helixPoints)
 
         // When: Creating tube geometry
-        val tubeGeometry = TubeGeometry(path)
+        val tubeGeometry = TubeGeometry(path as Curve3)
 
         // Then: Should have normals (computed from Frenet frames)
         val normals = tubeGeometry.getAttribute("normal")
@@ -291,6 +290,6 @@ class TubeGeometry(
         // Implementation in T074
         // For now, create minimal geometry
         val vertices = floatArrayOf(0f, 0f, 0f)
-        setAttribute("position", BufferAttribute(vertices, 3))
+        setAttribute("position", io.kreekt.geometry.BufferAttribute(vertices, 3))
     }
 }

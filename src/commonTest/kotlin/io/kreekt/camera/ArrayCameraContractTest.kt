@@ -219,6 +219,29 @@ class ArrayCamera(
     private var screenWidth = 1f
     private var screenHeight = 1f
 
+    // Implement abstract Camera methods
+    override fun updateProjectionMatrix() {
+        // Update all sub-cameras
+        cameras.forEach { camera ->
+            camera.updateProjectionMatrix()
+        }
+    }
+
+    override fun setViewOffset(
+        fullWidth: Int,
+        fullHeight: Int,
+        x: Int,
+        y: Int,
+        width: Int,
+        height: Int
+    ) {
+        // Implementation in T058
+    }
+
+    override fun clearViewOffset() {
+        // Implementation in T058
+    }
+
     fun addCamera(camera: Camera, viewport: Vector4) {
         // Implementation in T058
     }

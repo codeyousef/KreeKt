@@ -493,6 +493,21 @@ data class Matrix4(
     fun toArray(): FloatArray = elements.copyOf()
 
     /**
+     * Copy matrix elements to an array at the specified offset
+     */
+    fun toArray(array: FloatArray, offset: Int = 0) {
+        elements.copyInto(array, offset, 0, 16)
+    }
+
+    /**
+     * Set matrix elements from an array at the specified offset
+     */
+    fun fromArray(array: FloatArray, offset: Int = 0): Matrix4 {
+        array.copyInto(elements, 0, offset, offset + 16)
+        return this
+    }
+
+    /**
      * Get translation component as Vector3
      */
     fun getTranslation(): Vector3 = Vector3(m03, m13, m23)

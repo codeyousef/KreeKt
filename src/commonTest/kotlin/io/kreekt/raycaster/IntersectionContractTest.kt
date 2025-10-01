@@ -39,7 +39,7 @@ class IntersectionContractTest {
         val intersection = Intersection(
             distance = distance,
             point = point,
-            object = mesh
+            `object` = mesh
         )
 
         // Then: Should contain basic data
@@ -57,7 +57,7 @@ class IntersectionContractTest {
         val intersection = Intersection(
             distance = 1f,
             point = Vector3(0f, 0f, 0f),
-            object = Mesh(BoxGeometry(1f, 1f, 1f), MeshBasicMaterial()),
+            `object` = Mesh(BoxGeometry(1f, 1f, 1f), MeshBasicMaterial()),
             face = Face(
                 a = 0,
                 b = 1,
@@ -84,7 +84,7 @@ class IntersectionContractTest {
         val intersection = Intersection(
             distance = 1f,
             point = Vector3(0f, 0f, 0f),
-            object = Mesh(BoxGeometry(1f, 1f, 1f), MeshBasicMaterial()),
+            `object` = Mesh(BoxGeometry(1f, 1f, 1f), MeshBasicMaterial()),
             uv = Vector2(0.5f, 0.5f)
         )
 
@@ -109,7 +109,7 @@ class IntersectionContractTest {
         val intersection = Intersection(
             distance = 1f,
             point = Vector3(0f, 0f, 0f),
-            object = instancedMesh,
+            `object` = instancedMesh,
             instanceId = 42
         )
 
@@ -128,7 +128,7 @@ class IntersectionContractTest {
         val intersection = Intersection(
             distance = 1f,
             point = Vector3(0f, 0f, 0f),
-            object = Mesh(BoxGeometry(1f, 1f, 1f), MeshBasicMaterial()),
+            `object` = Mesh(BoxGeometry(1f, 1f, 1f), MeshBasicMaterial()),
             normal = normal
         )
 
@@ -151,7 +151,7 @@ class IntersectionContractTest {
         val intersection = Intersection(
             distance = 1f,
             point = Vector3(0f, 0f, 0f),
-            object = Mesh(BoxGeometry(1f, 1f, 1f), MeshBasicMaterial()),
+            `object` = Mesh(BoxGeometry(1f, 1f, 1f), MeshBasicMaterial()),
             barycentric = barycentric
         )
 
@@ -172,7 +172,7 @@ class IntersectionContractTest {
         val intersection = Intersection(
             distance = 1f,
             point = Vector3(0f, 0f, 0f),
-            object = Mesh(BoxGeometry(1f, 1f, 1f), MeshBasicMaterial()),
+            `object` = Mesh(BoxGeometry(1f, 1f, 1f), MeshBasicMaterial()),
             faceIndex = 5
         )
 
@@ -188,9 +188,9 @@ class IntersectionContractTest {
     fun testIntersectionComparable() {
         // Given: Multiple intersections
         val mesh = Mesh(BoxGeometry(1f, 1f, 1f), MeshBasicMaterial())
-        val intersection1 = Intersection(distance = 5f, point = Vector3(), object = mesh)
-        val intersection2 = Intersection(distance = 2f, point = Vector3(), object = mesh)
-        val intersection3 = Intersection(distance = 10f, point = Vector3(), object = mesh)
+        val intersection1 = Intersection(distance = 5f, point = Vector3(), `object` = mesh)
+        val intersection2 = Intersection(distance = 2f, point = Vector3(), `object` = mesh)
+        val intersection3 = Intersection(distance = 10f, point = Vector3(), `object` = mesh)
 
         // When: Sorting by distance
         val sorted = listOf(intersection1, intersection2, intersection3)
