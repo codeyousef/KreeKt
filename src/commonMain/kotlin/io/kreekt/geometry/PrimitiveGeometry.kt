@@ -386,7 +386,7 @@ class BoxGeometry(
 /**
  * Cylinder geometry with configurable radii, height, and subdivision
  */
-class CylinderGeometry(
+open class CylinderGeometry(
     radiusTop: Float = 1f,
     radiusBottom: Float = 1f,
     height: Float = 1f,

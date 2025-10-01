@@ -1,5 +1,6 @@
 package io.kreekt.curve
 
+import io.kreekt.core.math.Vector3
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -10,18 +11,22 @@ import kotlin.test.assertTrue
 class CurveContractTest {
     @Test
     fun testGetPoint() {
-        val curve = Curve()
+        val curve = TestCurve()
         assertTrue(curve.getPoint(0.5f) != null)
     }
 
     @Test
     fun testGetTangent() {
-        val curve = Curve()
+        val curve = TestCurve()
         assertTrue(curve.getTangent(0.5f) != null)
     }
 }
 
-class Curve {
-    fun getPoint(t: Float) = Any()
-    fun getTangent(t: Float) = Any()
+/**
+ * Concrete curve implementation for testing
+ */
+class TestCurve : Curve() {
+    override fun getPoint(t: Float, optionalTarget: Vector3): Vector3 {
+        return optionalTarget.set(t, t, t)
+    }
 }
