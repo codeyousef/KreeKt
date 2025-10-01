@@ -299,11 +299,7 @@ private interface GeometryGenerator {
     fun createFromText(text: String, font: Font, options: TextOptions): BufferGeometry
 }
 
-private interface BufferGeometry {
-    fun hasAttribute(name: String): Boolean
-    fun getAttribute(name: String): BufferAttribute?
-    fun getIndex(): BufferAttribute?
-}
+// Note: Using real BufferGeometry from io.kreekt.geometry.BufferGeometry
 
 private interface Shape
 private interface Font
