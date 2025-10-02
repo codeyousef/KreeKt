@@ -37,6 +37,11 @@ abstract class Object3D {
     var matrixAutoUpdate: Boolean = true
     var matrixWorldNeedsUpdate: Boolean = false
 
+    // Performance: Track if local transform has changed
+    private var matrixNeedsUpdate: Boolean = true
+    private var worldMatrixVersion: Int = 0
+    private var localMatrixVersion: Int = 0
+
     // Visibility and shadow properties
     var visible: Boolean = true
     var castShadow: Boolean = false
@@ -63,8 +68,22 @@ abstract class Object3D {
 
     init {
         // Ensure rotation and quaternion stay in sync
-        rotation.onChange = { updateQuaternionFromEuler() }
-        quaternion.onChange = { updateEulerFromQuaternion() }
+        rotation.onChange = {
+            updateQuaternionFromEuler()
+            markTransformDirty()
+        }
+        quaternion.onChange = {
+            updateEulerFromQuaternion()
+            markTransformDirty()
+        }
+    }
+
+    /**
+     * Performance: Mark transform as dirty to trigger matrix updates
+     */
+    private fun markTransformDirty() {
+        matrixNeedsUpdate = true
+        matrixWorldNeedsUpdate = true
     }
 
     // Hierarchy operations (delegated to Object3DHierarchy.kt)
@@ -113,24 +132,40 @@ abstract class Object3D {
 
     /**
      * Updates the world transformation matrix
+     * OPTIMIZED: Only updates when dirty flag is set or forced
      */
     open fun updateMatrixWorld(force: Boolean = false) {
-        if (matrixAutoUpdate) updateMatrix()
+        // Performance: Skip if nothing changed and not forced
+        if (!force && !matrixWorldNeedsUpdate && !matrixNeedsUpdate) {
+            return
+        }
+
+        if (matrixAutoUpdate && matrixNeedsUpdate) {
+            updateMatrix()
+            matrixNeedsUpdate = false
+            localMatrixVersion++
+        }
 
         var forceChildren = force
         if (matrixWorldNeedsUpdate || force) {
+            val parentVersion = parent?.worldMatrixVersion ?: 0
+
             if (parent == null) {
                 matrixWorld.copy(matrix)
             } else {
                 matrixWorld.multiplyMatrices(parent!!.matrixWorld, matrix)
             }
+
             matrixWorldNeedsUpdate = false
+            worldMatrixVersion++
             forceChildren = true
         }
 
-        // Update children
-        for (child in children) {
-            child.updateMatrixWorld(forceChildren)
+        // Performance: Only update children if this object's world matrix changed
+        if (forceChildren) {
+            for (child in children) {
+                child.updateMatrixWorld(forceChildren)
+            }
         }
     }
 

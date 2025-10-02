@@ -216,21 +216,37 @@ class DefaultRenderer(
 
     // Private helper methods
     private fun renderSceneObjects(scene: Scene, camera: Camera) {
-        // Simulate rendering each object in the scene
+        // OPTIMIZED: Implement frustum culling using existing CullingSystem
         var triangleCount = 0
         var drawCalls = 0
+        var culled = 0
 
-        // Traverse scene graph and "render" objects
+        // Create frustum from camera
+        val frustum = io.kreekt.optimization.Frustum()
+        val projViewMatrix = camera.projectionMatrix.clone().multiply(camera.matrixWorldInverse)
+        frustum.setFromMatrix(projViewMatrix)
+
+        // Traverse scene graph and render only visible objects
         scene.traverse { obj ->
             if (obj is Mesh) {
-                drawCalls++
-                // Simulate triangle counting
-                triangleCount += estimateTriangleCount(obj)
+                // Frustum culling check - check if bounding box intersects frustum
+                val boundingBox = obj.getBoundingBox()
+                if (!boundingBox.isEmpty() && frustum.intersectsBox(boundingBox)) {
+                    drawCalls++
+                    triangleCount += estimateTriangleCount(obj)
+                } else if (boundingBox.isEmpty()) {
+                    // No bounding box, assume visible
+                    drawCalls++
+                    triangleCount += estimateTriangleCount(obj)
+                } else {
+                    culled++
+                }
             }
         }
 
         stats.addDrawCall(drawCalls)
         stats.addTriangles(triangleCount)
+        stats.addCulled(culled)
     }
 
     private fun estimateTriangleCount(mesh: Mesh): Int {
@@ -284,6 +300,7 @@ class DefaultRendererFactory : RendererFactory {
 
 /**
  * Statistics tracking for renderer performance
+ * OPTIMIZED: Track culled objects for performance monitoring
  */
 private class RenderStatsTracker {
     private var frameCount = 0
@@ -295,6 +312,7 @@ private class RenderStatsTracker {
     private var textures = 0
     private var shaders = 0
     private var programs = 0
+    private var culled = 0
 
     fun frameStart() {
         // Reset per-frame counters
@@ -302,6 +320,7 @@ private class RenderStatsTracker {
         triangles = 0
         points = 0
         lines = 0
+        culled = 0
     }
 
     fun frameEnd() {
@@ -314,6 +333,10 @@ private class RenderStatsTracker {
 
     fun addTriangles(count: Int) {
         triangles += count
+    }
+
+    fun addCulled(count: Int) {
+        culled += count
     }
 
     fun addShader() {
