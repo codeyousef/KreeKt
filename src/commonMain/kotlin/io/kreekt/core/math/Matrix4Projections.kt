@@ -1,0 +1,58 @@
+package io.kreekt.core.math
+
+/**
+ * Matrix4 projection operations including perspective and orthographic projections
+ */
+
+/**
+ * Creates a perspective projection matrix
+ */
+internal fun Matrix4.makePerspectiveProjection(
+    left: Float,
+    right: Float,
+    top: Float,
+    bottom: Float,
+    near: Float,
+    far: Float
+): Matrix4 {
+    val x = 2f * near / (right - left)
+    val y = 2f * near / (top - bottom)
+    val a = (right + left) / (right - left)
+    val b = (top + bottom) / (top - bottom)
+    val c = -(far + near) / (far - near)
+    val d = -2f * far * near / (far - near)
+
+    elements[0] = x; elements[4] = 0f; elements[8] = a; elements[12] = 0f
+    elements[1] = 0f; elements[5] = y; elements[9] = b; elements[13] = 0f
+    elements[2] = 0f; elements[6] = 0f; elements[10] = c; elements[14] = d
+    elements[3] = 0f; elements[7] = 0f; elements[11] = -1f; elements[15] = 0f
+
+    return this
+}
+
+/**
+ * Creates an orthographic projection matrix
+ */
+internal fun Matrix4.makeOrthographicProjection(
+    left: Float,
+    right: Float,
+    top: Float,
+    bottom: Float,
+    near: Float,
+    far: Float
+): Matrix4 {
+    val w = 1f / (right - left)
+    val h = 1f / (top - bottom)
+    val p = 1f / (far - near)
+
+    val x = (right + left) * w
+    val y = (top + bottom) * h
+    val z = (far + near) * p
+
+    elements[0] = (2f * w); elements[4] = 0f; elements[8] = 0f; elements[12] = -x
+    elements[1] = 0f; elements[5] = (2f * h); elements[9] = 0f; elements[13] = -y
+    elements[2] = 0f; elements[6] = 0f; elements[10] = -(2f * p); elements[14] = -z
+    elements[3] = 0f; elements[7] = 0f; elements[11] = 0f; elements[15] = 1f
+
+    return this
+}
