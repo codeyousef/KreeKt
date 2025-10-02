@@ -7,6 +7,7 @@ package io.kreekt.physics
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Quaternion
 import io.kreekt.core.math.Vector3
+import io.kreekt.physics.shapes.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
