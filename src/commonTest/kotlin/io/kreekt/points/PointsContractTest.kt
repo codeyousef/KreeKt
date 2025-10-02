@@ -376,7 +376,7 @@ open class PointsMaterial : Material() {
     override var transparent: Boolean = false
     var fog: Boolean = true
     var map: Texture2D? = null
-    var alphaTest: Float = 0f
+    override var alphaTest: Float = 0f
 
     override val type: String = "PointsMaterial"
 
@@ -402,7 +402,7 @@ open class PointsMaterial : Material() {
         // Post-render cleanup
     }
 
-    val version: Int
+    override var version: Int = 0
         get() = renderCount
 
     override fun clone(): Material {

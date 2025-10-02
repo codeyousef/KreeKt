@@ -17,10 +17,11 @@ class Texture2D(
     wrapT: TextureWrap = TextureWrap.CLAMP_TO_EDGE,
     magFilter: TextureFilter = TextureFilter.LINEAR,
     minFilter: TextureFilter = TextureFilter.LINEAR,
-    name: String = "Texture2D"
-) : Texture(name = name) {
+    textureName: String = "Texture2D"
+) : Texture() {
 
     init {
+        name = textureName
         this.format = format
         this.wrapS = wrapS
         this.wrapT = wrapT
@@ -211,7 +212,7 @@ class Texture2D(
         wrapT = wrapT,
         magFilter = magFilter,
         minFilter = minFilter,
-        name = name
+        textureName = name
     ).apply {
         copy(this@Texture2D)
         _data?.let { setData(it) }

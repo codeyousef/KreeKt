@@ -15,12 +15,13 @@ class CompressedTexture(
     override val width: Int,
     override val height: Int,
     val compressedFormat: CompressedTextureFormat
-) : Texture(name = "CompressedTexture") {
+) : Texture() {
 
     val compressedMipmaps: MutableList<CompressedTextureMipmap> = mutableListOf()
     var isCompressed: Boolean = true
 
     init {
+        name = "CompressedTexture"
         this.generateMipmaps = false  // Compressed textures have pre-generated mipmaps
         this.flipY = false  // Compressed textures are typically not flipped
     }

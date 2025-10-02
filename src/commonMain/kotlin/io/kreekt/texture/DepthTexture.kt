@@ -15,9 +15,10 @@ class DepthTexture(
     override val width: Int,
     override val height: Int,
     val depthFormat: DepthTextureFormat = DepthTextureFormat.DEPTH24
-) : Texture(name = "DepthTexture") {
+) : Texture() {
 
     init {
+        name = "DepthTexture"
         // Depth textures have specific settings
         // Map depth format to texture format
         // Note: The base TextureFormat may not have all depth formats,

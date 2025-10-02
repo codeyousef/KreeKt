@@ -20,8 +20,8 @@ class DataTexture(
     minFilter: TextureFilter = TextureFilter.NEAREST,
     wrapS: TextureWrap = TextureWrap.CLAMP_TO_EDGE,
     wrapT: TextureWrap = TextureWrap.CLAMP_TO_EDGE,
-    name: String = "DataTexture"
-) : Texture(name = name) {
+    textureName: String = "DataTexture"
+) : Texture() {
 
     // Data storage
     private var _data: ByteArray = data.copyOf()
@@ -29,6 +29,7 @@ class DataTexture(
     private var _intData: IntArray? = null
 
     init {
+        name = textureName
         this.format = format
         this.type = type
         this.magFilter = magFilter
@@ -55,7 +56,7 @@ class DataTexture(
             height = height,
             format = format,
             type = TextureType.FLOAT,
-            name = "FloatDataTexture"
+            textureName = "FloatDataTexture"
         ).apply {
             setFloatData(data)
         }
@@ -74,7 +75,7 @@ class DataTexture(
             height = height,
             format = format,
             type = TextureType.UNSIGNED_INT,
-            name = "IntDataTexture"
+            textureName = "IntDataTexture"
         ).apply {
             setIntData(data)
         }
@@ -126,7 +127,7 @@ class DataTexture(
                 width = width,
                 height = height,
                 format = format,
-                name = "NoiseTexture"
+                textureName = "NoiseTexture"
             ).apply {
                 wrapS = TextureWrap.REPEAT
                 wrapT = TextureWrap.REPEAT
@@ -170,7 +171,7 @@ class DataTexture(
                 data = data,
                 width = width,
                 height = height,
-                name = "PerlinNoise"
+                textureName = "PerlinNoise"
             ).apply {
                 wrapS = TextureWrap.REPEAT
                 wrapT = TextureWrap.REPEAT
@@ -215,7 +216,7 @@ class DataTexture(
                 data = data,
                 width = width,
                 height = height,
-                name = "DistanceField"
+                textureName = "DistanceField"
             )
         }
     }
@@ -386,7 +387,7 @@ class DataTexture(
         minFilter = minFilter,
         wrapS = wrapS,
         wrapT = wrapT,
-        name = name
+        textureName = name
     ).apply {
         copy(this@DataTexture)
         _floatData?.let { setFloatData(it) }

@@ -10,10 +10,17 @@ import io.kreekt.renderer.TextureWrap
  * Base texture class following Three.js Texture API
  * T104 - Comprehensive texture system with filtering, wrapping, and transformation
  */
-abstract class Texture(
-    override val id: Int = generateId(),
-    var name: String = ""
-) : io.kreekt.renderer.Texture {
+abstract class Texture : io.kreekt.renderer.Texture {
+
+    override val id: Int = generateId()
+
+    // Open property to allow proper inheritance and bytecode generation
+    open var name: String = ""
+
+    // Explicit setter method to avoid Kotlin bytecode issues
+    open fun setTextureName(value: String) {
+        name = value
+    }
 
     // Width and height must be provided by subclasses
     abstract override val width: Int

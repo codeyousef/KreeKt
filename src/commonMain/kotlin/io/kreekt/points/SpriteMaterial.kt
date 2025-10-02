@@ -2,6 +2,7 @@ package io.kreekt.points
 
 import io.kreekt.core.math.Color
 import io.kreekt.material.Material
+import io.kreekt.material.Side
 import io.kreekt.texture.Texture
 import kotlin.math.PI
 
@@ -62,7 +63,7 @@ class SpriteMaterial(
         }
 
         // Sprites are usually double-sided
-        this.side = Material.DOUBLE_SIDE
+        this.side = Side.DoubleSide
     }
 
     /**

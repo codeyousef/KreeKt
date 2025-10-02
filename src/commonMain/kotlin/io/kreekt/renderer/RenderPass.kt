@@ -436,7 +436,7 @@ fun createRenderTarget(width: Int, height: Int, hasDepth: Boolean = true): Rende
             wrapT = io.kreekt.renderer.TextureWrap.CLAMP_TO_EDGE,
             magFilter = io.kreekt.renderer.TextureFilter.LINEAR,
             minFilter = io.kreekt.renderer.TextureFilter.LINEAR,
-            name = "RenderTarget_Color_${width}x${height}"
+            textureName = "RenderTarget_Color_${width}x${height}"
         ).apply {
             isRenderTarget = true
             generateMipmaps = false
@@ -453,7 +453,7 @@ fun createRenderTarget(width: Int, height: Int, hasDepth: Boolean = true): Rende
                 wrapT = io.kreekt.renderer.TextureWrap.CLAMP_TO_EDGE,
                 magFilter = io.kreekt.renderer.TextureFilter.NEAREST,
                 minFilter = io.kreekt.renderer.TextureFilter.NEAREST,
-                name = "RenderTarget_Depth_${width}x${height}"
+                textureName = "RenderTarget_Depth_${width}x${height}"
             ).apply {
                 type = io.kreekt.texture.TextureType.FLOAT
                 isRenderTarget = true

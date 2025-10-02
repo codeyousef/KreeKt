@@ -159,7 +159,7 @@ data class ShaderPerformanceMetrics(
  * Custom shader material with WGSL support and cross-platform compilation
  * Provides low-level control over rendering pipeline with modern shader languages
  */
-class ShaderMaterial(
+open class ShaderMaterial(
     var vertexShader: String = "",
     var fragmentShader: String = "",
     var computeShader: String = "",
@@ -180,10 +180,10 @@ class ShaderMaterial(
     var shaderVariants: MutableMap<String, ShaderVariant> = mutableMapOf()
     var activeVariant: String = "default"
     // Uniforms and attributes
-    private val _uniforms = mutableMapOf<String, ShaderUniform>()
-    private val _attributes = mutableMapOf<String, ShaderAttribute>()
-    private val _textures = mutableMapOf<String, TextureBinding>()
-    private val _storageBuffers = mutableMapOf<String, StorageBuffer>()
+    protected val _uniforms = mutableMapOf<String, ShaderUniform>()
+    protected val _attributes = mutableMapOf<String, ShaderAttribute>()
+    protected val _textures = mutableMapOf<String, TextureBinding>()
+    protected val _storageBuffers = mutableMapOf<String, StorageBuffer>()
     // Shader features and capabilities
     var features: MutableSet<String> = mutableSetOf()
     var defines: MutableMap<String, String> = mutableMapOf()
@@ -290,7 +290,7 @@ class ShaderMaterial(
     /**
      * Add shader feature flag
      */
-    fun addFeature(feature: String) {
+    open fun addFeature(feature: String) {
         features.add(feature)
     }
 
@@ -472,7 +472,7 @@ class ShaderMaterial(
     /**
      * Clone the shader material
      */
-    fun clone(): ShaderMaterial {
+    open fun clone(): ShaderMaterial {
         return ShaderMaterial(
             vertexShader = vertexShader,
             fragmentShader = fragmentShader,

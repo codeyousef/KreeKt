@@ -10,7 +10,10 @@ import kotlinx.browser.document
 actual class CanvasTexture actual constructor(
     width: Int,
     height: Int
-) : CanvasTextureBase(width, height) {
+) : CanvasTextureBase() {
+
+    actual override val width: Int = width
+    actual override val height: Int = height
 
     private val canvas: HTMLCanvasElement = (document.createElement("canvas") as HTMLCanvasElement).apply {
         this.width = width
@@ -20,6 +23,8 @@ actual class CanvasTexture actual constructor(
     private val context: CanvasRenderingContext2D = canvas.getContext("2d") as CanvasRenderingContext2D
 
     init {
+        // Initialize AFTER all properties are created
+        initCanvasTexture("CanvasTexture")
         // Set default canvas settings
         context.imageSmoothingEnabled = true
     }

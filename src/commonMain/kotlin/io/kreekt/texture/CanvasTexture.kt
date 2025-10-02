@@ -1,6 +1,7 @@
 package io.kreekt.texture
 
 import io.kreekt.renderer.TextureFormat
+import io.kreekt.texture.Texture
 
 /**
  * CanvasTexture - Texture from HTML Canvas or similar drawing surface
@@ -42,22 +43,25 @@ expect class CanvasTexture(
 /**
  * Common CanvasTexture functionality
  */
-abstract class CanvasTextureBase(
-    override val width: Int,
-    override val height: Int
-) : Texture(name = "CanvasTexture") {
+abstract class CanvasTextureBase : Texture() {
 
-    init {
-        this.format = TextureFormat.RGBA8
-        this.generateMipmaps = false  // Canvas textures typically don't use mipmaps
-        this.needsUpdate = true
+    /**
+     * Initialize canvas texture properties
+     * MUST be called from subclass constructor AFTER super() completes
+     */
+    protected fun initCanvasTexture(textureName: String = "CanvasTexture") {
+        // Use explicit setter method to avoid Kotlin bytecode generation issues
+        setTextureName(textureName)
+        format = TextureFormat.RGBA8
+        generateMipmaps = false  // Canvas textures typically don't use mipmaps
+        needsUpdate = true
     }
 
     /**
      * Mark for update
      */
     fun markNeedsUpdate() {
-        this.needsUpdate = true
+        needsUpdate = true
         version++
     }
 }
