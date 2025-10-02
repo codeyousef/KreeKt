@@ -40,3 +40,17 @@ actual fun DoubleArray.platformClone(): DoubleArray {
 actual fun <T> Array<T>.platformClone(): Array<T> {
     return this.copyOf()
 }
+
+/**
+ * Native implementation of memory usage tracking
+ * Note: Limited memory tracking on native platforms
+ */
+actual fun getMemoryUsage(): MemoryUsage {
+    // Native platforms don't have easy access to memory stats
+    // Would need platform-specific APIs (e.g., mallinfo on Linux)
+    return MemoryUsage(
+        used = 0L,
+        total = 0L,
+        free = 0L
+    )
+}

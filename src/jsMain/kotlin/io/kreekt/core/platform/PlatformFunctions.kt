@@ -83,3 +83,30 @@ actual fun <T> platformClone(obj: T): T {
         else -> obj // For immutable objects, return as-is
     }
 }
+
+/**
+ * JS implementation of memory usage tracking
+ * Uses performance.memory API if available, estimates otherwise
+ */
+actual fun getMemoryUsage(): MemoryUsage {
+    val memory = try {
+        js("performance.memory") as? dynamic
+    } catch (e: Throwable) {
+        null
+    }
+
+    return if (memory != null) {
+        val used = (memory.usedJSHeapSize as? Number)?.toLong() ?: 0L
+        val total = (memory.totalJSHeapSize as? Number)?.toLong() ?: 0L
+        val limit = (memory.jsHeapSizeLimit as? Number)?.toLong() ?: 0L
+
+        MemoryUsage(
+            used = used,
+            total = total,
+            free = total - used
+        )
+    } else {
+        // Fallback when memory API is not available
+        MemoryUsage(used = 0L, total = 0L, free = 0L)
+    }
+}

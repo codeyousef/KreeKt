@@ -15,3 +15,19 @@ actual fun DoubleArray.platformClone(): DoubleArray = this.clone()
 
 @Suppress("UNCHECKED_CAST")
 actual fun <T> Array<T>.platformClone(): Array<T> = this.clone() as Array<T>
+
+/**
+ * Android implementation of memory usage tracking
+ */
+actual fun getMemoryUsage(): MemoryUsage {
+    val runtime = Runtime.getRuntime()
+    val total = runtime.totalMemory()
+    val free = runtime.freeMemory()
+    val used = total - free
+
+    return MemoryUsage(
+        used = used,
+        total = total,
+        free = free
+    )
+}

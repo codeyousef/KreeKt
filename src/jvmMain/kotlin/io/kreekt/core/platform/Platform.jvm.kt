@@ -29,3 +29,19 @@ actual fun <T> platformClone(obj: T): T {
         else -> obj // For immutable objects, return as-is
     }
 }
+
+/**
+ * JVM implementation of memory usage tracking
+ */
+actual fun getMemoryUsage(): MemoryUsage {
+    val runtime = Runtime.getRuntime()
+    val total = runtime.totalMemory()
+    val free = runtime.freeMemory()
+    val used = total - free
+
+    return MemoryUsage(
+        used = used,
+        total = total,
+        free = free
+    )
+}
