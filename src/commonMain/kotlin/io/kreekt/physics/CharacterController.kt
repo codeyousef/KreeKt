@@ -7,6 +7,7 @@ package io.kreekt.physics
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Quaternion
 import io.kreekt.core.math.Vector3
+import io.kreekt.physics.character.*
 import io.kreekt.physics.shapes.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -103,8 +104,6 @@ class CharacterControllerImpl(
     private val _canJump = MutableStateFlow(true)
     private var _verticalVelocity = 0f
     private var _wasOnGround = false
-    private var _wasJumping = false
-    private var _jumpTimeout = 0f
     private var _gravityEnabled = true
 
     // Ground detection
@@ -121,13 +120,10 @@ class CharacterControllerImpl(
     var pushForce: Float = 1f
     var airControl: Float = 0.2f
     var groundStickiness: Float = 1f
-    var jumpGraceTime: Float = 0.1f // Time after leaving ground when jump is still allowed
-    var coyoteTime: Float = 0.15f // Time window for jump after leaving platform
 
-    // Platform interaction
-    private var _currentPlatform: CollisionObject? = null
-    private var _platformVelocity = Vector3.ZERO
-    private var _lastPlatformPosition = Vector3.ZERO
+    // Subsystems
+    private val jumpSystem = JumpSystem(jumpSpeed, 0.1f, 0.15f)
+    private val platformTracker = PlatformTracker()
 
     // State flows for reactive updates
     val onGroundFlow: StateFlow<Boolean> = _onGround.asStateFlow()
@@ -135,39 +131,25 @@ class CharacterControllerImpl(
 
     // Character dimensions (assumes capsule shape)
     private val characterRadius: Float
-        get() = when (val shape = collisionShape) {
-            is CapsuleShape -> shape.radius
-            is SphereShape -> shape.radius
-            is BoxShape -> minOf(shape.halfExtents.x, shape.halfExtents.z)
-            else -> 0.5f
-        }
+        get() = CharacterMetrics.getRadius(collisionShape)
 
     private val characterHeight: Float
-        get() = when (val shape = collisionShape) {
-            is CapsuleShape -> shape.height + shape.radius * 2f
-            is SphereShape -> shape.radius * 2f
-            is BoxShape -> shape.halfExtents.y * 2f
-            else -> 1.8f
-        }
+        get() = CharacterMetrics.getHeight(collisionShape)
 
     override fun onGround(): Boolean = _onGround.value
 
-    override fun canJump(): Boolean = _canJump.value && (_onGround.value || _jumpTimeout > 0f)
+    override fun canJump(): Boolean = jumpSystem.canJump(_onGround.value)
 
     override fun jump(direction: Vector3) {
         if (!canJump()) return
 
-        _verticalVelocity = jumpSpeed
-        _wasJumping = true
-        _jumpTimeout = 0f
-        _onGround.value = false
-        _canJump.value = false
-
-        // Apply directional jump if specified
-        if (direction != Vector3.UNIT_Y && direction.length() > 0.001f) {
-            val horizontalDirection = direction.copy().normalize()
-            val horizontalSpeed = jumpSpeed * 0.5f // Reduced horizontal component
-            velocityForTimeInterval = horizontalDirection * horizontalSpeed
+        jumpSystem.jump(direction) { vertVel, horizVel ->
+            _verticalVelocity = vertVel
+            _onGround.value = false
+            _canJump.value = false
+            if (horizVel != Vector3.ZERO) {
+                velocityForTimeInterval = horizVel
+            }
         }
     }
 
@@ -190,13 +172,31 @@ class CharacterControllerImpl(
 
     override fun preStep(world: PhysicsWorld) {
         // Update platform tracking
-        updatePlatformInteraction()
+        platformTracker.update(_groundObject)
 
         // Update ground detection
-        performGroundCheck(world)
+        val groundInfo = GroundDetector.check(
+            world,
+            transform.getTranslation(),
+            stepHeight,
+            skinWidth,
+            maxSlopeAngle
+        )
+
+        val wasOnGround = _onGround.value
+        _onGround.value = groundInfo.isOnGround
+        _groundNormal = groundInfo.groundNormal
+        _groundObject = groundInfo.groundObject
+        _groundDistance = groundInfo.groundDistance
+        _groundHitPoint = groundInfo.groundHitPoint
+
+        // Reset jump ability when landing
+        if (groundInfo.isOnGround && !wasOnGround) {
+            _canJump.value = true
+        }
 
         // Update jump state
-        updateJumpState()
+        jumpSystem.update(0.016f, _onGround.value, wasOnGround, _verticalVelocity)
     }
 
     override fun playerStep(world: PhysicsWorld, deltaTime: Float) {
@@ -247,8 +247,8 @@ class CharacterControllerImpl(
         movement.y = movement.y + _verticalVelocity * deltaTime
 
         // Add platform velocity
-        if (_currentPlatform != null && _onGround.value) {
-            movement = movement + (_platformVelocity * deltaTime)
+        if (platformTracker.getPlatform() != null && _onGround.value) {
+            movement = movement + (platformTracker.getVelocity() * deltaTime)
         }
 
         // Perform movement with collision detection
@@ -294,223 +294,40 @@ class CharacterControllerImpl(
     }
 
     private fun performHorizontalMovement(world: PhysicsWorld, startPosition: Vector3, movement: Vector3): Vector3 {
-        val movementDistance = movement.length()
-        if (movementDistance < 0.001f) return startPosition
-
-        val movementDirection = movement.normalize()
-        var currentPosition = startPosition
-
-        // Slide along surfaces
-        var remainingDistance = movementDistance
-        var slideIterations = 0
-        val maxSlideIterations = 4
-
-        while (remainingDistance > 0.001f && slideIterations < maxSlideIterations) {
-            slideIterations++
-
-            val testMovement = movementDirection * remainingDistance
-            val testPosition = currentPosition + testMovement
-
-            // Perform sweep test
-            val sweepResult = performSweepTest(world, currentPosition, testPosition)
-
-            if (sweepResult.hasHit) {
-                // Move to hit point minus skin width
-                val safeDistance = sweepResult.distance - skinWidth
-                if (safeDistance > 0.001f) {
-                    currentPosition = currentPosition + movementDirection * safeDistance
-                    remainingDistance = remainingDistance - safeDistance
-                } else {
-                    remainingDistance = 0f
-                }
-
-                // Calculate slide direction
-                val slideDirection = calculateSlideDirection(movementDirection, sweepResult.normal)
-
-                if (slideDirection.length() > 0.001f) {
-                    movementDirection.set(slideDirection.normalize())
-                } else {
-                    break // Cannot slide further
-                }
-            } else {
-                // No collision, move full distance
-                currentPosition = testPosition
-                break
-            }
-        }
-
-        return currentPosition
+        return MovementSystem.performHorizontal(
+            world,
+            startPosition,
+            movement,
+            characterRadius,
+            characterHeight,
+            skinWidth,
+            maxSlopeAngle
+        )
     }
 
     private fun performVerticalMovement(world: PhysicsWorld, startPosition: Vector3, movement: Vector3): Vector3 {
-        val movementDirection = if (movement.y > 0f) Vector3.UNIT_Y else -Vector3.UNIT_Y
-        val movementDistance = abs(movement.y)
-
-        if (movementDistance < 0.001f) return startPosition
-
-        val testPosition = startPosition + movement
-        val sweepResult = performSweepTest(world, startPosition, testPosition)
-
-        return if (sweepResult.hasHit) {
-            // Hit something during vertical movement
-            val safeDistance = sweepResult.distance - skinWidth
-            val newPosition = startPosition + movementDirection * maxOf(0f, safeDistance)
-
-            // Check if we hit the ground or ceiling
-            if (movement.y < 0f) {
-                // Falling - check if we hit the ground
-                val slopeAngle = acos(sweepResult.normal.dot(Vector3.UNIT_Y))
-                if (slopeAngle <= maxSlopeAngle) {
-                    _onGround.value = true
-                    _groundNormal = sweepResult.normal
-                    _groundObject = sweepResult.hitObject
-                    _verticalVelocity = 0f
-                }
-            } else {
-                // Jumping/rising - hit ceiling
+        return MovementSystem.performVertical(
+            world,
+            startPosition,
+            movement,
+            characterRadius,
+            characterHeight,
+            skinWidth,
+            maxSlopeAngle
+        ) { isGround, normal, obj ->
+            if (isGround) {
+                _onGround.value = true
+                _groundNormal = normal ?: Vector3.UNIT_Y
+                _groundObject = obj as? CollisionObject
+                _verticalVelocity = 0f
+            } else if (movement.y > 0f) {
                 _verticalVelocity = 0f
             }
-
-            newPosition
-        } else {
-            // No collision during vertical movement
-            if (movement.y < 0f && _onGround.value) {
-                // Was on ground but now falling
-                _onGround.value = false
-                _jumpTimeout = coyoteTime
-            }
-            testPosition
-        }
-    }
-
-    private fun performSweepTest(world: PhysicsWorld, from: Vector3, to: Vector3): SweepResult {
-        // Simplified sweep test -, this would use the physics world's sweep functionality
-        val direction = (to - from).normalize()
-        val distance = (to - from).length()
-
-        // Perform raycast from character center
-        val rayStart = from + Vector3(0f, characterHeight * 0.5f, 0f)
-        val rayEnd = rayStart + direction * (distance + characterRadius)
-
-        val raycastResult = world.raycast(rayStart, rayEnd)
-
-        return if (raycastResult?.hasHit == true) {
-            SweepResult(
-                hasHit = true,
-                distance = maxOf(0f, raycastResult.distance - characterRadius),
-                normal = raycastResult.hitNormal,
-                hitPoint = raycastResult.hitPoint,
-                hitObject = raycastResult.hitObject
-            )
-        } else {
-            SweepResult(
-                hasHit = false,
-                distance = distance,
-                normal = Vector3.UNIT_Y,
-                hitPoint = to,
-                hitObject = null
-            )
-        }
-    }
-
-    private fun calculateSlideDirection(movementDirection: Vector3, surfaceNormal: Vector3): Vector3 {
-        // Project movement direction onto surface plane
-        val projectedMovement = movementDirection - surfaceNormal * movementDirection.dot(surfaceNormal)
-
-        // Check if surface is too steep to walk on
-        val slopeAngle = acos(surfaceNormal.dot(Vector3.UNIT_Y))
-        if (slopeAngle > maxSlopeAngle) {
-            // Too steep - slide down the slope
-            val downSlope = Vector3.UNIT_Y - surfaceNormal * Vector3.UNIT_Y.dot(surfaceNormal)
-            return downSlope.normalize()
-        }
-
-        return projectedMovement
-    }
-
-    private fun performGroundCheck(world: PhysicsWorld) {
-        val currentPosition = transform.getTranslation()
-        val rayStart = currentPosition + Vector3(0f, stepHeight, 0f)
-        val rayEnd = currentPosition - Vector3(0f, stepHeight + skinWidth, 0f)
-
-        val raycastResult = world.raycast(rayStart, rayEnd)
-
-        val wasOnGround = _onGround.value
-
-        if (raycastResult?.hasHit == true) {
-            _groundDistance = raycastResult.distance - stepHeight
-            _groundHitPoint = raycastResult.hitPoint
-            _groundNormal = raycastResult.hitNormal
-            _groundObject = raycastResult.hitObject
-
-            // Check if surface is walkable
-            val slopeAngle = acos(_groundNormal.dot(Vector3.UNIT_Y))
-
-            if (slopeAngle <= maxSlopeAngle && _groundDistance <= stepHeight) {
-                _onGround.value = true
-
-                // Reset jump ability when landing
-                if (!wasOnGround) {
-                    _canJump.value = true
-                    _wasJumping = false
-                }
-            } else {
-                _onGround.value = false
-                _groundObject = null
-            }
-        } else {
-            _onGround.value = false
-            _groundObject = null
-            _groundDistance = Float.MAX_VALUE
-        }
-
-        // Start coyote time if just left ground
-        if (wasOnGround && !_onGround.value && !_wasJumping) {
-            _jumpTimeout = coyoteTime
-        }
-    }
-
-    private fun updatePlatformInteraction() {
-        if (_groundObject == _currentPlatform) {
-            // Still on same platform - calculate platform velocity
-            val currentPlatformPos = _groundObject?.getWorldTransform()?.getTranslation() ?: Vector3.ZERO
-            _platformVelocity = if (_lastPlatformPosition != Vector3.ZERO) {
-                (currentPlatformPos - _lastPlatformPosition) * 60f // Assume 60 FPS for velocity calculation
-            } else {
-                Vector3.ZERO
-            }
-            _lastPlatformPosition = currentPlatformPos
-        } else {
-            // Platform changed
-            _currentPlatform = _groundObject
-            _lastPlatformPosition = _groundObject?.getWorldTransform()?.getTranslation() ?: Vector3.ZERO
-            _platformVelocity = Vector3.ZERO
-        }
-    }
-
-    private fun updateJumpState() {
-        // Update jump ability based on ground state
-        if (_onGround.value && !_wasJumping) {
-            _canJump.value = true
-        }
-
-        // Reset jumping state when landing
-        if (_onGround.value && _wasJumping && _verticalVelocity <= 0f) {
-            _wasJumping = false
         }
     }
 
     private fun updateTimers(deltaTime: Float) {
-        // Update jump timeout (coyote time)
-        if (_jumpTimeout > 0f) {
-            _jumpTimeout = _jumpTimeout - deltaTime
-            if (_jumpTimeout <= 0f) {
-                _jumpTimeout = 0f
-                if (!_onGround.value) {
-                    _canJump.value = false
-                }
-            }
-        }
+        // Timers are now handled by JumpSystem
     }
 
     /**
@@ -549,11 +366,11 @@ class CharacterControllerImpl(
      * Configure timing parameters
      */
     fun configureTiming(
-        jumpGraceTime: Float = this.jumpGraceTime,
-        coyoteTime: Float = this.coyoteTime
+        jumpGraceTime: Float = jumpSystem.jumpGraceTime,
+        coyoteTime: Float = jumpSystem.coyoteTime
     ) {
-        this.jumpGraceTime = jumpGraceTime
-        this.coyoteTime = coyoteTime
+        jumpSystem.jumpGraceTime = jumpGraceTime
+        jumpSystem.coyoteTime = coyoteTime
     }
 
     /**
@@ -567,8 +384,8 @@ class CharacterControllerImpl(
             verticalVelocity = _verticalVelocity,
             groundNormal = _groundNormal,
             groundDistance = _groundDistance,
-            platformVelocity = _platformVelocity,
-            currentPlatform = _currentPlatform
+            platformVelocity = platformTracker.getVelocity(),
+            currentPlatform = platformTracker.getPlatform()
         )
     }
 
@@ -608,7 +425,7 @@ class CharacterControllerImpl(
      */
     fun canMoveTo(world: PhysicsWorld, targetPosition: Vector3): Boolean {
         val currentPosition = transform.getTranslation()
-        val sweepResult = performSweepTest(world, currentPosition, targetPosition)
+        val sweepResult = SweepTester.sweep(world, currentPosition, targetPosition, characterRadius, characterHeight)
         return !sweepResult.hasHit
     }
 
@@ -617,7 +434,7 @@ class CharacterControllerImpl(
      */
     fun getClosestWalkablePosition(world: PhysicsWorld, targetPosition: Vector3): Vector3 {
         val currentPosition = transform.getTranslation()
-        val sweepResult = performSweepTest(world, currentPosition, targetPosition)
+        val sweepResult = SweepTester.sweep(world, currentPosition, targetPosition, characterRadius, characterHeight)
 
         return if (sweepResult.hasHit) {
             val direction = (targetPosition - currentPosition).normalize()
@@ -641,17 +458,6 @@ data class CharacterState(
     val groundDistance: Float,
     val platformVelocity: Vector3,
     val currentPlatform: CollisionObject?
-)
-
-/**
- * Sweep test result
- */
-data class SweepResult(
-    val hasHit: Boolean,
-    val distance: Float,
-    val normal: Vector3,
-    val hitPoint: Vector3,
-    val hitObject: CollisionObject?
 )
 
 /**

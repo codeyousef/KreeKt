@@ -7,6 +7,7 @@ package io.kreekt.geometry
 import io.kreekt.core.math.Box3
 import io.kreekt.core.math.Vector2
 import io.kreekt.core.math.Vector3
+import io.kreekt.geometry.text.*
 import kotlin.math.max
 
 /**
@@ -194,7 +195,7 @@ class TextGeometry(
 
     init {
         require(text.isNotEmpty()) { "Text cannot be empty" }
-        textLayout = layoutText(text, font, options)
+        textLayout = TextLayoutEngine.layout(text, font, options)
         generate()
     }
 
@@ -232,159 +233,6 @@ class TextGeometry(
         computeBoundingSphere()
     }
 
-    private fun layoutText(text: String, font: Font, options: TextOptions): TextLayout {
-        val lines = if (options.wordWrap && options.maxWidth != null) {
-            wrapText(text, font, options)
-        } else {
-            text.split('\n').map { it }
-        }
-
-        val textLines = mutableListOf<TextLine>()
-        var maxWidth = 0f
-        val lineHeight = options.size * options.lineHeight
-
-        for ((lineIndex, lineText) in lines.withIndex()) {
-            val line = layoutLine(lineText, font, options)
-            val offsetY = -lineIndex * lineHeight
-
-            // Apply text alignment
-            val offsetX = when (options.textAlign) {
-                TextAlign.LEFT -> 0f
-                TextAlign.CENTER -> -line.width / 2f
-                TextAlign.RIGHT -> -line.width
-                TextAlign.JUSTIFY -> 0f // Justify will be handled in layoutLine
-            }
-
-            val adjustedLine = line.copy(offsetX = offsetX, offsetY = offsetY)
-            textLines.add(adjustedLine)
-            maxWidth = max(maxWidth, line.width)
-        }
-
-        val totalHeight = textLines.size * lineHeight
-        val baseline = calculateBaseline(font, options)
-
-        return TextLayout(textLines, maxWidth, totalHeight, baseline)
-    }
-
-    private fun layoutLine(text: String, font: Font, options: TextOptions): TextLine {
-        val glyphs = mutableListOf<PositionedGlyph>()
-        var currentX = 0f
-        val scale = options.size / font.unitsPerEm
-
-        // First pass: layout normally to measure width
-        for (i in text.indices) {
-            val char = text[i]
-            val glyph = font.getGlyph(char) ?: continue
-
-            // Apply kerning if not the first character
-            if (i > 0) {
-                val kerning = font.getKerning(text[i - 1], char)
-                currentX += (kerning * scale)
-            }
-
-            val positionedGlyph = PositionedGlyph(
-                glyph = glyph,
-                x = currentX,
-                y = 0f,
-                scale = scale
-            )
-
-            glyphs.add(positionedGlyph)
-
-            // Advance position
-            currentX += (glyph.width + options.letterSpacing) * scale
-        }
-
-        val lineWidth = currentX - options.letterSpacing * scale
-        val lineHeight = options.size
-
-        // Apply justify alignment if needed
-        if (options.textAlign == TextAlign.JUSTIFY && options.maxWidth != null && glyphs.size > 1) {
-            val targetWidth = options.maxWidth
-            val currentWidth = lineWidth
-            val widthDiff = targetWidth - currentWidth
-
-            // Count spaces in the line
-            val spaceCount = text.count { it == ' ' }
-
-            if (spaceCount > 0) {
-                // Distribute extra width among spaces
-                val extraSpaceWidth = widthDiff / spaceCount
-                var adjustedX = 0f
-                var spacesSeen = 0
-
-                for (i in glyphs.indices) {
-                    val glyph = glyphs[i]
-                    val char = text.getOrNull(i) ?: continue
-
-                    // Update position with justify adjustment
-                    glyphs[i] = glyph.copy(x = adjustedX)
-
-                    // Calculate next position
-                    adjustedX += glyph.glyph.width * scale + options.letterSpacing * scale
-
-                    // Add extra space after space characters
-                    if (char == ' ' && spacesSeen < spaceCount) {
-                        adjustedX += extraSpaceWidth
-                        spacesSeen++
-                    }
-                }
-            } else {
-                // No spaces, distribute width between all characters
-                val extraCharWidth = widthDiff / (glyphs.size - 1)
-                for (i in glyphs.indices) {
-                    val glyph = glyphs[i]
-                    glyphs[i] = glyph.copy(x = glyph.x + i * extraCharWidth)
-                }
-            }
-        }
-
-        return TextLine(text, lineWidth, lineHeight, 0f, 0f, glyphs)
-    }
-
-    private fun wrapText(text: String, font: Font, options: TextOptions): List<String> {
-        val maxWidth = options.maxWidth!!
-        val words = text.split(' ')
-        val lines = mutableListOf<String>()
-        var currentLine = StringBuilder()
-
-        for (word in words) {
-            val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-            val metrics = font.measureText(testLine, options.size)
-
-            if (metrics.width <= maxWidth) {
-                currentLine = StringBuilder(testLine)
-            } else {
-                if (currentLine.isNotEmpty()) {
-                    lines.add(currentLine.toString())
-                    currentLine = StringBuilder(word)
-                } else {
-                    // Word is too long, break it
-                    lines.add(word)
-                }
-            }
-        }
-
-        if (currentLine.isNotEmpty()) {
-            lines.add(currentLine.toString())
-        }
-
-        return lines
-    }
-
-    private fun calculateBaseline(font: Font, options: TextOptions): Float {
-        val scale = options.size / font.unitsPerEm
-
-        return when (options.textBaseline) {
-            TextBaseline.ALPHABETIC -> 0f
-            TextBaseline.TOP -> -font.ascender * scale
-            TextBaseline.HANGING -> -font.ascender * scale * 0.8f
-            TextBaseline.MIDDLE -> -(font.ascender - font.descender) * scale / 2f
-            TextBaseline.IDEOGRAPHIC -> font.descender * scale
-            TextBaseline.BOTTOM -> font.descender * scale
-        }
-    }
-
     private fun generateGlyphGeometry(
         positionedGlyph: PositionedGlyph,
         lineOffsetX: Float,
@@ -402,7 +250,7 @@ class TextGeometry(
             .translate(positionedGlyph.x + lineOffsetX, positionedGlyph.y + lineOffsetY)
 
         // Convert glyph path to 2D shape
-        val shapes = convertPathToShapes(path, transform)
+        val shapes = PathConverter.convert(path, transform)
 
         // Generate 3D geometry for each shape
         for (shape in shapes) {
@@ -419,202 +267,11 @@ class TextGeometry(
                 )
 
                 val extrudeGeometry = ExtrudeGeometry(shape, extrudeOptions)
-                mergeGeometry(extrudeGeometry, vertices, normals, uvs, indices, vertexOffset)
+                GeometryMerger.merge(extrudeGeometry, vertices, normals, uvs, indices)
             } else {
                 // Create flat geometry
-                generateFlatShapeGeometry(shape, vertices, normals, uvs, indices, vertexOffset)
+                ShapeTriangulator.triangulate(shape, vertices, normals, uvs, indices)
             }
-        }
-    }
-
-    private fun convertPathToShapes(path: GlyphPath, transform: TransformMatrix3): List<Shape> {
-        val shapes = mutableListOf<Shape>()
-        val currentContour = mutableListOf<Vector2>()
-        var currentPoint = Vector2()
-
-        for (command in path.commands) {
-            when (command) {
-                is PathCommand.MoveTo -> {
-                    if (currentContour.isNotEmpty()) {
-                        shapes.add(SimpleShape(currentContour.toList()))
-                        currentContour.clear()
-                    }
-                    currentPoint = transform.transformPoint(Vector2(command.x, command.y))
-                    currentContour.add(currentPoint)
-                }
-
-                is PathCommand.LineTo -> {
-                    currentPoint = transform.transformPoint(Vector2(command.x, command.y))
-                    currentContour.add(currentPoint)
-                }
-
-                is PathCommand.QuadraticCurveTo -> {
-                    val cp = transform.transformPoint(Vector2(command.cpx, command.cpy))
-                    val end = transform.transformPoint(Vector2(command.x, command.y))
-
-                    // Subdivide quadratic curve
-                    val curvePoints = subdivideQuadraticCurve(currentPoint, cp, end, options.curveSegments)
-                    currentContour.addAll(curvePoints.drop(1)) // Skip first point (already added)
-                    currentPoint = end
-                }
-
-                is PathCommand.BezierCurveTo -> {
-                    val cp1 = transform.transformPoint(Vector2(command.cp1x, command.cp1y))
-                    val cp2 = transform.transformPoint(Vector2(command.cp2x, command.cp2y))
-                    val end = transform.transformPoint(Vector2(command.x, command.y))
-
-                    // Subdivide bezier curve
-                    val curvePoints = subdivideBezierCurve(currentPoint, cp1, cp2, end, options.curveSegments)
-                    currentContour.addAll(curvePoints.drop(1)) // Skip first point (already added)
-                    currentPoint = end
-                }
-
-                is PathCommand.ClosePath -> {
-                    if (currentContour.isNotEmpty()) {
-                        shapes.add(SimpleShape(currentContour.toList()))
-                        currentContour.clear()
-                    }
-                }
-            }
-        }
-
-        if (currentContour.isNotEmpty()) {
-            shapes.add(SimpleShape(currentContour.toList()))
-        }
-
-        return shapes
-    }
-
-    private fun subdivideQuadraticCurve(start: Vector2, control: Vector2, end: Vector2, segments: Int): List<Vector2> {
-        val points = mutableListOf<Vector2>()
-
-        for (i in 0..segments) {
-            val t = i.toFloat() / segments
-            val point = quadraticBezier(start, control, end, t)
-            points.add(point)
-        }
-
-        return points
-    }
-
-    private fun subdivideBezierCurve(start: Vector2, cp1: Vector2, cp2: Vector2, end: Vector2, segments: Int): List<Vector2> {
-        val points = mutableListOf<Vector2>()
-
-        for (i in 0..segments) {
-            val t = i.toFloat() / segments
-            val point = cubicBezier(start, cp1, cp2, end, t)
-            points.add(point)
-        }
-
-        return points
-    }
-
-    private fun quadraticBezier(p0: Vector2, p1: Vector2, p2: Vector2, t: Float): Vector2 {
-        val invT = 1f - t
-        return Vector2(
-            invT * invT * p0.x + 2f * invT * t * p1.x + t * t * p2.x,
-            invT * invT * p0.y + 2f * invT * t * p1.y + t * t * p2.y
-        )
-    }
-
-    private fun cubicBezier(p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, t: Float): Vector2 {
-        val invT = 1f - t
-        val invT2 = invT * invT
-        val invT3 = invT2 * invT
-        val t2 = t * t
-        val t3 = t2 * t
-
-        return Vector2(
-            invT3 * p0.x + 3f * invT2 * t * p1.x + 3f * invT * t2 * p2.x + t3 * p3.x,
-            invT3 * p0.y + 3f * invT2 * t * p1.y + 3f * invT * t2 * p2.y + t3 * p3.y
-        )
-    }
-
-    private fun generateFlatShapeGeometry(
-        shape: Shape,
-        vertices: MutableList<Vector3>,
-        normals: MutableList<Vector3>,
-        uvs: MutableList<Vector2>,
-        indices: MutableList<Int>,
-        vertexOffset: Int
-    ) {
-        // Triangulate the shape and create flat geometry
-        val triangles = triangulateShape(shape.points, shape.holes.map { it.points })
-        val startVertexIndex = vertices.size
-
-        // Add vertices
-        for (point in shape.points) {
-            vertices.add(Vector3(point.x, point.y, 0f))
-            normals.add(Vector3(0f, 0f, 1f))
-            uvs.add(Vector2(point.x, point.y)) // Simple UV mapping
-        }
-
-        // Add triangles
-        for (triangle in triangles) {
-            indices.addAll(triangle.map { it + startVertexIndex })
-        }
-    }
-
-    private fun triangulateShape(shapePoints: List<Vector2>, holes: List<List<Vector2>>): List<List<Int>> {
-        // Simple triangulation - in practice, use a robust library like earcut
-        val points = shapePoints.toMutableList()
-        val triangles = mutableListOf<List<Int>>()
-
-        // Add hole vertices (simplified implementation)
-        for (hole in holes) {
-            points.addAll(hole)
-        }
-
-        // Simple fan triangulation (works for convex shapes)
-        for (i in 1 until points.size - 1) {
-            triangles.add(listOf(0, i, i + 1))
-        }
-
-        return triangles
-    }
-
-    private fun mergeGeometry(
-        sourceGeometry: BufferGeometry,
-        targetVertices: MutableList<Vector3>,
-        targetNormals: MutableList<Vector3>,
-        targetUVs: MutableList<Vector2>,
-        targetIndices: MutableList<Int>,
-        vertexOffset: Int
-    ) {
-        // Extract vertices from source geometry
-        val positionAttribute = sourceGeometry.getAttribute("position")!!
-        val normalAttribute = sourceGeometry.getAttribute("normal")!!
-        val uvAttribute = sourceGeometry.getAttribute("uv")!!
-        val indexAttribute = sourceGeometry.index!!
-
-        val startVertexIndex = targetVertices.size
-
-        // Add vertices
-        for (i in 0 until positionAttribute.count) {
-            val x = positionAttribute.getX(i)
-            val y = positionAttribute.getY(i)
-            val z = positionAttribute.getZ(i)
-            targetVertices.add(Vector3(x, y, z))
-        }
-
-        // Add normals
-        for (i in 0 until normalAttribute.count) {
-            val x = normalAttribute.getX(i)
-            val y = normalAttribute.getY(i)
-            val z = normalAttribute.getZ(i)
-            targetNormals.add(Vector3(x, y, z))
-        }
-
-        // Add UVs
-        for (i in 0 until uvAttribute.count) {
-            val x = uvAttribute.getX(i)
-            val y = uvAttribute.getY(i)
-            targetUVs.add(Vector2(x, y))
-        }
-
-        // Add indices
-        for (i in 0 until indexAttribute.count) {
-            targetIndices.add(indexAttribute.getX(i).toInt() + startVertexIndex)
         }
     }
 
