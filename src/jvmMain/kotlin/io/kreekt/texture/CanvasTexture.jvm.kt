@@ -12,12 +12,20 @@ import java.nio.ByteBuffer
 actual class CanvasTexture actual constructor(
     width: Int,
     height: Int
-) : CanvasTextureBase(width, height) {
+) : CanvasTextureBase() {
+
+    actual override val width: Int = width
+    actual override val height: Int = height
 
     private val bufferedImage: BufferedImage = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
     private val graphics: Graphics2D = bufferedImage.createGraphics().apply {
         setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+    }
+
+    init {
+        // Initialize AFTER all properties are created
+        initCanvasTexture("CanvasTexture")
     }
 
     /**

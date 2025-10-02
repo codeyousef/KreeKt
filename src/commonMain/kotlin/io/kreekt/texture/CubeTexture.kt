@@ -15,13 +15,14 @@ class CubeTexture(
     format: TextureFormat = TextureFormat.RGBA8,
     magFilter: TextureFilter = TextureFilter.LINEAR,
     minFilter: TextureFilter = TextureFilter.LINEAR,
-    name: String = "CubeTexture"
-) : Texture(name = name), io.kreekt.renderer.CubeTexture {
+    textureName: String = "CubeTexture"
+) : Texture(), io.kreekt.renderer.CubeTexture {
 
     override val width: Int get() = size
     override val height: Int get() = size
 
     init {
+        name = textureName
         this.format = format
         this.magFilter = magFilter
         this.minFilter = minFilter
@@ -239,7 +240,7 @@ class CubeTexture(
         format = format,
         magFilter = magFilter,
         minFilter = minFilter,
-        name = name
+        textureName = name
     ).apply {
         copy(this@CubeTexture)
 

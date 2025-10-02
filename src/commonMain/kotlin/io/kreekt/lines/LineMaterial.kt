@@ -17,7 +17,7 @@ class LineMaterial(
     var dashSize: Float = 1f,
     var gapSize: Float = 1f,
     var worldUnits: Boolean = false,
-    var alphaToCoverage: Boolean = true
+    override var alphaToCoverage: Boolean = true
 ) : Material() {
 
     override val type: String = "LineMaterial"

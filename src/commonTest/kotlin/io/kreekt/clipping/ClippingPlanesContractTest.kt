@@ -255,24 +255,24 @@ class MockRenderer {
 
     fun getActivePlanes(material: ClippingMaterial): List<Plane> {
         return when (material.clippingPlanesMode) {
-            ClippingMode.OVERRIDE -> material.clippingPlanes
-            ClippingMode.COMBINE -> clippingPlanes + material.clippingPlanes
+            ClippingMode.OVERRIDE -> material.clippingPlanes.orEmpty()
+            ClippingMode.COMBINE -> clippingPlanes + material.clippingPlanes.orEmpty()
             else -> clippingPlanes
         }
     }
 }
 
 class ClippingMaterial : io.kreekt.material.Material() {
-    var clippingPlanes: List<Plane> = emptyList()
+    override var clippingPlanes: List<Plane>? = emptyList()
     var clippingPlanesMode = ClippingMode.OVERRIDE
-    var clipShadows = false
+    override var clipShadows = false
 
     override val type: String = "ClippingMaterial"
 
     override fun clone(): io.kreekt.material.Material {
         return ClippingMaterial().also {
             it.copy(this)
-            it.clippingPlanes = clippingPlanes.toList()
+            it.clippingPlanes = clippingPlanes?.toList()
             it.clippingPlanesMode = clippingPlanesMode
             it.clipShadows = clipShadows
         }

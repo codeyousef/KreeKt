@@ -14,10 +14,11 @@ class VideoTexture(
     format: TextureFormat = TextureFormat.RGBA8,
     magFilter: TextureFilter = TextureFilter.LINEAR,
     minFilter: TextureFilter = TextureFilter.LINEAR,
-    name: String = "VideoTexture"
-) : Texture(name = name) {
+    textureName: String = "VideoTexture"
+) : Texture() {
 
     init {
+        name = textureName
         this.format = format
         this.magFilter = magFilter
         this.minFilter = minFilter
@@ -69,7 +70,7 @@ class VideoTexture(
         ): VideoTexture = VideoTexture(
             width = if (width > 0) width else 1920, // Default resolution
             height = if (height > 0) height else 1080,
-            name = "VideoTexture($url)"
+            textureName = "VideoTexture($url)"
         ).apply {
             this.loop = loop
             loadFromUrl(url, autoPlay)
@@ -271,7 +272,7 @@ class VideoTexture(
         format = format,
         magFilter = magFilter,
         minFilter = minFilter,
-        name = name
+        textureName = name
     ).apply {
         copy(this@VideoTexture)
 
@@ -306,5 +307,5 @@ class VideoTexture(
     }
 
     override fun toString(): String =
-        "VideoTexture(id=$id, name='$name', ${width}x$height, duration=${duration}s, playing=$isPlaying)"
+        "VideoTexture(id=$id, name='${name}', ${width}x$height, duration=${duration}s, playing=$isPlaying)"
 }

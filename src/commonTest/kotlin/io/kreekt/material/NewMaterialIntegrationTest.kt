@@ -1,6 +1,6 @@
 package io.kreekt.material
 
-import io.kreekt.core.Color
+import io.kreekt.core.math.Color
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
