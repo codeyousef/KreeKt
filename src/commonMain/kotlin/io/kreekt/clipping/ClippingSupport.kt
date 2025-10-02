@@ -67,12 +67,12 @@ class ClippingSupport {
 
         return when {
             materialPlanes.isEmpty() -> globalClippingPlanes
-            globalClippingPlanes.isEmpty() -> materialPlanes as List<Plane>
+            globalClippingPlanes.isEmpty() -> materialPlanes
             else -> {
                 // Combine global and material planes
                 val combined = mutableListOf<MathPlane>()
                 combined.addAll(globalClippingPlanes)
-                combined.addAll(materialPlanes as List<Plane>)
+                combined.addAll(materialPlanes)
 
                 // Limit to maximum supported planes
                 if (combined.size > MAX_CLIPPING_PLANES) {
