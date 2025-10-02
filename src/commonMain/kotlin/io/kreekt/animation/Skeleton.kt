@@ -1,10 +1,7 @@
 package io.kreekt.animation
 
-import io.kreekt.core.math.Euler
+import io.kreekt.animation.skeleton.*
 import io.kreekt.core.math.Matrix4
-import io.kreekt.core.math.Quaternion
-import io.kreekt.core.math.Vector3
-import io.kreekt.core.scene.compose
 
 /**
  * Enhanced Skeleton class with IK chain support and bone constraints.
@@ -17,18 +14,10 @@ class Skeleton(
     val boneInverses: List<Matrix4>? = null
 ) {
 
-    // Bone hierarchy maps
-    private val bonesByName = mutableMapOf<String, Bone>()
-    private val parentChildMap = mutableMapOf<Bone, MutableList<Bone>>()
-    private val childParentMap = mutableMapOf<Bone, Bone>()
-
-    // IK chains
-    private val ikChains = mutableListOf<IKChain>()
-
-    // Pose management
-    private val bindPose = mutableMapOf<Bone, BonePose>()
-    private val currentPose = mutableMapOf<Bone, BonePose>()
-    private val savedPoses = mutableMapOf<String, Map<Bone, BonePose>>()
+    // Core managers
+    private val hierarchyManager = BoneHierarchyManager(bones)
+    private val poseManager = PoseManager(bones)
+    private val ikManager = IKChainManager()
 
     // Update flags
     private var hierarchyNeedsUpdate = true
@@ -37,223 +26,14 @@ class Skeleton(
     init {
         buildHierarchy()
         computeBoneInverses()
-        saveBind()
-    }
-
-    /**
-     * Enhanced Bone class with constraints and limits
-     */
-    data class Bone(
-        val name: String,
-        var position: Vector3 = Vector3(),
-        var rotation: Quaternion = Quaternion(),
-        var scale: Vector3 = Vector3(1f, 1f, 1f),
-        val constraints: BoneConstraints = BoneConstraints(),
-        var userData: Map<String, Any> = emptyMap(),
-        val bindTransform: Matrix4 = Matrix4(),
-        val inverseBindMatrix: Matrix4 = Matrix4(),
-        val parentIndex: Int = -1  // -1 indicates root bone
-    ) {
-        // Local and world matrices
-        val matrix = Matrix4()
-        val matrixWorld = Matrix4()
-
-        // Parent-child relationships
-        var parent: Bone? = null
-        val children = mutableListOf<Bone>()
-
-        fun updateMatrix() {
-            matrix.compose(position, rotation, scale)
-        }
-
-        fun updateMatrixWorld(force: Boolean = false) {
-            updateMatrix()
-
-            if (parent == null) {
-                matrixWorld.copy(matrix)
-            } else {
-                matrixWorld.multiplyMatrices(parent!!.matrixWorld, matrix)
-            }
-
-            if (force) {
-                children.forEach { it.updateMatrixWorld(true) }
-            }
-        }
-
-        fun add(child: Bone) {
-            if (child.parent != null) {
-                child.parent!!.remove(child)
-            }
-            child.parent = this
-            children.add(child)
-        }
-
-        fun remove(child: Bone) {
-            val index = children.indexOf(child)
-            if (index != -1) {
-                child.parent = null
-                children.removeAt(index)
-            }
-        }
-
-        fun getWorldPosition(target: Vector3 = Vector3()): Vector3 {
-            updateMatrixWorld()
-            return target.setFromMatrixPosition(matrixWorld)
-        }
-
-        fun getWorldQuaternion(target: Quaternion = Quaternion()): Quaternion {
-            updateMatrixWorld()
-            matrixWorld.decompose(Vector3(), target, Vector3())
-            return target
-        }
-    }
-
-    /**
-     * Bone constraints for limiting rotation and translation
-     */
-    data class BoneConstraints(
-        // Rotation limits (in radians)
-        val minRotationX: Float = -Float.MAX_VALUE,
-        val maxRotationX: Float = Float.MAX_VALUE,
-        val minRotationY: Float = -Float.MAX_VALUE,
-        val maxRotationY: Float = Float.MAX_VALUE,
-        val minRotationZ: Float = -Float.MAX_VALUE,
-        val maxRotationZ: Float = Float.MAX_VALUE,
-
-        // Translation limits
-        val minTranslationX: Float = -Float.MAX_VALUE,
-        val maxTranslationX: Float = Float.MAX_VALUE,
-        val minTranslationY: Float = -Float.MAX_VALUE,
-        val maxTranslationY: Float = Float.MAX_VALUE,
-        val minTranslationZ: Float = -Float.MAX_VALUE,
-        val maxTranslationZ: Float = Float.MAX_VALUE,
-
-        // Constraint flags
-        val lockRotationX: Boolean = false,
-        val lockRotationY: Boolean = false,
-        val lockRotationZ: Boolean = false,
-        val lockTranslationX: Boolean = false,
-        val lockTranslationY: Boolean = false,
-        val lockTranslationZ: Boolean = false,
-
-        // IK specific constraints
-        val ikEnabled: Boolean = true,
-        val twistAxis: Vector3? = null,
-        val preferredAngle: Float = 0f
-    ) {
-        fun applyRotationConstraints(rotation: Quaternion): Quaternion {
-            val euler = rotation.toEuler()
-
-            // Apply constraints
-            val constrainedX = if (lockRotationX) 0f else
-                euler.x.coerceIn(minRotationX, maxRotationX)
-            val constrainedY = if (lockRotationY) 0f else
-                euler.y.coerceIn(minRotationY, maxRotationY)
-            val constrainedZ = if (lockRotationZ) 0f else
-                euler.z.coerceIn(minRotationZ, maxRotationZ)
-
-            return Quaternion().setFromEuler(constrainedX, constrainedY, constrainedZ)
-        }
-
-        fun applyTranslationConstraints(position: Vector3): Vector3 {
-            return Vector3(
-                if (lockTranslationX) 0f else position.x.coerceIn(minTranslationX, maxTranslationX),
-                if (lockTranslationY) 0f else position.y.coerceIn(minTranslationY, maxTranslationY),
-                if (lockTranslationZ) 0f else position.z.coerceIn(minTranslationZ, maxTranslationZ)
-            )
-        }
-    }
-
-    /**
-     * IK Chain definition
-     */
-    data class IKChain(
-        val name: String,
-        val bones: List<Bone>,
-        val target: Vector3,
-        val poleVector: Vector3? = null,
-        val solver: IKSolverType = IKSolverType.FABRIK,
-        var weight: Float = 1.0f,
-        var iterations: Int = 10,
-        var tolerance: Float = 0.001f,
-        var isEnabled: Boolean = true
-    ) {
-        val effector: Bone get() = bones.last()
-        val root: Bone get() = bones.first()
-
-        fun getChainLength(): Float {
-            var length = 0f
-            for (i in 0 until bones.size - 1) {
-                val bone1 = bones[i]
-                val bone2 = bones[i + 1]
-                length = length + bone1.getWorldPosition().distanceTo(bone2.getWorldPosition())
-            }
-            return length
-        }
-    }
-
-    /**
-     * IK Solver types
-     */
-    enum class IKSolverType {
-        FABRIK,
-        TWO_BONE,
-        CCD,
-        JACOBIAN
-    }
-
-    /**
-     * Bone pose for saving/loading/blending
-     */
-    data class BonePose(
-        val position: Vector3,
-        val rotation: Quaternion,
-        val scale: Vector3
-    ) {
-        constructor(bone: Bone) : this(
-            bone.position.clone(),
-            bone.rotation.clone(),
-            bone.scale.clone()
-        )
-
-        fun applyTo(bone: Bone) {
-            bone.position.copy(position)
-            bone.rotation.copy(rotation)
-            bone.scale.copy(scale)
-        }
-
-        fun clone(): BonePose = BonePose(position.clone(), rotation.clone(), scale.clone())
-
-        fun lerp(other: BonePose, alpha: Float): BonePose {
-            return BonePose(
-                position.clone().lerp(other.position, alpha),
-                rotation.clone().slerp(other.rotation, alpha),
-                scale.clone().lerp(other.scale, alpha)
-            )
-        }
+        poseManager.saveBind()
     }
 
     /**
      * Build bone hierarchy and name lookup
      */
     private fun buildHierarchy() {
-        bonesByName.clear()
-        parentChildMap.clear()
-        childParentMap.clear()
-
-        // Build name lookup
-        bones.forEach { bone ->
-            bonesByName[bone.name] = bone
-        }
-
-        // Build parent-child relationships
-        bones.forEach { bone ->
-            if (bone.parent != null) {
-                parentChildMap.getOrPut(bone.parent!!) { mutableListOf() }.add(bone)
-                childParentMap[bone] = bone.parent!!
-            }
-        }
-
+        hierarchyManager.buildHierarchy()
         hierarchyNeedsUpdate = false
     }
 
@@ -265,16 +45,6 @@ class Skeleton(
             bone.updateMatrixWorld()
         }
         matricesNeedUpdate = false
-    }
-
-    /**
-     * Save bind pose
-     */
-    private fun saveBind() {
-        bindPose.clear()
-        bones.forEach { bone ->
-            bindPose[bone] = BonePose(bone)
-        }
     }
 
     /**
@@ -296,297 +66,106 @@ class Skeleton(
     /**
      * Get bone by name
      */
-    fun getBoneByName(name: String): Bone? = bonesByName[name]
+    fun getBoneByName(name: String): Bone? = hierarchyManager.getBoneByName(name)
 
     /**
      * Add IK chain
      */
     fun addIKChain(chain: IKChain) {
-        ikChains.add(chain)
+        ikManager.addIKChain(chain)
     }
 
     /**
      * Remove IK chain
      */
     fun removeIKChain(name: String) {
-        ikChains.removeAll { it.name == name }
+        ikManager.removeIKChain(name)
     }
 
     /**
      * Get IK chain by name
      */
-    fun getIKChain(name: String): IKChain? = ikChains.find { it.name == name }
+    fun getIKChain(name: String): IKChain? = ikManager.getIKChain(name)
 
     /**
      * Get all IK chains
      */
-    fun getIKChains(): List<IKChain> = ikChains.toList()
+    fun getIKChains(): List<IKChain> = ikManager.getIKChains()
 
     /**
      * Save current pose with name
      */
     fun savePose(name: String) {
-        val pose = mutableMapOf<Bone, BonePose>()
-        bones.forEach { bone ->
-            pose[bone] = BonePose(bone)
-        }
-        savedPoses[name] = pose
+        poseManager.savePose(name)
     }
 
     /**
      * Load saved pose
      */
     fun loadPose(name: String): Boolean {
-        val pose = savedPoses[name] ?: return false
-        pose.forEach { (bone, bonePose) ->
-            bonePose.applyTo(bone)
-        }
-        matricesNeedUpdate = true
-        return true
+        val result = poseManager.loadPose(name)
+        if (result) matricesNeedUpdate = true
+        return result
     }
 
     /**
      * Blend between current pose and saved pose
      */
     fun blendPose(name: String, alpha: Float): Boolean {
-        val targetPose = savedPoses[name] ?: return false
-
-        bones.forEach { bone ->
-            val currentBonePose = BonePose(bone)
-            val targetBonePose = targetPose[bone] ?: return@forEach
-            val blendedPose = currentBonePose.lerp(targetBonePose, alpha)
-            blendedPose.applyTo(bone)
-        }
-
-        matricesNeedUpdate = true
-        return true
+        val result = poseManager.blendPose(name, alpha)
+        if (result) matricesNeedUpdate = true
+        return result
     }
 
     /**
      * Reset to bind pose
      */
     fun resetToBind() {
-        bindPose.forEach { (bone, pose) ->
-            pose.applyTo(bone)
-        }
+        poseManager.resetToBind()
         matricesNeedUpdate = true
     }
 
     /**
      * Get bone children
      */
-    fun getBoneChildren(bone: Bone): List<Bone> = parentChildMap[bone] ?: emptyList()
+    fun getBoneChildren(bone: Bone): List<Bone> = hierarchyManager.getBoneChildren(bone)
 
     /**
      * Get bone parent
      */
-    fun getBoneParent(bone: Bone): Bone? = childParentMap[bone]
+    fun getBoneParent(bone: Bone): Bone? = hierarchyManager.getBoneParent(bone)
 
     /**
      * Get root bones (bones with no parent)
      */
-    fun getRootBones(): List<Bone> = bones.filter { it.parent == null }
+    fun getRootBones(): List<Bone> = hierarchyManager.getRootBones()
 
     /**
      * Get bone path from root to bone
      */
-    fun getBonePath(bone: Bone): List<Bone> {
-        val path = mutableListOf<Bone>()
-        var current: Bone? = bone
-
-        while (current != null) {
-            path.add(0, current)
-            current = current.parent
-        }
-
-        return path
-    }
+    fun getBonePath(bone: Bone): List<Bone> = hierarchyManager.getBonePath(bone)
 
     /**
      * Retarget skeleton to another skeleton structure
      */
     fun retargetTo(targetSkeleton: Skeleton, boneMapping: Map<String, String>): Boolean {
-        val retargetedPoses = mutableMapOf<Bone, BonePose>()
-
-        boneMapping.forEach { (sourceName, targetName) ->
-            val sourceBone = getBoneByName(sourceName)
-            val targetBone = targetSkeleton.getBoneByName(targetName)
-
-            if (sourceBone != null && targetBone != null) {
-                retargetedPoses[targetBone] = BonePose(sourceBone)
-            }
-        }
-
-        // Apply retargeted poses
-        retargetedPoses.forEach { (bone, pose) ->
-            pose.applyTo(bone)
-        }
-
-        targetSkeleton.matricesNeedUpdate = true
-        return retargetedPoses.isNotEmpty()
+        val result = poseManager.retargetTo(targetSkeleton, boneMapping, hierarchyManager)
+        if (result) targetSkeleton.matricesNeedUpdate = true
+        return result
     }
 
     /**
      * Calculate bone lengths for the skeleton
      */
-    fun calculateBoneLengths(): Map<Bone, Float> {
-        val boneLengths = mutableMapOf<Bone, Float>()
-
-        bones.forEach { bone ->
-            val children = getBoneChildren(bone)
-            if (children.isNotEmpty()) {
-                val bonePos = bone.getWorldPosition()
-                val avgChildPos = Vector3()
-                children.forEach { child ->
-                    avgChildPos.add(child.getWorldPosition())
-                }
-                avgChildPos.divideScalar(children.size.toFloat())
-                boneLengths[bone] = bonePos.distanceTo(avgChildPos)
-            } else {
-                // Leaf bone - use parent distance or default
-                val parent = getBoneParent(bone)
-                if (parent != null) {
-                    boneLengths[bone] = bone.getWorldPosition().distanceTo(parent.getWorldPosition())
-                } else {
-                    boneLengths[bone] = 1.0f // Default length
-                }
-            }
-        }
-
-        return boneLengths
-    }
+    fun calculateBoneLengths(): Map<Bone, Float> = hierarchyManager.calculateBoneLengths()
 
     /**
      * Validate skeleton hierarchy
      */
-    fun validateHierarchy(): List<String> {
-        val errors = mutableListOf<String>()
-
-        // Check for circular dependencies
-        bones.forEach { bone ->
-            val visited = mutableSetOf<Bone>()
-            var current: Bone? = bone
-
-            while (current != null) {
-                if (current in visited) {
-                    errors.add("Circular dependency detected involving bone: ${bone.name}")
-                    break
-                }
-                visited.add(current)
-                current = current.parent
-            }
-        }
-
-        // Check for orphaned bones
-        val connectedBones = mutableSetOf<Bone>()
-        getRootBones().forEach { root ->
-            addBoneAndChildren(root, connectedBones)
-        }
-
-        val orphanedBones = bones.filter { it !in connectedBones }
-        orphanedBones.forEach { bone ->
-            errors.add("Orphaned bone detected: ${bone.name}")
-        }
-
-        return errors
-    }
-
-    private fun addBoneAndChildren(bone: Bone, set: MutableSet<Bone>) {
-        set.add(bone)
-        getBoneChildren(bone).forEach { child ->
-            addBoneAndChildren(child, set)
-        }
-    }
+    fun validateHierarchy(): List<String> = hierarchyManager.validateHierarchy()
 
     fun dispose() {
-        ikChains.clear()
-        savedPoses.clear()
-        bindPose.clear()
-        currentPose.clear()
-        bonesByName.clear()
-        parentChildMap.clear()
-        childParentMap.clear()
+        ikManager.clear()
+        poseManager.clear()
     }
-}
-
-// Extension functions for math operations
-private fun Quaternion.toEuler(): Vector3 {
-    // Convert quaternion to Euler angles
-    val euler = Euler().setFromQuaternion(this)
-    return Vector3(euler.x, euler.y, euler.z)
-}
-
-private fun Quaternion.setFromEuler(x: Float, y: Float, z: Float): Quaternion {
-    // Set quaternion from Euler angles
-    val euler = Euler(x, y, z)
-    return this.setFromEuler(euler)
-}
-
-private fun Vector3.setFromMatrixPosition(matrix: Matrix4): Vector3 {
-    // Extract position from matrix
-    val e = matrix.elements
-    this.x = e[12]
-    this.y = e[13]
-    this.z = e[14]
-    return this
-}
-
-// Matrix4.compose is now available from io.kreekt.core.scene.compose
-
-private fun Matrix4.decompose(position: Vector3, quaternion: Quaternion, scale: Vector3): Matrix4 {
-    // Decompose matrix into position, quaternion, and scale components
-    val te = elements
-
-    // Extract scale
-    var sx = Vector3(te[0], te[1], te[2]).length()
-    val sy = Vector3(te[4], te[5], te[6]).length()
-    val sz = Vector3(te[8], te[9], te[10]).length()
-
-    // Check for negative determinant
-    val det = determinant()
-    if (det < 0) sx = -sx
-
-    // Extract position
-    position.x = te[12]
-    position.y = te[13]
-    position.z = te[14]
-
-    // Scale the rotation part
-    val matrix = this.clone()
-    val invSX = 1f / sx
-    val invSY = 1f / sy
-    val invSZ = 1f / sz
-
-    matrix.elements[0] *= invSX
-    matrix.elements[1] *= invSX
-    matrix.elements[2] *= invSX
-
-    matrix.elements[4] *= invSY
-    matrix.elements[5] *= invSY
-    matrix.elements[6] *= invSY
-
-    matrix.elements[8] *= invSZ
-    matrix.elements[9] *= invSZ
-    matrix.elements[10] *= invSZ
-
-    // Extract rotation as quaternion
-    quaternion.setFromRotationMatrix(matrix)
-
-    // Set scale
-    scale.x = sx
-    scale.y = sy
-    scale.z = sz
-
-    return this
-}
-
-private fun Matrix4.copy(other: Matrix4): Matrix4 {
-    // Copy matrix elements
-    other.elements.copyInto(this.elements)
-    return this
-}
-
-private fun Matrix4.multiplyMatrices(a: Matrix4, b: Matrix4): Matrix4 {
-    // Matrix multiplication - delegates to the existing Matrix4 method
-    return this.multiplyMatrices(a, b)
 }
