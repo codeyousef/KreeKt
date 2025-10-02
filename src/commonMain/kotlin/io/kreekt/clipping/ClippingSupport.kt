@@ -4,6 +4,7 @@ import io.kreekt.core.math.Vector3
 import io.kreekt.core.math.Vector4
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Sphere
+import io.kreekt.core.math.Plane as MathPlane
 import io.kreekt.material.Material
 
 /**
@@ -20,7 +21,7 @@ class ClippingSupport {
     /**
      * Global clipping planes applied to all objects in the scene.
      */
-    var globalClippingPlanes: List<Plane> = emptyList()
+    var globalClippingPlanes: List<MathPlane> = emptyList()
         set(value) {
             require(value.size <= MAX_CLIPPING_PLANES) {
                 "Maximum $MAX_CLIPPING_PLANES clipping planes supported, got ${value.size}"
@@ -59,7 +60,7 @@ class ClippingSupport {
      * Get the combined clipping planes for an object.
      * Merges global and material-specific clipping planes.
      */
-    fun getCombinedClippingPlanes(material: Material?): List<Plane> {
+    fun getCombinedClippingPlanes(material: Material?): List<MathPlane> {
         if (!enabled) return emptyList()
 
         val materialPlanes = material?.clippingPlanes ?: emptyList()
@@ -69,13 +70,13 @@ class ClippingSupport {
             globalClippingPlanes.isEmpty() -> materialPlanes as List<Plane>
             else -> {
                 // Combine global and material planes
-                val combined = mutableListOf<Plane>()
+                val combined = mutableListOf<MathPlane>()
                 combined.addAll(globalClippingPlanes)
                 combined.addAll(materialPlanes as List<Plane>)
 
                 // Limit to maximum supported planes
                 if (combined.size > MAX_CLIPPING_PLANES) {
-                    combined.subList(0, MAX_CLIPPING_PLANES)
+                    combined.take(MAX_CLIPPING_PLANES)
                 } else {
                     combined
                 }
@@ -218,7 +219,7 @@ class ClippingSupport {
 /**
  * Extension for Material to support clipping planes.
  */
-var Material.clippingPlanes: List<Plane>?
+var Material.clippingPlanes: List<MathPlane>?
     get() = materialClippingPlanes[this]
     set(value) {
         if (value == null) {
@@ -244,7 +245,7 @@ var Material.clipShadows: Boolean
     }
 
 // Private storage for material clipping properties
-private val materialClippingPlanes = mutableMapOf<Material, List<Plane>>()
+private val materialClippingPlanes = mutableMapOf<Material, List<MathPlane>>()
 private val materialClipIntersection = mutableMapOf<Material, Boolean>()
 private val materialClipShadows = mutableMapOf<Material, Boolean>()
 
@@ -256,30 +257,30 @@ object ClippingPlanePresets {
     /**
      * Create a box clipping setup (6 planes).
      */
-    fun createBoxClipping(center: Vector3 = Vector3(), size: Vector3 = Vector3(1f, 1f, 1f)): List<Plane> {
+    fun createBoxClipping(center: Vector3 = Vector3(), size: Vector3 = Vector3(1f, 1f, 1f)): List<MathPlane> {
         val halfSize = size.clone().multiplyScalar(0.5f)
 
         return listOf(
             // +X face
-            Plane(Vector3(1f, 0f, 0f), -(center.x + halfSize.x)),
+            MathPlane(Vector3(1f, 0f, 0f), -(center.x + halfSize.x)),
             // -X face
-            Plane(Vector3(-1f, 0f, 0f), center.x - halfSize.x),
+            MathPlane(Vector3(-1f, 0f, 0f), center.x - halfSize.x),
             // +Y face
-            Plane(Vector3(0f, 1f, 0f), -(center.y + halfSize.y)),
+            MathPlane(Vector3(0f, 1f, 0f), -(center.y + halfSize.y)),
             // -Y face
-            Plane(Vector3(0f, -1f, 0f), center.y - halfSize.y),
+            MathPlane(Vector3(0f, -1f, 0f), center.y - halfSize.y),
             // +Z face
-            Plane(Vector3(0f, 0f, 1f), -(center.z + halfSize.z)),
+            MathPlane(Vector3(0f, 0f, 1f), -(center.z + halfSize.z)),
             // -Z face
-            Plane(Vector3(0f, 0f, -1f), center.z - halfSize.z)
+            MathPlane(Vector3(0f, 0f, -1f), center.z - halfSize.z)
         )
     }
 
     /**
      * Create a sphere clipping setup (approximated with planes).
      */
-    fun createSphereClipping(center: Vector3, radius: Float, segments: Int = 8): List<Plane> {
-        val planes = mutableListOf<Plane>()
+    fun createSphereClipping(center: Vector3, radius: Float, segments: Int = 8): List<MathPlane> {
+        val planes = mutableListOf<MathPlane>()
 
         for (i in 0 until segments) {
             val angle = (i * 2 * kotlin.math.PI / segments).toFloat()
@@ -290,7 +291,7 @@ object ClippingPlanePresets {
             )
 
             planes.add(
-                Plane(normal, -radius).translate(center)
+                MathPlane(normal, -radius).translate(center)
             )
         }
 
@@ -303,8 +304,8 @@ object ClippingPlanePresets {
     fun createCuttingPlane(
         normal: Vector3,
         point: Vector3
-    ): List<Plane> {
-        return listOf(Plane().setFromNormalAndCoplanarPoint(normal, point))
+    ): List<MathPlane> {
+        return listOf(MathPlane().setFromNormalAndCoplanarPoint(normal, point))
     }
 }
 

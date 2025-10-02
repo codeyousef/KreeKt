@@ -402,8 +402,9 @@ open class PointsMaterial : Material() {
         // Post-render cleanup
     }
 
-    override var version: Int = 0
+    override var version: Int
         get() = renderCount
+        set(value) { /* no-op */ }
 
     override fun clone(): Material {
         return PointsMaterial().also {
