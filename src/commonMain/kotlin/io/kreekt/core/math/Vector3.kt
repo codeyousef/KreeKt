@@ -4,8 +4,130 @@ import kotlinx.serialization.Serializable
 import kotlin.math.*
 
 /**
- * 3D vector implementation
- * T027 - Vector3 class
+ * # Vector3 - Three-Component Vector
+ *
+ * A three-dimensional vector with x, y, and z components. Vector3 is one of the most
+ * fundamental classes in KreeKt, used for positions, directions, scales, colors, and more.
+ *
+ * ## Overview
+ *
+ * Vector3 provides:
+ * - **Arithmetic Operations**: Add, subtract, multiply, divide (component-wise and scalar)
+ * - **Vector Math**: Dot product, cross product, length, normalization
+ * - **Transformations**: Apply matrices and quaternions
+ * - **Interpolation**: Linear interpolation between vectors
+ * - **Operator Overloading**: Natural mathematical syntax with Kotlin operators
+ * - **Three.js Compatibility**: Familiar API matching Three.js patterns
+ *
+ * ## Basic Usage
+ *
+ * ```kotlin
+ * // Create vectors
+ * val position = Vector3(10f, 0f, 5f)
+ * val direction = Vector3(0f, 1f, 0f) // Up
+ *
+ * // Arithmetic operations (mutable)
+ * position.add(Vector3(1f, 0f, 0f))
+ * direction.multiply(2f)
+ *
+ * // Arithmetic with operators (immutable)
+ * val sum = position + direction
+ * val scaled = direction * 3f
+ * val difference = position - Vector3.ZERO
+ *
+ * // Vector operations
+ * val length = position.length()
+ * val normalized = position.normalized()
+ * val distance = position.distance(Vector3.ZERO)
+ * ```
+ *
+ * ## Vector Operations
+ *
+ * ```kotlin
+ * val a = Vector3(1f, 0f, 0f)
+ * val b = Vector3(0f, 1f, 0f)
+ *
+ * // Dot product (scalar)
+ * val dot = a.dot(b) // 0.0
+ *
+ * // Cross product (perpendicular vector)
+ * val cross = a.clone().cross(b) // Vector3(0, 0, 1)
+ *
+ * // Normalization
+ * val dir = Vector3(3f, 4f, 0f)
+ * dir.normalize() // Length becomes 1.0
+ * ```
+ *
+ * ## Transformations
+ *
+ * ```kotlin
+ * // Apply transformation matrix
+ * val point = Vector3(1f, 2f, 3f)
+ * point.applyMatrix4(transformMatrix)
+ *
+ * // Apply rotation quaternion
+ * val direction = Vector3(1f, 0f, 0f)
+ * direction.applyQuaternion(rotation)
+ *
+ * // Transform direction (no translation)
+ * direction.transformDirection(matrix)
+ * ```
+ *
+ * ## Interpolation
+ *
+ * ```kotlin
+ * val start = Vector3(0f, 0f, 0f)
+ * val end = Vector3(10f, 10f, 10f)
+ *
+ * // Linear interpolation
+ * val mid = start.clone().lerp(end, 0.5f) // Vector3(5, 5, 5)
+ *
+ * // Between two vectors
+ * val result = Vector3().lerpVectors(start, end, 0.25f)
+ * ```
+ *
+ * ## Mutable vs Immutable Operations
+ *
+ * Most methods modify the vector in-place for performance:
+ * ```kotlin
+ * val v = Vector3(1f, 2f, 3f)
+ * v.add(Vector3(1f, 1f, 1f)) // v is now (2, 3, 4)
+ * ```
+ *
+ * Use [clone] or operators for immutable operations:
+ * ```kotlin
+ * val v1 = Vector3(1f, 2f, 3f)
+ * val v2 = v1 + Vector3(1f, 1f, 1f) // v1 unchanged, v2 is (2, 3, 4)
+ * ```
+ *
+ * ## Performance Considerations
+ *
+ * - Reuse vectors with [set] instead of creating new instances
+ * - Use in-place operations (add, multiply) for better performance
+ * - Consider object pooling for frequently allocated vectors
+ * - Operators create new instances - use sparingly in hot code paths
+ *
+ * ## Coordinate System
+ *
+ * KreeKt uses a right-handed coordinate system:
+ * - +X: Right
+ * - +Y: Up
+ * - +Z: Forward (toward viewer)
+ *
+ * @property x The x-component of the vector
+ * @property y The y-component of the vector
+ * @property z The z-component of the vector
+ *
+ * @constructor Creates a vector with the specified components
+ *
+ * @see Vector2 Two-component vector
+ * @see Vector4 Four-component vector
+ * @see Matrix4 For transformations
+ * @see Quaternion For rotations
+ *
+ * @since 1.0.0
+ * @sample io.kreekt.samples.Vector3Samples.basicOperations
+ * @sample io.kreekt.samples.Vector3Samples.transformations
  */
 @Serializable
 data class Vector3(
@@ -18,6 +140,16 @@ data class Vector3(
     constructor(v2: Vector2, z: Float = 0f) : this(v2.x, v2.y, z)
 
     // Basic operations
+
+    /**
+     * Sets the components of this vector.
+     *
+     * @param x The new x-component
+     * @param y The new y-component
+     * @param z The new z-component
+     * @return This vector for method chaining
+     * @since 1.0.0
+     */
     fun set(x: Float, y: Float, z: Float): Vector3 {
         this.x = x
         this.y = y
@@ -25,10 +157,39 @@ data class Vector3(
         return this
     }
 
+    /**
+     * Sets all components to the same scalar value.
+     *
+     * @param scalar The value to set for all components
+     * @return This vector for method chaining
+     * @since 1.0.0
+     */
     fun set(scalar: Float): Vector3 = set(scalar, scalar, scalar)
+
+    /**
+     * Sets this vector's components from another vector.
+     *
+     * @param other The vector to copy from
+     * @return This vector for method chaining
+     * @since 1.0.0
+     */
     fun set(other: Vector3): Vector3 = set(other.x, other.y, other.z)
 
+    /**
+     * Copies the values from another vector into this vector.
+     *
+     * @param other The vector to copy from
+     * @return This vector for method chaining
+     * @since 1.0.0
+     */
     fun copy(other: Vector3): Vector3 = set(other)
+
+    /**
+     * Creates a new vector with the same component values as this vector.
+     *
+     * @return A new Vector3 instance with identical values
+     * @since 1.0.0
+     */
     fun clone(): Vector3 = Vector3(x, y, z)
 
     // Arithmetic operations

@@ -7,37 +7,154 @@ import io.kreekt.renderer.CubeTexture
 import io.kreekt.renderer.Texture
 
 /**
- * Scene represents the root of a 3D object hierarchy.
- * Compatible with Three.js Scene API.
+ * # Scene - Root Container for 3D Content
  *
- * A Scene contains all the objects that should be rendered,
- * including meshes, lights, cameras, and other objects.
- * It also manages scene-wide properties like background and fog.
+ * The scene is the root of the object hierarchy and the primary container for all renderable
+ * content in KreeKt. It manages scene-wide properties like background, fog, and environment
+ * lighting while serving as the starting point for rendering.
+ *
+ * ## Overview
+ *
+ * A Scene provides:
+ * - **Object Container**: Hierarchical organization of meshes, lights, and cameras
+ * - **Visual Environment**: Background colors, textures, or gradients
+ * - **Atmospheric Effects**: Fog for depth cueing and atmosphere
+ * - **Global Lighting**: Environment maps for image-based lighting (IBL)
+ * - **Material Override**: Global material replacement for special rendering passes
+ *
+ * ## Basic Usage
+ *
+ * ```kotlin
+ * // Create a scene with background and fog
+ * val scene = Scene().apply {
+ *     background = Background.Color(Color(0x87CEEB)) // Sky blue
+ *     fog = Fog.Linear(
+ *         color = Color(0xCCCCCC),
+ *         near = 10f,
+ *         far = 100f
+ *     )
+ * }
+ *
+ * // Add objects to scene
+ * scene.add(mesh, light, camera)
+ *
+ * // Render the scene
+ * renderer.render(scene, camera)
+ * ```
+ *
+ * ## Scene Builder DSL
+ *
+ * KreeKt provides a declarative DSL for scene construction:
+ *
+ * ```kotlin
+ * val scene = scene {
+ *     // Set background
+ *     background(Color(0x000000))
+ *
+ *     // Add fog
+ *     fog(Color(0xFFFFFF), near = 1f, far = 100f)
+ *
+ *     // Create hierarchies
+ *     group("buildings") {
+ *         position(0f, 0f, 0f)
+ *         add(building1, building2)
+ *     }
+ * }
+ * ```
+ *
+ * ## Background Options
+ *
+ * Scenes support three types of backgrounds:
+ * 1. **Solid Color**: `Background.Color(color)`
+ * 2. **Skybox/Cubemap**: `Background.Texture(cubeTexture)`
+ * 3. **Gradient**: `Background.Gradient(topColor, bottomColor)`
+ *
+ * ## Fog Types
+ *
+ * Two fog implementations are available:
+ * - **Linear**: Fog density increases linearly between near and far distances
+ * - **Exponential**: Fog density increases exponentially with distance
+ *
+ * ## Environment Lighting
+ *
+ * Set an environment map for realistic image-based lighting:
+ * ```kotlin
+ * scene.environment = loadCubeTexture("environment.hdr")
+ * ```
+ *
+ * ## Performance Considerations
+ *
+ * - Scene itself has no transform (fixed at origin)
+ * - Set [autoUpdate] to false for static scenes to skip unnecessary updates
+ * - Use layers to control which objects are rendered
+ * - Organize objects hierarchically for efficient culling
+ *
+ * @property background Visual background for the scene (null for transparent)
+ * @property environment Environment map for IBL and reflections (null for no environment)
+ * @property fog Atmospheric fog effect (null for no fog)
+ * @property overrideMaterial Material to use for all objects (null for default materials)
+ * @property autoUpdate Whether to automatically update scene state each frame (default: true)
+ *
+ * @see Object3D Parent class providing hierarchy and transformation
+ * @see Background Scene background options
+ * @see Fog Atmospheric fog types
+ * @see scene DSL function for declarative scene construction
+ *
+ * @since 1.0.0
+ * @sample io.kreekt.samples.SceneSamples.basicScene
+ * @sample io.kreekt.samples.SceneSamples.sceneWithEnvironment
  */
 class Scene : Object3D() {
 
     /**
-     * Scene background - can be a color, texture, or gradient
+     * Scene background - can be a solid color, cube texture (skybox), or gradient.
+     *
+     * Set to null for a transparent background (useful for AR or compositing).
+     *
+     * @see Background
+     * @since 1.0.0
      */
     var background: Background? = null
 
     /**
-     * Environment map for image-based lighting
+     * Environment cubemap for image-based lighting and reflections.
+     *
+     * When set, materials with environment mapping will use this texture
+     * for realistic lighting and reflections.
+     *
+     * @see CubeTexture
+     * @since 1.0.0
      */
     var environment: CubeTexture? = null
 
     /**
-     * Scene fog for atmospheric effects
+     * Fog effect applied to all objects in the scene based on distance.
+     *
+     * Objects farther from the camera are progressively tinted with the fog color,
+     * creating atmospheric depth and limiting visible range.
+     *
+     * @see Fog
+     * @since 1.0.0
      */
     var fog: Fog? = null
 
     /**
-     * Override material for all objects in the scene
+     * Material that overrides all object materials during rendering.
+     *
+     * Useful for special rendering passes like depth rendering, normals, or
+     * shadow map generation. Set to null to use each object's own material.
+     *
+     * @see Material
+     * @since 1.0.0
      */
     var overrideMaterial: Material? = null
 
     /**
-     * Whether to auto-update the scene
+     * Whether scene properties are automatically updated each frame.
+     *
+     * Set to false for completely static scenes to improve performance.
+     *
+     * @since 1.0.0
      */
     var autoUpdate: Boolean = true
 

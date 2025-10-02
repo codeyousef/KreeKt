@@ -3,17 +3,102 @@ package io.kreekt.core.scene
 import io.kreekt.core.math.*
 
 /**
- * Base class for all objects in the 3D scene.
- * Compatible with Three.js Object3D API.
+ * # Object3D - Base Class for 3D Scene Objects
  *
- * Object3D provides the foundation for all 3D objects (including meshes), lights, cameras, and groups.
- * It manages transformation, hierarchy, and common properties.
+ * The foundation of all 3D objects in KreeKt's scene graph. Object3D provides transformation,
+ * hierarchy management, and lifecycle capabilities for meshes, lights, cameras, and groups.
  *
- * Implementation is split across multiple files:
- * - Object3DCore.kt: Core functionality, layers, events
- * - Object3DHierarchy.kt: Hierarchy management (add, remove, traverse)
- * - Object3DTransform.kt: Transformation operations (rotate, translate, matrix)
- * - Object3DExtensions.kt: Extension functions for supporting classes
+ * ## Overview
+ *
+ * Object3D is the base class for most objects in KreeKt and provides:
+ * - **Transformation**: Position, rotation, scale in local and world space
+ * - **Hierarchy**: Parent-child relationships for complex scene structures
+ * - **Matrix Management**: Automatic matrix updates with dirty flagging for performance
+ * - **Visibility Control**: Show/hide objects and control shadow casting
+ * - **Layer System**: Selective rendering based on layer membership
+ * - **Events**: Callbacks for before/after rendering
+ *
+ * ## Basic Usage
+ *
+ * ```kotlin
+ * // Create and position an object
+ * val obj = Mesh(geometry, material)
+ * obj.position.set(10f, 0f, 0f)
+ * obj.rotation.y = PI.toFloat() / 4f
+ * obj.scale.set(2f, 2f, 2f)
+ *
+ * // Add to scene hierarchy
+ * scene.add(obj)
+ *
+ * // Access world transform
+ * val worldPos = obj.getWorldPosition()
+ * val worldDir = obj.getWorldDirection()
+ * ```
+ *
+ * ## Transformation Hierarchy
+ *
+ * Object3D maintains both local and world transformation:
+ * - **Local**: Relative to parent ([position], [rotation], [scale], [quaternion])
+ * - **World**: Absolute position in scene ([matrixWorld], [getWorldPosition])
+ *
+ * ```kotlin
+ * val parent = Group()
+ * parent.position.x = 100f
+ *
+ * val child = Mesh(geometry, material)
+ * child.position.x = 50f
+ * parent.add(child)
+ *
+ * // Child's local position is (50, 0, 0)
+ * // Child's world position is (150, 0, 0)
+ * val worldPos = child.getWorldPosition() // Vector3(150, 0, 0)
+ * ```
+ *
+ * ## Performance Optimization
+ *
+ * Object3D uses dirty flagging to minimize matrix computations:
+ * - Only recalculates matrices when transforms change
+ * - Caches world matrix until invalidated
+ * - Propagates updates efficiently through hierarchy
+ *
+ * Set [matrixAutoUpdate] to `false` for static objects to skip updates entirely.
+ *
+ * ## Architecture
+ *
+ * The implementation is split across multiple files for maintainability:
+ * - **Object3DCore.kt**: Core functionality, layers, events
+ * - **Object3DHierarchy.kt**: Hierarchy management (add, remove, traverse)
+ * - **Object3DTransform.kt**: Transformation operations (rotate, translate, lookAt)
+ * - **Object3DExtensions.kt**: Extension functions for supporting classes
+ *
+ * @property id Unique identifier automatically assigned to each instance
+ * @property name Human-readable name for debugging and identification
+ * @property position Local position relative to parent (default: origin)
+ * @property rotation Local rotation as Euler angles in radians
+ * @property scale Local scale factors (default: uniform scale of 1)
+ * @property quaternion Local rotation as a quaternion (synced with [rotation])
+ * @property matrix Local transformation matrix (position + rotation + scale)
+ * @property matrixWorld World transformation matrix (accumulated from parent chain)
+ * @property matrixAutoUpdate Whether to automatically update [matrix] each frame (default: true)
+ * @property matrixWorldNeedsUpdate Flag indicating [matrixWorld] needs recomputation
+ * @property visible Whether this object and its children are rendered (default: true)
+ * @property castShadow Whether this object casts shadows (default: false)
+ * @property receiveShadow Whether this object receives shadows (default: false)
+ * @property parent Parent object in the scene hierarchy (null for root objects)
+ * @property children List of child objects (read-only access)
+ * @property layers Layer membership for selective rendering
+ * @property userData Custom properties storage for application-specific data
+ * @property onBeforeRender Optional callback invoked before rendering this object
+ * @property onAfterRender Optional callback invoked after rendering this object
+ *
+ * @see Scene Root of the scene graph
+ * @see Mesh Renderable 3D object combining geometry and material
+ * @see Group Container for organizing objects in hierarchy
+ * @see Camera Viewpoint for rendering the scene
+ *
+ * @since 1.0.0
+ * @sample io.kreekt.samples.Object3DSamples.basicTransform
+ * @sample io.kreekt.samples.Object3DSamples.hierarchyManagement
  */
 abstract class Object3D {
 
@@ -123,7 +208,14 @@ abstract class Object3D {
         updateWorldMatrixWithOptions(updateParents, updateChildren)
 
     /**
-     * Gets the bounding box of this object
+     * Computes the axis-aligned bounding box (AABB) of this object in local space.
+     *
+     * The bounding box encompasses all vertices of the object's geometry.
+     * Override this method in subclasses to provide accurate bounds calculation.
+     *
+     * @return [Box3] representing the object's bounds in local coordinates
+     * @see Box3
+     * @since 1.0.0
      */
     open fun getBoundingBox(): Box3 {
         // Default implementation returns empty box
@@ -131,8 +223,35 @@ abstract class Object3D {
     }
 
     /**
-     * Updates the world transformation matrix
-     * OPTIMIZED: Only updates when dirty flag is set or forced
+     * Updates the world transformation matrix for this object and optionally its children.
+     *
+     * This method:
+     * - Recalculates the local matrix from position/rotation/scale if needed
+     * - Combines with parent's world matrix to produce this object's world matrix
+     * - Recursively updates children if the world matrix changed or [force] is true
+     *
+     * ## Performance Optimization
+     *
+     * Uses dirty flagging to skip unnecessary updates:
+     * - Only processes when transforms changed or forced
+     * - Tracks matrix versions to minimize recomputation
+     * - Efficiently propagates updates through hierarchy
+     *
+     * Example:
+     * ```kotlin
+     * // Manually trigger world matrix update
+     * obj.position.x = 10f
+     * obj.updateMatrixWorld(force = true)
+     *
+     * // For static objects, disable auto-update
+     * staticObj.matrixAutoUpdate = false
+     * staticObj.updateMatrix() // Manual update when needed
+     * ```
+     *
+     * @param force If true, forces update of this object and all descendants regardless of dirty flags
+     * @see updateMatrix For updating only the local matrix
+     * @see matrixAutoUpdate To control automatic updates
+     * @since 1.0.0
      */
     open fun updateMatrixWorld(force: Boolean = false) {
         // Performance: Skip if nothing changed and not forced
