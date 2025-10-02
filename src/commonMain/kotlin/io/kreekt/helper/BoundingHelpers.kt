@@ -4,7 +4,7 @@ import io.kreekt.core.math.Vector3
 import io.kreekt.core.math.Box3
 import io.kreekt.core.math.Color
 import io.kreekt.core.scene.Object3D
-import io.kreekt.geometry.BoxGeometry
+import io.kreekt.geometry.primitives.BoxGeometry
 import io.kreekt.geometry.BufferGeometry
 import io.kreekt.geometry.BufferAttribute
 import io.kreekt.material.LineBasicMaterial

@@ -4,6 +4,7 @@
  */
 package io.kreekt.geometry
 
+import io.kreekt.geometry.primitives.CylinderGeometry
 import kotlin.math.PI
 
 /**
