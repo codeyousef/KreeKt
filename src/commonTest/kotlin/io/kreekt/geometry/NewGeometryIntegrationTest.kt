@@ -2,6 +2,8 @@ package io.kreekt.geometry
 
 import io.kreekt.core.math.Vector3
 import io.kreekt.curve.LineCurve3
+import io.kreekt.geometry.primitives.BoxGeometry
+import io.kreekt.geometry.primitives.SphereGeometry
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.test.assertEquals

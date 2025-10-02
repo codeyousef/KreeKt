@@ -4,7 +4,7 @@ import io.kreekt.core.math.Vector3
 import io.kreekt.core.math.Vector4
 import io.kreekt.core.math.Plane
 import io.kreekt.geometry.BufferGeometry
-import io.kreekt.geometry.BoxGeometry
+import io.kreekt.geometry.primitives.BoxGeometry
 import io.kreekt.material.Material
 import io.kreekt.material.MeshBasicMaterial
 import io.kreekt.renderer.Renderer

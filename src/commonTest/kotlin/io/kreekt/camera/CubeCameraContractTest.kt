@@ -14,7 +14,7 @@ package io.kreekt.camera
 import io.kreekt.core.math.Vector3
 import io.kreekt.core.scene.Scene
 import io.kreekt.core.scene.Mesh
-import io.kreekt.geometry.BoxGeometry
+import io.kreekt.geometry.primitives.BoxGeometry
 import io.kreekt.material.MeshStandardMaterial
 import io.kreekt.texture.CubeTexture
 import kotlin.test.Test

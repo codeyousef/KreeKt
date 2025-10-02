@@ -17,9 +17,9 @@ import io.kreekt.core.math.Vector3
 import io.kreekt.core.scene.Background
 import io.kreekt.core.scene.Mesh
 import io.kreekt.core.scene.Scene
-import io.kreekt.geometry.BoxGeometry
-import io.kreekt.geometry.PlaneGeometry
-import io.kreekt.geometry.SphereGeometry
+import io.kreekt.geometry.primitives.BoxGeometry
+import io.kreekt.geometry.primitives.PlaneGeometry
+import io.kreekt.geometry.primitives.SphereGeometry
 import io.kreekt.material.SimpleMaterial
 import io.kreekt.renderer.Renderer
 import io.kreekt.renderer.createRenderer

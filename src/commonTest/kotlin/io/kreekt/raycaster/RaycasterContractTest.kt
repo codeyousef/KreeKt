@@ -15,7 +15,7 @@ package io.kreekt.raycaster
 import io.kreekt.camera.PerspectiveCamera
 import io.kreekt.core.scene.Object3D
 import io.kreekt.core.scene.Mesh
-import io.kreekt.geometry.BoxGeometry
+import io.kreekt.geometry.primitives.BoxGeometry
 import io.kreekt.material.MeshBasicMaterial
 import io.kreekt.core.math.Vector2
 import io.kreekt.core.math.Vector3

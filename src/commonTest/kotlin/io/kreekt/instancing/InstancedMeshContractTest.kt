@@ -17,7 +17,7 @@ import io.kreekt.core.math.Euler
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Vector3
 import io.kreekt.core.math.Quaternion
-import io.kreekt.geometry.BoxGeometry
+import io.kreekt.geometry.primitives.BoxGeometry
 import io.kreekt.geometry.BufferGeometry
 import io.kreekt.material.MeshBasicMaterial
 import io.kreekt.material.Material

@@ -6,9 +6,17 @@ package io.kreekt.texture
 actual class CanvasTexture actual constructor(
     width: Int,
     height: Int
-) : CanvasTextureBase(width, height) {
+) : CanvasTextureBase() {
+
+    actual override val width: Int = width
+    actual override val height: Int = height
 
     private val imageData = ByteArray(width * height * 4)
+
+    init {
+        // Initialize AFTER all properties are created
+        initCanvasTexture("CanvasTexture")
+    }
 
     /**
      * Clear canvas to solid color
