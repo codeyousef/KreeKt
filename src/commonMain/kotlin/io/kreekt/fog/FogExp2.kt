@@ -16,11 +16,11 @@ import kotlin.math.min
  * - Higher density = thicker fog
  */
 class FogExp2(
-    var color: Color = Color(0xffffff),
+    override var color: Color = Color(0xffffff),
     var density: Float = 0.00025f
-) {
+) : FogBase {
     val isFogExp2: Boolean = true
-    val name: String = "FogExp2"
+    override val name: String = "FogExp2"
 
     // Placeholder geometry for compatibility
     val geometry: BufferGeometry = BufferGeometry()

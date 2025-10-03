@@ -72,7 +72,6 @@ class AdvancedAssetLoader {
                 ModelFormat.FBX -> loadFBX(path, options)
                 ModelFormat.USD -> loadUSD(path, options)
                 ModelFormat.COLLADA -> loadCOLLADA(path, options)
-                else -> throw UnsupportedOperationException("Unsupported model format: $format")
             }
 
             if (options.enableCaching) {

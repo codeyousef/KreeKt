@@ -117,6 +117,7 @@ class DefaultXRController(
         axisChangeCallbacks.getOrPut(axis) { mutableListOf() }.add(callback)
     }
 
+    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
     private fun startConnectionMonitoring() {
         connectionMonitorJob = GlobalScope.launch {
             while (true) {

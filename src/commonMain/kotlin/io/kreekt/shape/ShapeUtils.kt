@@ -1,7 +1,8 @@
 package io.kreekt.shape
 
 import io.kreekt.core.math.Vector2
-import kotlin.math.*
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Shape utility functions including Earcut triangulation algorithm
@@ -92,10 +93,8 @@ object ShapeUtils {
             outerNode = eliminateHoles(data, holeIndices, outerNode, dim)
         }
 
-        // Run ear clipping
-        if (outerNode != null) {
-            earcutLinked(outerNode, triangles, dim)
-        }
+        // Run ear clipping (outerNode is non-null from linkedList)
+        earcutLinked(outerNode, triangles, dim)
 
         return triangles
     }
@@ -315,7 +314,7 @@ object ShapeUtils {
      * Filter out collinear or duplicate points
      */
     private fun filterPoints(start: Node, end: Node?): Node {
-        if (start == null) return start
+        // start parameter is non-null Node type, so this check is unnecessary
         val e = end ?: start
 
         var p = start

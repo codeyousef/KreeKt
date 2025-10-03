@@ -4,7 +4,6 @@ package io.kreekt.verification.impl
 
 import io.kreekt.verification.*
 import io.kreekt.verification.model.*
-import kotlinx.datetime.*
 
 /**
  * Default implementation of ImplementationVerifier interface
@@ -53,7 +52,7 @@ class DefaultImplementationVerifier(
                         placeholderCount = placeholders.size,
                         placeholderTypes = placeholders.map { it.type }.distinct(),
                         priority = priority,
-                        lastModified = Instant.fromEpochMilliseconds(FileSystem.getLastModified(filePath)),
+                        lastModified = FileSystem.getLastModified(filePath),
                         testCoverage = 0.0f, // TODO: Calculate actual test coverage
                         constitutionalCompliance = placeholders.isEmpty()
                     )

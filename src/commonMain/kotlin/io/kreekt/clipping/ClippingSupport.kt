@@ -1,11 +1,10 @@
 package io.kreekt.clipping
 
-import io.kreekt.core.math.Vector3
-import io.kreekt.core.math.Vector4
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Sphere
-import io.kreekt.core.math.Plane as MathPlane
+import io.kreekt.core.math.Vector3
 import io.kreekt.material.Material
+import io.kreekt.core.math.Plane as MathPlane
 
 /**
  * Global and per-material clipping plane support.
@@ -216,38 +215,8 @@ class ClippingSupport {
     }
 }
 
-/**
- * Extension for Material to support clipping planes.
- */
-var Material.clippingPlanes: List<MathPlane>?
-    get() = materialClippingPlanes[this]
-    set(value) {
-        if (value == null) {
-            materialClippingPlanes.remove(this)
-        } else {
-            require(value.size <= ClippingSupport.MAX_CLIPPING_PLANES) {
-                "Maximum ${ClippingSupport.MAX_CLIPPING_PLANES} clipping planes supported"
-            }
-            materialClippingPlanes[this] = value
-        }
-    }
-
-var Material.clipIntersection: Boolean
-    get() = materialClipIntersection[this] ?: false
-    set(value) {
-        materialClipIntersection[this] = value
-    }
-
-var Material.clipShadows: Boolean
-    get() = materialClipShadows[this] ?: true
-    set(value) {
-        materialClipShadows[this] = value
-    }
-
-// Private storage for material clipping properties
-private val materialClippingPlanes = mutableMapOf<Material, List<MathPlane>>()
-private val materialClipIntersection = mutableMapOf<Material, Boolean>()
-private val materialClipShadows = mutableMapOf<Material, Boolean>()
+// Note: Material class already has clippingPlanes, clipIntersection, and clipShadows properties
+// No need for extension properties as they are shadowed by member properties
 
 /**
  * Helper to create common clipping plane setups.
@@ -312,17 +281,4 @@ object ClippingPlanePresets {
 fun Matrix4.getMaxScaleOnAxis(): Float {
     // Implementation would calculate maximum scale from matrix
     return 1f
-}
-
-fun Vector3.clone(): Vector3 = Vector3(x, y, z)
-fun Vector3.applyMatrix4(matrix: Matrix4): Vector3 {
-    // Implementation would transform vector by matrix
-    return this
-}
-
-fun Vector3.multiplyScalar(scalar: Float): Vector3 {
-    x *= scalar
-    y *= scalar
-    z *= scalar
-    return this
 }

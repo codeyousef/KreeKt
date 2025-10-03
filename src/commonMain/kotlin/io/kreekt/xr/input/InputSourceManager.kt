@@ -35,6 +35,7 @@ class XRInputSourceManager(
         inputCallbacks.remove(callback)
     }
 
+    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
     private fun startInputMonitoring() {
         GlobalScope.launch {
             while (session.isSessionActive()) {

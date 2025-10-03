@@ -1,12 +1,9 @@
-@file:OptIn(kotlin.time.ExperimentalTime::class)
-
 package io.kreekt.verification.model
-
-import kotlinx.datetime.Instant
 
 /**
  * Represents a source code file and its implementation status
  */
+@OptIn(kotlin.time.ExperimentalTime::class)
 data class ImplementationArtifact(
     val filePath: String,
     val moduleType: ModuleType,
@@ -14,7 +11,7 @@ data class ImplementationArtifact(
     val placeholderCount: Int,
     val placeholderTypes: List<PlaceholderType>,
     val priority: Priority,
-    val lastModified: Instant,
+    val lastModified: Long, // Changed from kotlinx.datetime.Instant to Long (epoch milliseconds)
     val testCoverage: Float,
     val constitutionalCompliance: Boolean
 ) {

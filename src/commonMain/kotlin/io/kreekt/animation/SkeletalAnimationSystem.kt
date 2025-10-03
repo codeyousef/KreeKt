@@ -3,7 +3,8 @@ package io.kreekt.animation
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Quaternion
 import io.kreekt.core.math.Vector3
-import io.kreekt.core.scene.compose
+
+// Note: compose() is now a member function of Matrix4, no need to import extension
 
 /**
  * Skeletal animation system interface for bone-based animations

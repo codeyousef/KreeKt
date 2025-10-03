@@ -6,10 +6,9 @@ package io.kreekt.profiling
 
 import io.kreekt.core.platform.currentTimeMillis
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.math.*
+import kotlin.math.max
 
 /**
  * Memory allocation type
@@ -91,6 +90,7 @@ class MemoryProfiler(private val config: MemoryProfilerConfig = MemoryProfilerCo
     /**
      * Start memory profiling
      */
+    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
     fun startProfiling(scope: CoroutineScope = GlobalScope) {
         if (profilingJob?.isActive == true) return
 

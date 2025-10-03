@@ -498,26 +498,3 @@ open class BufferAttribute(
         needsUpdate = true
     }
 }
-
-/**
- * Extension functions for Box3 and Sphere to compute from BufferAttribute
- */
-fun Box3.Companion.fromBufferAttribute(attribute: BufferAttribute): Box3 {
-    val box = Box3()
-
-    for (i in 0 until attribute.count) {
-        val x = attribute.getX(i)
-        val y = attribute.getY(i)
-        val z = attribute.getZ(i)
-        box.expandByPoint(Vector3(x, y, z))
-    }
-
-    return box
-}
-
-fun Sphere.Companion.fromBufferAttribute(attribute: BufferAttribute): Sphere {
-    val sphere = Sphere()
-    val box = Box3.fromBufferAttribute(attribute)
-    box.getBoundingSphere(sphere)
-    return sphere
-}

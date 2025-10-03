@@ -345,17 +345,3 @@ data class Line3(
         return "Line3(start=$start, end=$end)"
     }
 }
-
-/**
- * Extension function for Vector3 to apply Matrix3
- */
-fun Vector3.applyMatrix3(matrix: Matrix3): Vector3 {
-    val x = this.x; val y = this.y; val z = this.z
-    val e = matrix.elements
-
-    this.x = e[0] * x + e[3] * y + e[6] * z
-    this.y = e[1] * x + e[4] * y + e[7] * z
-    this.z = e[2] * x + e[5] * y + e[8] * z
-
-    return this
-}

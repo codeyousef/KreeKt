@@ -227,25 +227,6 @@ enum class TextureType {
 }
 
 /**
- * Matrix3 extension for UV transformation
- */
-private fun Matrix3.setUvTransform(
-    tx: Float, ty: Float,
-    sx: Float, sy: Float,
-    rotation: Float,
-    cx: Float, cy: Float
-) {
-    val c = kotlin.math.cos(rotation)
-    val s = kotlin.math.sin(rotation)
-
-    set(
-        sx * c, sx * s, -sx * (c * cx + s * cy) + cx + tx,
-        -sy * s, sy * c, -sy * (-s * cx + c * cy) + cy + ty,
-        0f, 0f, 1f
-    )
-}
-
-/**
  * Vector2 extension for matrix application
  */
 private fun Vector2.applyMatrix3(matrix: Matrix3): Vector2 {

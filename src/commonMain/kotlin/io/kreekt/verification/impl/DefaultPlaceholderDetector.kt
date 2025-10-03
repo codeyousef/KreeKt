@@ -2,7 +2,6 @@ package io.kreekt.verification.impl
 
 import io.kreekt.verification.*
 import io.kreekt.verification.model.*
-import kotlinx.datetime.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 

@@ -32,12 +32,14 @@ value class Distance(val value: Float) {
 
 /**
  * Fast math utilities for hot paths
+ * Note: inline modifier removed as these functions don't have function type parameters
+ * The JVM will apply its own inlining optimizations where beneficial
  */
 object FastMath {
     /**
      * Fast approximation of 1/sqrt(x) using inverse square root
      */
-    inline fun invSqrt(x: Float): Float {
+    fun invSqrt(x: Float): Float {
         // Note: On modern JVMs, kotlin.math.sqrt is already optimized
         return 1f / kotlin.math.sqrt(x)
     }
@@ -45,21 +47,21 @@ object FastMath {
     /**
      * Fast vector length squared (avoids sqrt)
      */
-    inline fun lengthSquared(x: Float, y: Float, z: Float): Float {
+    fun lengthSquared(x: Float, y: Float, z: Float): Float {
         return x * x + y * y + z * z
     }
 
     /**
      * Fast vector length
      */
-    inline fun length(x: Float, y: Float, z: Float): Float {
+    fun length(x: Float, y: Float, z: Float): Float {
         return kotlin.math.sqrt(x * x + y * y + z * z)
     }
 
     /**
      * Fast dot product
      */
-    inline fun dot(
+    fun dot(
         x1: Float, y1: Float, z1: Float,
         x2: Float, y2: Float, z2: Float
     ): Float {
@@ -69,7 +71,7 @@ object FastMath {
     /**
      * Fast distance squared
      */
-    inline fun distanceSquared(
+    fun distanceSquared(
         x1: Float, y1: Float, z1: Float,
         x2: Float, y2: Float, z2: Float
     ): Float {
@@ -82,34 +84,36 @@ object FastMath {
     /**
      * Fast lerp without allocation
      */
-    inline fun lerp(a: Float, b: Float, t: Float): Float {
+    fun lerp(a: Float, b: Float, t: Float): Float {
         return a + (b - a) * t
     }
 
     /**
      * Clamp value without branching
      */
-    inline fun clamp(value: Float, min: Float, max: Float): Float {
+    fun clamp(value: Float, min: Float, max: Float): Float {
         return value.coerceIn(min, max)
     }
 }
 
 /**
- * Extension functions for inline math operations
+ * Extension functions for fast math operations
+ * Note: inline modifier removed as these functions don't have function type parameters
+ * The JVM will apply its own inlining optimizations where beneficial
  */
-inline fun Vector3.setFast(x: Float, y: Float, z: Float) {
+fun Vector3.setFast(x: Float, y: Float, z: Float) {
     this.x = x
     this.y = y
     this.z = z
 }
 
-inline fun Vector3.addFast(x: Float, y: Float, z: Float) {
+fun Vector3.addFast(x: Float, y: Float, z: Float) {
     this.x += x
     this.y += y
     this.z += z
 }
 
-inline fun Vector3.multiplyScalarFast(scalar: Float) {
+fun Vector3.multiplyScalarFast(scalar: Float) {
     this.x *= scalar
     this.y *= scalar
     this.z *= scalar

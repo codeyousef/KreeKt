@@ -522,12 +522,6 @@ private fun Bone.worldToLocal(worldPos: Vector3): Vector3 {
     return localPos
 }
 
-private fun Vector3.applyQuaternion(quaternion: Quaternion): Vector3 {
-    // Apply quaternion rotation to vector
-    // Simplified implementation - in real version, use proper quaternion math
-    return this
-}
-
 private fun Quaternion.setFromUnitVectors(from: Vector3, to: Vector3): Quaternion {
     // Create quaternion that rotates from one unit vector to another
     // Simplified implementation - in real version, use proper quaternion math

@@ -16,10 +16,9 @@ class FogShaderInjector {
     /**
      * Generate WGSL fog uniforms
      */
-    fun generateFogUniforms(fog: Fog?): String {
-        if (fog == null) return ""
-
+    fun generateFogUniforms(fog: FogBase?): String {
         return when (fog) {
+            null -> ""
             is Fog -> """
                 struct FogUniforms {
                     color: vec3<f32>,
@@ -36,31 +35,29 @@ class FogShaderInjector {
                 }
                 @group(2) @binding(3) var<uniform> fog: FogUniforms;
             """.trimIndent()
-
-            else -> ""
         }
     }
 
     /**
      * Generate WGSL fog calculation in vertex shader
      */
-    fun generateVertexFogCode(fog: Fog?): String {
-        if (fog == null) return ""
-
-        return """
+    fun generateVertexFogCode(fog: FogBase?): String {
+        return when (fog) {
+            null -> ""
+            else -> """
             // Calculate fog distance in view space
             let mvPosition = modelViewMatrix * vec4<f32>(position, 1.0);
             fogDepth = -mvPosition.z;
         """.trimIndent()
+        }
     }
 
     /**
      * Generate WGSL fog calculation in fragment shader
      */
-    fun generateFragmentFogCode(fog: Fog?): String {
-        if (fog == null) return ""
-
+    fun generateFragmentFogCode(fog: FogBase?): String {
         return when (fog) {
+            null -> ""
             is Fog -> """
                 // Linear fog
                 let fogFactor = smoothstep(fog.near, fog.far, fogDepth);
@@ -72,38 +69,37 @@ class FogShaderInjector {
                 let fogFactor = 1.0 - exp(-fog.density * fog.density * fogDepth * fogDepth);
                 finalColor = mix(finalColor, vec4<f32>(fog.color, 1.0), fogFactor);
             """.trimIndent()
-
-            else -> ""
         }
     }
 
     /**
      * Generate complete fog shader chunk for material
      */
-    fun generateFogShaderChunk(fog: Fog?): FogShaderChunk {
-        if (fog == null) {
-            return FogShaderChunk.EMPTY
+    fun generateFogShaderChunk(fog: FogBase?): FogShaderChunk {
+        return when (fog) {
+            null -> FogShaderChunk.EMPTY
+            else -> {
+                val uniforms = generateFogUniforms(fog)
+                val vertexCode = generateVertexFogCode(fog)
+                val fragmentCode = generateFragmentFogCode(fog)
+
+                val vertexVaryings = """
+                    @location(5) fogDepth: f32,
+                """.trimIndent()
+
+                val fragmentVaryings = """
+                    @location(5) fogDepth: f32,
+                """.trimIndent()
+
+                FogShaderChunk(
+                    uniforms = uniforms,
+                    vertexVaryings = vertexVaryings,
+                    fragmentVaryings = fragmentVaryings,
+                    vertexCode = vertexCode,
+                    fragmentCode = fragmentCode
+                )
+            }
         }
-
-        val uniforms = generateFogUniforms(fog)
-        val vertexCode = generateVertexFogCode(fog)
-        val fragmentCode = generateFragmentFogCode(fog)
-
-        val vertexVaryings = """
-            @location(5) fogDepth: f32,
-        """.trimIndent()
-
-        val fragmentVaryings = """
-            @location(5) fogDepth: f32,
-        """.trimIndent()
-
-        return FogShaderChunk(
-            uniforms = uniforms,
-            vertexVaryings = vertexVaryings,
-            fragmentVaryings = fragmentVaryings,
-            vertexCode = vertexCode,
-            fragmentCode = fragmentCode
-        )
     }
 
     /**
@@ -112,12 +108,11 @@ class FogShaderInjector {
     fun injectFogIntoShader(
         vertexShader: String,
         fragmentShader: String,
-        fog: Fog?
+        fog: FogBase?
     ): Pair<String, String> {
-        if (fog == null) {
-            return vertexShader to fragmentShader
-        }
-
+        return when (fog) {
+            null -> vertexShader to fragmentShader
+            else -> {
         val chunk = generateFogShaderChunk(fog)
 
         // Inject into vertex shader
@@ -163,16 +158,17 @@ class FogShaderInjector {
             append(fragmentWithFog)
         }
 
-        return modifiedVertex to modifiedFragment
+                modifiedVertex to modifiedFragment
+            }
+        }
     }
 
     /**
      * Generate GLSL fog code (for compatibility)
      */
-    fun generateGLSLFogCode(fog: Fog?): GLSLFogCode {
-        if (fog == null) return GLSLFogCode.EMPTY
-
+    fun generateGLSLFogCode(fog: FogBase?): GLSLFogCode {
         return when (fog) {
+            null -> GLSLFogCode.EMPTY
             is Fog -> GLSLFogCode(
                 uniforms = """
                     uniform vec3 fogColor;
@@ -201,8 +197,6 @@ class FogShaderInjector {
                     gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);
                 """.trimIndent()
             )
-
-            else -> GLSLFogCode.EMPTY
         }
     }
 
@@ -216,10 +210,9 @@ class FogShaderInjector {
     /**
      * Extract fog parameters for uniform buffer
      */
-    fun getFogUniforms(fog: Fog?): FloatArray {
-        if (fog == null) return floatArrayOf()
-
+    fun getFogUniforms(fog: FogBase?): FloatArray {
         return when (fog) {
+            null -> floatArrayOf()
             is Fog -> floatArrayOf(
                 fog.color.r, fog.color.g, fog.color.b,
                 fog.near,
@@ -230,8 +223,6 @@ class FogShaderInjector {
                 fog.color.r, fog.color.g, fog.color.b,
                 fog.density
             )
-
-            else -> floatArrayOf()
         }
     }
 }

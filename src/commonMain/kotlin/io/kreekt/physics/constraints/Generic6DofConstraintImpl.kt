@@ -5,7 +5,6 @@ package io.kreekt.physics.constraints
 
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Vector3
-import io.kreekt.physics.ConstraintParam
 import io.kreekt.physics.Generic6DofConstraint
 import io.kreekt.physics.PhysicsConstraintImpl
 import io.kreekt.physics.RigidBody
@@ -210,14 +209,4 @@ class Generic6DofConstraintImpl(
             }
         }
     }
-}
-
-/**
- * Extension function to get component by index
- */
-private fun Vector3.componentAt(index: Int): Float = when (index) {
-    0 -> x
-    1 -> y
-    2 -> z
-    else -> throw IndexOutOfBoundsException("Vector3 index must be 0-2")
 }

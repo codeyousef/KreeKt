@@ -309,31 +309,6 @@ open class BufferAttribute(
     }
 }
 
-// Extension functions for arrays
-fun Matrix4.toArray(array: FloatArray, offset: Int = 0): FloatArray {
-    platformArrayCopy(elements, 0, array, offset, 16)
-    return array
-}
-
-fun Matrix4.fromArray(array: FloatArray, offset: Int = 0): Matrix4 {
-    platformArrayCopy(array, offset, elements, 0, 16)
-    return this
-}
-
-fun Color.toArray(array: FloatArray, offset: Int = 0): FloatArray {
-    array[offset] = r
-    array[offset + 1] = g
-    array[offset + 2] = b
-    return array
-}
-
-fun Color.fromArray(array: FloatArray, offset: Int = 0): Color {
-    r = array[offset]
-    g = array[offset + 1]
-    b = array[offset + 2]
-    return this
-}
-
 /**
  * Ray definition
  */

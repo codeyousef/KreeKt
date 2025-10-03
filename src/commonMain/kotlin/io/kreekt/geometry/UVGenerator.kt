@@ -185,15 +185,6 @@ class GeometryAnalysis {
 }
 
 /**
- * Extension function for Vector2 add operation
- */
-fun Vector2.add(other: Vector2): Vector2 {
-    x = x + other.x
-    y = y + other.y
-    return this
-}
-
-/**
  * Calculate UV bounds from coordinate array
  */
 internal fun calculateUVBounds(uvCoordinates: FloatArray): Box2 {

@@ -4,18 +4,15 @@
  */
 package io.kreekt.xr
 
-import io.kreekt.core.math.*
-import io.kreekt.core.platform.platformClone
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Quaternion
+import io.kreekt.core.math.Vector2
+import io.kreekt.core.math.Vector3
 import io.kreekt.core.platform.currentTimeMillis
-import io.kreekt.core.platform.platformClone
-import kotlinx.coroutines.*
-import io.kreekt.core.platform.platformClone
-import io.kreekt.core.platform.currentTimeMillis
-import io.kreekt.core.platform.platformClone
-import kotlin.time.*
-import io.kreekt.core.platform.platformClone
-import io.kreekt.core.platform.currentTimeMillis
-import io.kreekt.core.platform.platformClone
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Default implementation of XRAnchor interface
@@ -35,6 +32,7 @@ class DefaultXRAnchor(
     private var deleted = false
     private var persistentHandle: String? = null
 
+    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
     private val trackingUpdateJob: Job = GlobalScope.launch {
         while (!deleted) {
             updateTrackingState()
@@ -302,6 +300,7 @@ class SpatialTrackingManager(
         trackingListeners.forEach { it.onTrackingOriginReset() }
     }
 
+    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
     private fun startTrackingUpdates() {
         trackingJob = GlobalScope.launch {
             while (true) {

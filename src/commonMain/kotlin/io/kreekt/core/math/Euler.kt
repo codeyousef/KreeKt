@@ -1,9 +1,6 @@
 package io.kreekt.core.math
 
 import kotlin.math.*
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * Euler angle rotation orders
@@ -243,39 +240,6 @@ data class Euler(
     override fun toString(): String {
         return "Euler(x=$x, y=$y, z=$z, order=$order)"
     }
-}
-
-/**
- * Extension function for Matrix4 to create rotation from quaternion
- */
-fun Matrix4.makeRotationFromQuaternion(q: Quaternion): Matrix4 {
-    val x = q.x; val y = q.y; val z = q.z; val w = q.w
-    val x2 = x + x; val y2 = y + y; val z2 = z + z
-    val xx = (x * x2); val xy = (x * y2); val xz = x * z2
-    val yy = (y * y2); val yz = (y * z2); val zz = z * z2
-    val wx = (w * x2); val wy = (w * y2); val wz = w * z2
-
-    elements[0] = 1f - (yy + zz)
-    elements[1] = xy + wz
-    elements[2] = xz - wy
-    elements[3] = 0f
-
-    elements[4] = xy - wz
-    elements[5] = 1f - (xx + zz)
-    elements[6] = yz + wx
-    elements[7] = 0f
-
-    elements[8] = xz + wy
-    elements[9] = yz - wx
-    elements[10] = 1f - (xx + yy)
-    elements[11] = 0f
-
-    elements[12] = 0f
-    elements[13] = 0f
-    elements[14] = 0f
-    elements[15] = 1f
-
-    return this
 }
 
 /**

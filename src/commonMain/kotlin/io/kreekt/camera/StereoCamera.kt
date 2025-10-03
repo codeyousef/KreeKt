@@ -170,48 +170,6 @@ enum class VRHeadsetType {
 }
 
 /**
- * Extension function for Matrix4 to create off-axis projection
- */
-fun Matrix4.makePerspective(
-    left: Float,
-    right: Float,
-    top: Float,
-    bottom: Float,
-    near: Float,
-    far: Float
-): Matrix4 {
-    val x = 2f * near / (right - left)
-    val y = 2f * near / (top - bottom)
-
-    val a = (right + left) / (right - left)
-    val b = (top + bottom) / (top - bottom)
-    val c = -(far + near) / (far - near)
-    val d = -2f * far * near / (far - near)
-
-    elements[0] = x
-    elements[4] = 0f
-    elements[8] = a
-    elements[12] = 0f
-
-    elements[1] = 0f
-    elements[5] = y
-    elements[9] = b
-    elements[13] = 0f
-
-    elements[2] = 0f
-    elements[6] = 0f
-    elements[10] = c
-    elements[14] = d
-
-    elements[3] = 0f
-    elements[7] = 0f
-    elements[11] = -1f
-    elements[15] = 0f
-
-    return this
-}
-
-/**
  * Stereo rendering helper utilities
  */
 object StereoUtils {

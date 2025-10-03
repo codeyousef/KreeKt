@@ -74,13 +74,10 @@ class ProbePlacementStrategy {
         scene.traverse { obj ->
             // Skip lights and non-renderable objects
             if (obj.type == "Mesh" || obj.type == "Group") {
-                // Get object bounds in world space
+                // Get object bounds in world space and transform to world space
                 val objBounds = obj.getBoundingBox()
-                if (objBounds != null) {
-                    // Transform bounds to world space
-                    objBounds.applyMatrix4(obj.matrixWorld)
-                    bounds.union(objBounds)
-                }
+                objBounds.applyMatrix4(obj.matrixWorld)
+                bounds.union(objBounds)
             }
         }
 

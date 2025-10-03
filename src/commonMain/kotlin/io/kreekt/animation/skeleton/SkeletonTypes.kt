@@ -1,7 +1,11 @@
 package io.kreekt.animation.skeleton
 
-import io.kreekt.core.math.*
-import io.kreekt.core.scene.compose
+import io.kreekt.core.math.Euler
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Quaternion
+import io.kreekt.core.math.Vector3
+
+// Note: compose() is now a member function of Matrix4, no need to import extension
 
 /**
  * Skeleton type definitions including bones, constraints, and poses.
@@ -181,57 +185,7 @@ fun Vector3.setFromMatrixPosition(matrix: Matrix4): Vector3 {
     return this
 }
 
-fun Matrix4.decompose(position: Vector3, quaternion: Quaternion, scale: Vector3): Matrix4 {
-    val te = elements
-
-    // Extract scale
-    var sx = Vector3(te[0], te[1], te[2]).length()
-    val sy = Vector3(te[4], te[5], te[6]).length()
-    val sz = Vector3(te[8], te[9], te[10]).length()
-
-    // Check for negative determinant
-    val det = determinant()
-    if (det < 0) sx = -sx
-
-    // Extract position
-    position.x = te[12]
-    position.y = te[13]
-    position.z = te[14]
-
-    // Scale the rotation part
-    val matrix = this.clone()
-    val invSX = 1f / sx
-    val invSY = 1f / sy
-    val invSZ = 1f / sz
-
-    matrix.elements[0] *= invSX
-    matrix.elements[1] *= invSX
-    matrix.elements[2] *= invSX
-
-    matrix.elements[4] *= invSY
-    matrix.elements[5] *= invSY
-    matrix.elements[6] *= invSY
-
-    matrix.elements[8] *= invSZ
-    matrix.elements[9] *= invSZ
-    matrix.elements[10] *= invSZ
-
-    // Extract rotation as quaternion
-    quaternion.setFromRotationMatrix(matrix)
-
-    // Set scale
-    scale.x = sx
-    scale.y = sy
-    scale.z = sz
-
-    return this
-}
-
 fun Matrix4.copy(other: Matrix4): Matrix4 {
     other.elements.copyInto(this.elements)
     return this
-}
-
-fun Matrix4.multiplyMatrices(a: Matrix4, b: Matrix4): Matrix4 {
-    return this.multiplyMatrices(a, b)
 }

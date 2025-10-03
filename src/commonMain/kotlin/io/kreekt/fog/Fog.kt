@@ -15,12 +15,12 @@ import kotlin.math.min
  * - factor is clamped to [0, 1]
  */
 class Fog(
-    var color: Color = Color(0xffffff),
+    override var color: Color = Color(0xffffff),
     var near: Float = 1f,
     var far: Float = 1000f
-) {
+) : FogBase {
     val isFog: Boolean = true
-    val name: String = "Fog"
+    override val name: String = "Fog"
 
     // Placeholder geometry for compatibility
     val geometry: BufferGeometry = BufferGeometry()

@@ -162,15 +162,6 @@ class DefaultXRHand(
     }
 }
 
-fun Matrix4.getTranslation(): Vector3 {
-    return Vector3(elements[12], elements[13], elements[14])
-}
-
-fun Matrix4.getRotation(): io.kreekt.core.math.Quaternion {
-    // Extract rotation from matrix
-    return io.kreekt.core.math.Quaternion().setFromRotationMatrix(this)
-}
-
 /**
  * Finger enumeration
  */

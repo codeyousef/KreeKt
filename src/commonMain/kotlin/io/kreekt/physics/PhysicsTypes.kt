@@ -4,8 +4,11 @@
  */
 package io.kreekt.physics
 
-import io.kreekt.core.math.*
-import kotlin.math.*
+import io.kreekt.core.math.Box3
+import io.kreekt.core.math.Matrix3
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Vector3
+import kotlin.math.PI
 
 /**
  * Enums for physics system
@@ -163,83 +166,6 @@ sealed class PhysicsException(message: String, cause: Throwable? = null) : Excep
     class SimulationError(message: String, cause: Throwable? = null) : PhysicsException(message, cause)
 }
 
-/**
- * Extension functions for Vector3 to support physics operations
- */
-fun Vector3.componentAt(index: Int): Float = when (index) {
-    0 -> x
-    1 -> y
-    2 -> z
-    else -> throw IndexOutOfBoundsException("Vector3 index must be 0, 1, or 2")
-}
-
-fun Vector3.maxComponent(): Float = maxOf(x, maxOf(y, z))
-
-fun Vector3.coerceLength(minLength: Float, maxLength: Float): Vector3 {
-    val currentLength = length()
-    return when {
-        currentLength < minLength -> if (currentLength > 0f) normalized() * minLength else Vector3.ZERO
-        currentLength > maxLength -> normalized() * maxLength
-        else -> this
-    }
-}
-
-/**
- * Extension functions for Quaternion to support physics operations
- */
-fun Quaternion.toAxisAngle(): Pair<Vector3, Float> {
-    val length = sqrt(x * x + y * y + (z * z))
-    return if (length > 0.001f) {
-        val angle = 2f * acos(w.coerceIn(-1f, 1f))
-        val axis = Vector3(x / length, y / length, z / length)
-        Pair(axis, angle)
-    } else {
-        Pair(Vector3.UNIT_Y, 0f)
-    }
-}
-
-fun Quaternion.toEulerAngles(): Vector3 {
-    // Convert quaternion to Euler angles (in radians)
-    // Order: XYZ (Tait-Bryan angles)
-
-    val sinr_cosp = 2f * (w * x + (y * z))
-    val cosr_cosp = 1f - 2f * (x * x + (y * y))
-    val roll = atan2(sinr_cosp, cosr_cosp)
-
-    val sinp = 2f * (w * y - (z * x))
-    val pitch = if (abs(sinp) >= 1f) {
-        if (sinp > 0f) PI.toFloat() / 2f else -PI.toFloat() / 2f
-    } else {
-        asin(sinp)
-    }
-
-    val siny_cosp = 2f * (w * z + (x * y))
-    val cosy_cosp = 1f - 2f * (y * y + (z * z))
-    val yaw = atan2(siny_cosp, cosy_cosp)
-
-    return Vector3(roll, pitch, yaw)
-}
-
-/**
- * Extension functions for Matrix4 to support physics operations
- */
-fun Matrix4.transformDirection(direction: Vector3): Vector3 {
-    // Transform direction (no translation)
-    return Vector3(
-        m00 * direction.x + m01 * direction.y + m02 * direction.z,
-        m10 * direction.x + m11 * direction.y + m12 * direction.z,
-        m20 * direction.x + m21 * direction.y + m22 * direction.z
-    )
-}
-
-fun Matrix4.transformPoint(point: Vector3): Vector3 {
-    // Transform point (with translation)
-    return Vector3(
-        m00 * point.x + m01 * point.y + m02 * point.z + m03,
-        m10 * point.x + m11 * point.y + m12 * point.z + m13,
-        m20 * point.x + m21 * point.y + m22 * point.z + m23
-    )
-}
 
 /**
  * Physics utility functions

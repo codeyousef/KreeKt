@@ -5,7 +5,7 @@ import io.kreekt.core.math.Vector3
 /**
  * Base Curve class - T068
  */
-open abstract class Curve {
+abstract class Curve {
     open val type = "Curve"
     var arcLengthDivisions = 200
 
