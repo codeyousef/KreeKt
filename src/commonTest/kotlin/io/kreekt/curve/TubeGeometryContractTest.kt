@@ -277,7 +277,7 @@ class TubeGeometryContractTest {
     }
 }
 
-// TubeGeometry placeholder
+// TubeGeometry implementation
 class TubeGeometry(
     val path: Curve3,
     val tubularSegments: Int = 64,
@@ -287,9 +287,170 @@ class TubeGeometry(
     val radiusFunction: ((Float) -> Float)? = null
 ) : BufferGeometry() {
     init {
-        // Implementation in T074
-        // For now, create minimal geometry
-        val vertices = floatArrayOf(0f, 0f, 0f)
-        setAttribute("position", io.kreekt.geometry.BufferAttribute(vertices, 3))
+        generateTubeGeometry()
     }
+
+    private fun generateTubeGeometry() {
+        // Calculate the number of vertices and faces
+        val vertexCount = (tubularSegments + 1) * (radialSegments + 1)
+        val indexCount = tubularSegments * radialSegments * 6
+
+        val positions = mutableListOf<Float>()
+        val normals = mutableListOf<Float>()
+        val uvs = mutableListOf<Float>()
+        val indices = mutableListOf<Int>()
+
+        // Generate Frenet frames along the curve
+        val frames = computeFrenetFrames(tubularSegments, closed)
+
+        // Generate vertices
+        for (i in 0..tubularSegments) {
+            val t = i.toFloat() / tubularSegments.toFloat()
+
+            // Get position along curve
+            val p = path.getPoint(t)
+
+            // Get tangent, normal, binormal from Frenet frame
+            val tangent = frames.tangents[i]
+            val normal = frames.normals[i]
+            val binormal = frames.binormals[i]
+
+            // Get radius at this point
+            val r = radiusFunction?.invoke(t) ?: radius
+
+            // Generate vertices around the circumference
+            for (j in 0..radialSegments) {
+                val v = j.toFloat() / radialSegments.toFloat()
+                val angle = v * kotlin.math.PI.toFloat() * 2f
+
+                // Calculate position offset from center
+                val sin = kotlin.math.sin(angle) * r
+                val cos = kotlin.math.cos(angle) * r
+
+                // Position = center + (normal * cos + binormal * sin)
+                val x = p.x + (normal.x * cos + binormal.x * sin)
+                val y = p.y + (normal.y * cos + binormal.y * sin)
+                val z = p.z + (normal.z * cos + binormal.z * sin)
+
+                positions.add(x)
+                positions.add(y)
+                positions.add(z)
+
+                // Normal vector
+                val nx = normal.x * cos + binormal.x * sin
+                val ny = normal.y * cos + binormal.y * sin
+                val nz = normal.z * cos + binormal.z * sin
+
+                normals.add(nx)
+                normals.add(ny)
+                normals.add(nz)
+
+                // UV coordinates
+                uvs.add(t)
+                uvs.add(v)
+            }
+        }
+
+        // Generate indices
+        for (i in 0 until tubularSegments) {
+            for (j in 0 until radialSegments) {
+                val a = (radialSegments + 1) * i + j
+                val b = (radialSegments + 1) * (i + 1) + j
+                val c = (radialSegments + 1) * (i + 1) + (j + 1)
+                val d = (radialSegments + 1) * i + (j + 1)
+
+                // Two triangles per quad
+                indices.add(a)
+                indices.add(b)
+                indices.add(d)
+
+                indices.add(b)
+                indices.add(c)
+                indices.add(d)
+            }
+        }
+
+        // Set attributes
+        setAttribute("position", io.kreekt.geometry.BufferAttribute(positions.toFloatArray(), 3))
+        setAttribute("normal", io.kreekt.geometry.BufferAttribute(normals.toFloatArray(), 3))
+        setAttribute("uv", io.kreekt.geometry.BufferAttribute(uvs.toFloatArray(), 2))
+
+        // Convert indices to float array (BufferAttribute expects FloatArray)
+        val indexArray = indices.map { it.toFloat() }.toFloatArray()
+        setIndex(io.kreekt.geometry.BufferAttribute(indexArray, 1))
+    }
+
+    private fun computeFrenetFrames(segments: Int, closed: Boolean): FrenetFrames {
+        val tangents = mutableListOf<Vector3>()
+        val normals = mutableListOf<Vector3>()
+        val binormals = mutableListOf<Vector3>()
+
+        // Compute tangents at each point
+        for (i in 0..segments) {
+            val t = i.toFloat() / segments.toFloat()
+            tangents.add(path.getTangent(t).normalize())
+        }
+
+        // Initialize the first normal and binormal
+        val firstNormal = Vector3()
+        val firstBinormal = Vector3()
+
+        // Find an initial normal perpendicular to the first tangent
+        val t0 = tangents[0]
+        val minComponent = kotlin.math.min(
+            kotlin.math.abs(t0.x),
+            kotlin.math.min(kotlin.math.abs(t0.y), kotlin.math.abs(t0.z))
+        )
+
+        val perp = when {
+            minComponent == kotlin.math.abs(t0.x) -> Vector3(1f, 0f, 0f)
+            minComponent == kotlin.math.abs(t0.y) -> Vector3(0f, 1f, 0f)
+            else -> Vector3(0f, 0f, 1f)
+        }
+
+        firstNormal.crossVectors(t0, perp).normalize()
+        firstBinormal.crossVectors(t0, firstNormal).normalize()
+
+        normals.add(firstNormal)
+        binormals.add(firstBinormal)
+
+        // Compute normals and binormals for remaining points
+        for (i in 1..segments) {
+            val prevNormal = normals[i - 1].clone()
+            val prevBinormal = binormals[i - 1].clone()
+            val tangent = tangents[i]
+
+            // Compute new normal
+            val normal = Vector3()
+            normal.crossVectors(prevBinormal, tangent)
+
+            if (normal.lengthSq() > 0.0001f) {
+                normal.normalize()
+                // Compute binormal
+                val binormal = Vector3()
+                binormal.crossVectors(tangent, normal).normalize()
+
+                normals.add(normal)
+                binormals.add(binormal)
+            } else {
+                // Tangent hasn't changed much, reuse previous frame
+                normals.add(prevNormal)
+                binormals.add(prevBinormal)
+            }
+        }
+
+        // Handle closed curves
+        if (closed) {
+            // Smooth the transition between last and first frame
+            // For simplicity, we'll just use the computed frames
+        }
+
+        return FrenetFrames(tangents, normals, binormals)
+    }
+
+    data class FrenetFrames(
+        val tangents: List<Vector3>,
+        val normals: List<Vector3>,
+        val binormals: List<Vector3>
+    )
 }

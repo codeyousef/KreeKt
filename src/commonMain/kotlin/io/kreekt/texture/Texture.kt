@@ -53,7 +53,7 @@ abstract class Texture : io.kreekt.renderer.Texture {
     var anisotropy: Float = 1f
 
     // Texture format and type
-    var format: TextureFormat = TextureFormat.RGBA8
+    open var format: TextureFormat = TextureFormat.RGBA8
     var internalFormat: TextureFormat? = null
     var type: TextureType = TextureType.UNSIGNED_BYTE
 
@@ -63,10 +63,10 @@ abstract class Texture : io.kreekt.renderer.Texture {
     var premultiplyAlpha: Boolean = false
 
     // Generate mipmaps
-    var generateMipmaps: Boolean = true
+    open var generateMipmaps: Boolean = true
 
     // Update flags
-    override var needsUpdate: Boolean = true
+    open override var needsUpdate: Boolean = true
     var isRenderTarget: Boolean = false
 
     // Version for invalidation
@@ -92,6 +92,25 @@ abstract class Texture : io.kreekt.renderer.Texture {
      */
     fun updateMatrix() {
         matrix.setUvTransform(offset.x, offset.y, repeat.x, repeat.y, rotation, center.x, center.y)
+    }
+
+    /**
+     * Initialization method for canvas textures
+     * Called from CanvasTexture init blocks
+     */
+    open fun initializeAsCanvasTexture() {
+        setTextureName("CanvasTexture")
+        format = TextureFormat.RGBA8
+        generateMipmaps = false
+        needsUpdate = true
+    }
+
+    /**
+     * Method for canvas texture updates
+     */
+    open fun markTextureNeedsUpdate() {
+        needsUpdate = true
+        version++
     }
 
     /**

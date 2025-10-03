@@ -12,7 +12,13 @@ actual class AudioListener actual constructor(camera: Camera?) : Object3D() {
         get() = _up
 
     actual override fun updateMatrixWorld(force: Boolean) {
+        // If attached to camera, sync transform
+        _camera?.let {
+            // Copy position from camera
+            position.copy(it.position)
+            // Sync quaternion from camera's rotation (in case rotation was set directly)
+            quaternion.setFromEuler(it.rotation)
+        }
         super.updateMatrixWorld(force)
-        // Update audio listener position/orientation based on matrix
     }
 }

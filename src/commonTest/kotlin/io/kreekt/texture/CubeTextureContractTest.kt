@@ -187,7 +187,7 @@ class CubeTextureContractTest {
 class CubeTextureStub(
     val urls: List<String> = emptyList(),
     val onError: (() -> Unit)? = null
-) : Texture() {
+) : TextureStub() {
     override val width: Int = 512
     override val height: Int = 512
     val images = mutableListOf<Image?>().apply {
@@ -210,8 +210,8 @@ class CubeTextureStub(
     }
 }
 
-// Base texture class placeholder
-open class Texture {
+// Base texture class placeholder (renamed to avoid conflict with real Texture class)
+open class TextureStub {
     open val width: Int = 512
     open val height: Int = 512
     var mapping: Int = UVMapping

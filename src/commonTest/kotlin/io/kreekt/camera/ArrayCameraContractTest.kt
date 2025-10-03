@@ -16,7 +16,6 @@ import io.kreekt.core.scene.Scene
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 class ArrayCameraContractTest {
 
@@ -212,17 +211,28 @@ class ArrayCameraContractTest {
 
 // Extension classes for ArrayCamera testing
 class ArrayCamera(
-    val cameras: Array<Camera> = emptyArray()
+    initialCameras: Array<Camera> = emptyArray()
 ) : Camera() {
+    private val _cameras = mutableListOf<Camera>()
     private val viewports = mutableListOf<Vector4>()
     private val enabled = mutableListOf<Boolean>()
     private var screenWidth = 1f
     private var screenHeight = 1f
 
+    val cameras: Array<Camera>
+        get() = _cameras.toTypedArray()
+
+    init {
+        initialCameras.forEach { camera ->
+            _cameras.add(camera)
+            enabled.add(true)
+        }
+    }
+
     // Implement abstract Camera methods
     override fun updateProjectionMatrix() {
         // Update all sub-cameras
-        cameras.forEach { camera ->
+        _cameras.forEach { camera ->
             camera.updateProjectionMatrix()
         }
     }
@@ -235,29 +245,61 @@ class ArrayCamera(
         width: Int,
         height: Int
     ) {
-        // Implementation in T058
+        // Not used for array camera
     }
 
     override fun clearViewOffset() {
-        // Implementation in T058
+        // Not used for array camera
     }
 
     fun addCamera(camera: Camera, viewport: Vector4) {
-        // Implementation in T058
+        _cameras.add(camera)
+        viewports.add(viewport)
+        enabled.add(true)
     }
 
     fun getViewport(index: Int): Vector4? = viewports.getOrNull(index)
 
     fun setupGrid(rows: Int, cols: Int) {
-        // Implementation in T058
+        _cameras.clear()
+        viewports.clear()
+        enabled.clear()
+
+        val cellWidth = 1f / cols
+        val cellHeight = 1f / rows
+
+        // Create cameras row by row, from top to bottom
+        for (row in 0 until rows) {
+            for (col in 0 until cols) {
+                val camera = PerspectiveCamera()
+                val x = col * cellWidth
+                // Y coordinate: top row starts at (1 - cellHeight), bottom row at 0
+                val y = (rows - 1 - row) * cellHeight
+                val viewport = Vector4(x, y, cellWidth, cellHeight)
+
+                _cameras.add(camera)
+                viewports.add(viewport)
+                enabled.add(true)
+            }
+        }
     }
 
     fun render(renderer: MockRenderer, scene: Scene) {
-        // Implementation in T058
+        _cameras.forEachIndexed { index, camera ->
+            if (isEnabled(index)) {
+                val viewport = viewports.getOrNull(index)
+                if (viewport != null) {
+                    renderer.setViewport(viewport.x, viewport.y, viewport.z, viewport.w)
+                }
+                renderer.render(scene, camera)
+            }
+        }
     }
 
-    fun setEnabled(index: Int, enabled: Boolean) {
-        // Implementation in T058
+    fun setEnabled(index: Int, isEnabled: Boolean) {
+        if (index in enabled.indices) {
+            enabled[index] = isEnabled
+        }
     }
 
     fun isEnabled(index: Int): Boolean = enabled.getOrNull(index) ?: false
@@ -268,8 +310,13 @@ class ArrayCamera(
     }
 
     fun getPixelViewport(index: Int): Vector4? {
-        // Implementation in T058
-        return null
+        val viewport = viewports.getOrNull(index) ?: return null
+        return Vector4(
+            viewport.x * screenWidth,
+            viewport.y * screenHeight,
+            viewport.z * screenWidth,
+            viewport.w * screenHeight
+        )
     }
 }
 

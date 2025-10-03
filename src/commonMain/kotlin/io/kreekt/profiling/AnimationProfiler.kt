@@ -171,7 +171,14 @@ data class AnimationComplexity(
         val recommendations = mutableListOf<String>()
 
         if (keyframesPerSecond > 60) {
-            recommendations.add("Consider reducing keyframe frequency (current: ${String.format("%.1f", keyframesPerSecond)}/s)")
+            recommendations.add(
+                "Consider reducing keyframe frequency (current: ${
+                    io.kreekt.core.platform.formatFloat(
+                        keyframesPerSecond,
+                        1
+                    )
+                }/s)"
+            )
         }
 
         if (keyframeCount > 1000) {

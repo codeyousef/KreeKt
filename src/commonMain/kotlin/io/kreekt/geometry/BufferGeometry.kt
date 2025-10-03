@@ -433,7 +433,7 @@ open class BufferAttribute(
     open val itemSize: Int,
     open val normalized: Boolean = false
 ) {
-    open var needsUpdate: Boolean = false
+    open var needsUpdate: Boolean = true // Default to true - new attributes need GPU upload
     open var updateRange: IntRange = IntRange.EMPTY
 
     open val count: Int get() = array.size / itemSize

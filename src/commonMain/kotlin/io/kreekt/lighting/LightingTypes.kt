@@ -31,14 +31,6 @@ interface LightProbe {
 }
 
 /**
- * Spherical Harmonics interface for light encoding
- */
-interface SphericalHarmonics {
-    val coefficients: Array<Vector3>
-    fun evaluate(direction: Vector3): Vector3
-}
-
-/**
  * Light Probe Baker interface
  */
 interface LightProbeBaker {
@@ -62,30 +54,6 @@ interface ShadowMapper {
 
     fun getShadowMatrix(light: Light, camera: Camera): Matrix4
     fun updateShadowUniforms(light: Light, material: Material)
-}
-
-/**
- * IBL Processor interface
- */
-interface IBLProcessor {
-    suspend fun generateEquirectangularMap(
-        cubeMap: CubeTexture,
-        width: Int = 2048,
-        height: Int = 1024
-    ): Texture
-
-    suspend fun generateIrradianceMap(
-        environmentMap: Texture,
-        size: Int = 32
-    ): CubeTexture
-
-    suspend fun generatePrefilterMap(
-        environmentMap: Texture,
-        size: Int = 128,
-        roughnessLevels: Int = 5
-    ): CubeTexture
-
-    fun generateBRDFLUT(size: Int = 512): Texture
 }
 
 /**

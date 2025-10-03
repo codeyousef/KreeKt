@@ -1,22 +1,17 @@
 package io.kreekt.points
 
-import io.kreekt.core.math.Color
-import io.kreekt.core.math.Vector3
-import io.kreekt.core.math.Vector2
-import io.kreekt.core.math.Matrix4
-import io.kreekt.core.scene.Object3D
 import io.kreekt.camera.Camera
 import io.kreekt.camera.PerspectiveCamera
-import io.kreekt.raycaster.Raycaster
+import io.kreekt.core.math.Color
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Vector2
+import io.kreekt.core.math.Vector3
+import io.kreekt.core.scene.Object3D
 import io.kreekt.raycaster.Intersection
-import io.kreekt.Math
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
+import io.kreekt.raycaster.Raycaster
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.test.*
 
 /**
  * Contract test for Sprite billboards - T030
@@ -117,18 +112,24 @@ class SpriteContractTest {
 
         val scaledVertices = sprite.getTransformedVertices()
         // Width should be doubled, height tripled
-        val width = abs(scaledVertices[1].x - scaledVertices[0].x)
-        val height = abs(scaledVertices[2].y - scaledVertices[0].y)
-        assertTrue(abs(width - 2f) < 0.01f)
-        assertTrue(abs(height - 3f) < 0.01f)
+        // Use distance between adjacent vertices since sprite is rotated
+        val width = scaledVertices[0].distanceTo(scaledVertices[1])
+        val height = scaledVertices[0].distanceTo(scaledVertices[3])
+        assertTrue(abs(width - 2f) < 0.01f, "Width should be 2.0, got $width")
+        assertTrue(abs(height - 3f) < 0.01f, "Height should be 3.0, got $height")
 
         // Test center point for rotation/scaling
-        sprite.center.set(0.5f, 0.5f) // Top-right corner as center
+        sprite.center.set(1f, 1f) // Top-right corner as center
         sprite.updateMatrix()
 
         val centeredVertices = sprite.getTransformedVertices()
         // Sprite should be offset based on new center
-        assertTrue(centeredVertices[0].x < 0f)
+        // With center at (1,1), the top-right vertex should be at origin
+        val topRight = centeredVertices[2] // Third vertex is top-right
+        assertTrue(
+            abs(topRight.x) < 0.01f && abs(topRight.y) < 0.01f,
+            "With center (1,1), top-right vertex should be near origin, got (${topRight.x}, ${topRight.y})"
+        )
     }
 
     @Test
@@ -141,6 +142,7 @@ class SpriteContractTest {
         val sprite = Sprite(material).apply {
             position.set(0f, 0f, 0f)
             scale.set(2f, 2f, 1f)
+            updateMatrixWorld()  // Update matrix before raycasting
         }
 
         val raycaster = Raycaster(
@@ -165,7 +167,8 @@ class SpriteContractTest {
         )
         val edgeIntersections = sprite.raycast(raycaster)
         assertTrue(edgeIntersections.isNotEmpty())
-        assertTrue(hit.uv!!.x > 0.9f) // Near right edge
+        val edgeHit = edgeIntersections[0]
+        assertTrue(edgeHit.uv!!.x > 0.9f) // Near right edge
 
         // Test miss
         raycaster.set(
@@ -329,11 +332,13 @@ class Sprite(
 
     fun updateForCamera(camera: Camera) {
         // Calculate billboard rotation to face camera
+        // The sprite should look from camera to sprite, not sprite to camera
         val lookMatrix = Matrix4()
-        lookMatrix.lookAt(position, camera.position, Vector3(0f, 1f, 0f))
+        lookMatrix.lookAt(camera.position, position, Vector3(0f, 1f, 0f))
 
-        // Extract rotation from look matrix
-        rotation.setFromRotationMatrix(lookMatrix)
+        // Extract rotation from look matrix and apply it
+        quaternion.setFromRotationMatrix(lookMatrix)
+        updateMatrix()
         updateMatrixWorld()
     }
 
@@ -352,14 +357,16 @@ class Sprite(
     }
 
     fun getTransformedVertices(): List<Vector3> {
-        val halfWidth = 0.5f * scale.x
-        val halfHeight = 0.5f * scale.y
+        // Base size is 1x1, corners at +/- 0.5
+        val halfWidth = 0.5f
+        val halfHeight = 0.5f
 
         // Apply center offset and rotation
         val cos = kotlin.math.cos(material.rotation)
         val sin = kotlin.math.sin(material.rotation)
-        val cx = center.x - 0.5f
-        val cy = center.y - 0.5f
+        // Center offset: (0.5, 0.5) = centered, (0, 0) = bottom-left at origin, (1, 1) = top-right at origin
+        val cx = (0.5f - center.x) * scale.x
+        val cy = (0.5f - center.y) * scale.y
 
         val vertices = mutableListOf<Vector3>()
         val corners = listOf(
@@ -370,9 +377,9 @@ class Sprite(
         )
 
         for (corner in corners) {
-            // Apply rotation around center
-            val x = corner.x - cx * scale.x
-            val y = corner.y - cy * scale.y
+            // Scale first, offset by center, then rotate
+            val x = corner.x * scale.x + cx
+            val y = corner.y * scale.y + cy
             val rotatedX = x * cos - y * sin
             val rotatedY = x * sin + y * cos
             vertices.add(Vector3(rotatedX, rotatedY, 0f))
@@ -398,14 +405,15 @@ class Sprite(
             )
 
             // Check if point is within sprite bounds
-            val halfWidth = 0.5f * scale.x
-            val halfHeight = 0.5f * scale.y
+            // In local space, sprite quad is from [-0.5, -0.5] to [0.5, 0.5]
+            val halfWidth = 0.5f
+            val halfHeight = 0.5f
 
             if (abs(point.x) <= halfWidth && abs(point.y) <= halfHeight) {
-                // Calculate UV coordinates
+                // Calculate UV coordinates (point is in range [-0.5, 0.5])
                 val uv = Vector2(
-                    (point.x / scale.x + 0.5f),
-                    (point.y / scale.y + 0.5f)
+                    point.x + 0.5f,
+                    point.y + 0.5f
                 )
 
                 // Check alpha test if texture exists

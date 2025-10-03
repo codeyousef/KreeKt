@@ -1,19 +1,17 @@
 package io.kreekt.texture
 
+import io.kreekt.renderer.TextureFormat
+import kotlinx.browser.document
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
-import kotlinx.browser.document
 
 /**
  * JavaScript implementation of CanvasTexture using HTMLCanvasElement
  */
-actual class CanvasTexture actual constructor(
-    width: Int,
-    height: Int
-) : CanvasTextureBase() {
-
-    actual override val width: Int = width
-    actual override val height: Int = height
+actual class CanvasTexture private actual constructor(
+    actual override val width: Int,
+    actual override val height: Int
+) : Texture() {
 
     private val canvas: HTMLCanvasElement = (document.createElement("canvas") as HTMLCanvasElement).apply {
         this.width = width
@@ -22,11 +20,41 @@ actual class CanvasTexture actual constructor(
 
     private val context: CanvasRenderingContext2D = canvas.getContext("2d") as CanvasRenderingContext2D
 
-    init {
-        // Initialize AFTER all properties are created
-        initCanvasTexture("CanvasTexture")
-        // Set default canvas settings
-        context.imageSmoothingEnabled = true
+    // Override parent properties to work around Kotlin compiler bug with expect/actual inheritance
+    override var name: String
+        get() = super.name
+        set(value) {
+            super.name = value
+        }
+
+    override var format: TextureFormat
+        get() = super.format
+        set(value) {
+            super.format = value
+        }
+
+    override var generateMipmaps: Boolean
+        get() = super.generateMipmaps
+        set(value) {
+            super.generateMipmaps = value
+        }
+
+    override var needsUpdate: Boolean
+        get() = super.needsUpdate
+        set(value) {
+            super.needsUpdate = value
+        }
+
+    actual companion object {
+        actual operator fun invoke(width: Int, height: Int): CanvasTexture {
+            val texture = CanvasTexture(width, height)
+            texture.format = TextureFormat.RGBA8
+            texture.generateMipmaps = false
+            texture.needsUpdate = true
+            texture.name = "CanvasTexture"
+            texture.context.imageSmoothingEnabled = true
+            return texture
+        }
     }
 
     /**
@@ -38,7 +66,7 @@ actual class CanvasTexture actual constructor(
         context.fillStyle = "rgba(${(r * 255).toInt()}, ${(g * 255).toInt()}, ${(b * 255).toInt()}, $a)"
         context.fillRect(0.0, 0.0, width.toDouble(), height.toDouble())
         context.restore()
-        markNeedsUpdate()
+        markTextureNeedsUpdate()
     }
 
     /**
@@ -67,7 +95,7 @@ actual class CanvasTexture actual constructor(
         context.font = font
         context.fillStyle = color
         context.fillText(text, x, y)
-        markNeedsUpdate()
+        markTextureNeedsUpdate()
     }
 
     /**
@@ -81,7 +109,7 @@ actual class CanvasTexture actual constructor(
             context.strokeStyle = color
             context.strokeRect(x, y, width, height)
         }
-        markNeedsUpdate()
+        markTextureNeedsUpdate()
     }
 
     /**
@@ -97,7 +125,7 @@ actual class CanvasTexture actual constructor(
             context.strokeStyle = color
             context.stroke()
         }
-        markNeedsUpdate()
+        markTextureNeedsUpdate()
     }
 
     override fun dispose() {

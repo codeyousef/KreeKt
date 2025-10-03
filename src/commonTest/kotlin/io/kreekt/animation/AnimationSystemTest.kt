@@ -4,6 +4,9 @@
  */
 package io.kreekt.animation
 
+import io.kreekt.animation.skeleton.Bone
+import io.kreekt.animation.skeleton.IKChain
+import io.kreekt.animation.skeleton.IKSolverType
 import io.kreekt.core.math.Quaternion
 import io.kreekt.core.math.Vector3
 import io.kreekt.core.scene.Object3D
@@ -143,11 +146,11 @@ class AnimationSystemTest {
         val hand = createTestBone("hand")
         val target = Vector3(1.0f, 1.0f, 1.0f)
 
-        val chain = Skeleton.IKChain(
+        val chain = IKChain(
             name = "arm",
             bones = listOf(shoulder, elbow, hand),
             target = target,
-            solver = Skeleton.IKSolverType.TWO_BONE
+            solver = IKSolverType.TWO_BONE
         )
 
         val result = ikSolver.solve(chain)
@@ -166,11 +169,11 @@ class AnimationSystemTest {
         )
         val target = Vector3(2.0f, 2.0f, 2.0f)
 
-        val chain = Skeleton.IKChain(
+        val chain = IKChain(
             name = "spine",
             bones = bones,
             target = target,
-            solver = Skeleton.IKSolverType.FABRIK
+            solver = IKSolverType.FABRIK
         )
 
         val result = ikSolver.solve(chain)
@@ -278,11 +281,11 @@ class AnimationSystemTest {
 
         // Test empty IK chain
         val ikSolver = MockIKSolver()
-        val emptyChain = Skeleton.IKChain(
+        val emptyChain = IKChain(
             name = "empty",
             bones = emptyList(), // Empty bone list
             target = Vector3.ZERO,
-            solver = Skeleton.IKSolverType.TWO_BONE
+            solver = IKSolverType.TWO_BONE
         )
 
         val result = ikSolver.solve(emptyChain)
@@ -318,17 +321,17 @@ class AnimationSystemTest {
         return Skeleton(bones)
     }
 
-    private fun createTestIKChain(): Skeleton.IKChain {
-        return Skeleton.IKChain(
+    private fun createTestIKChain(): IKChain {
+        return IKChain(
             name = "test_chain",
             bones = listOf(createTestBone("bone1"), createTestBone("bone2")),
             target = Vector3(1.0f, 1.0f, 1.0f),
-            solver = Skeleton.IKSolverType.FABRIK
+            solver = IKSolverType.FABRIK
         )
     }
 
-    private fun createTestBone(name: String): Skeleton.Bone {
-        return Skeleton.Bone(
+    private fun createTestBone(name: String): Bone {
+        return Bone(
             name = name,
             position = Vector3.ZERO,
             rotation = Quaternion.IDENTITY,
@@ -351,7 +354,7 @@ private class TestObject3D : Object3D() {
 }
 
 private class MockIKSolver {
-    fun solve(chain: Skeleton.IKChain): IKResult<Unit> {
+    fun solve(chain: IKChain): IKResult<Unit> {
         return IKResult.Success(Unit)
     }
 }

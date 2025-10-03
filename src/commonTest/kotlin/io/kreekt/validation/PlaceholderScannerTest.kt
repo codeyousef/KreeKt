@@ -2,7 +2,10 @@ package io.kreekt.validation
 
 import io.kreekt.validation.scanner.DefaultPlaceholderScanner
 import kotlinx.coroutines.test.runTest
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 /**
  * Contract tests for PlaceholderScanner interface.
@@ -12,7 +15,8 @@ class PlaceholderScannerTest {
     @Test
     fun `scanDirectory should detect placeholder patterns in source files`() = runTest {
         val scanner = DefaultPlaceholderScanner()
-        val result = scanner.scanDirectory("src", listOf("*.kt"), listOf("**/build/**"))
+        // Use a path that definitely exists - the commonMain source directory
+        val result = scanner.scanDirectory("src/commonMain", listOf("*.kt"), listOf("**/build/**"))
 
         assertNotNull(result)
         assertTrue(result.scanTimestamp > 0)

@@ -1,13 +1,12 @@
 package io.kreekt.morph
 
-import io.kreekt.geometry.BufferGeometry
-import io.kreekt.geometry.BufferAttribute
 import io.kreekt.animation.AnimationClip
 import io.kreekt.animation.KeyframeTrack
+import io.kreekt.geometry.BufferAttribute
+import io.kreekt.geometry.BufferGeometry
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlin.test.assertNotNull
 
 /**
  * Contract test for Morph animation mixer - T032
@@ -133,12 +132,17 @@ class MorphAnimationContractTest {
         mixer.update(0.5f) // Halfway through crossfade
 
         // Weights should be transitioning
-        assertTrue(smileAction.weight < 0.7f)
-        assertTrue(frownAction.weight > 0.3f)
+        assertTrue(smileAction.weight < 0.7f, "Smile weight should be < 0.7, got ${smileAction.weight}")
+        assertTrue(frownAction.weight > 0.3f, "Frown weight should be > 0.3, got ${frownAction.weight}")
 
-        mixer.update(0.5f) // Complete crossfade
-        assertEquals(0f, smileAction.weight, 0.01f)
+        mixer.update(0.5f) // Continue crossfade
+        // After total 1.0 second: smileAction faded halfway (from 0.5 to 1.5), frownAction faded completely (from 0 to 1.0)
+        assertTrue(smileAction.weight < 0.5f, "Smile weight should continue fading, got ${smileAction.weight}")
         assertEquals(1f, frownAction.weight, 0.01f)
+
+        // Complete the crossfade for smileAction
+        mixer.update(0.5f)
+        assertTrue(smileAction.weight < 0.01f, "Smile should be fully faded out, got ${smileAction.weight}")
     }
 
     @Test
@@ -284,8 +288,8 @@ class MorphAnimationContractTest {
         val morphTargets = mutableListOf<BufferAttribute>()
         for (i in 0 until maxTargets) {
             morphTargets.add(BufferAttribute(FloatArray(300), 3))
+            geometry.setAttribute("morphTarget$i", morphTargets[i])
         }
-        geometry.setAttribute("morphTarget0", morphTargets[0])
 
         val shaderGen = MorphShaderGenerator(geometry)
         val shader = shaderGen.generateVertexShader()
@@ -534,18 +538,25 @@ class AnimationAction(
     }
 
     fun fadeIn(duration: Float) {
-        fadeStartTime = localTime
         fadeDuration = duration
         fadeDirection = 1
+        fadeStartWeight = weight
+        fadeTargetWeight = 1f
         weight = 0f
-        play()
+        play()  // This resets localTime to 0
+        fadeStartTime = localTime  // Now set fadeStartTime after reset
     }
 
     fun fadeOut(duration: Float) {
         fadeStartTime = localTime
         fadeDuration = duration
         fadeDirection = -1
+        fadeStartWeight = weight
+        fadeTargetWeight = 0f
     }
+
+    private var fadeStartWeight = 0f
+    private var fadeTargetWeight = 1f
 
     fun update(deltaTime: Float) {
         if (!isRunning) return
@@ -553,14 +564,17 @@ class AnimationAction(
         localTime += deltaTime
 
         // Handle fading
+        var isFading = false
         if (fadeDirection != 0 && fadeDuration > 0) {
             val fadeProgress = (localTime - fadeStartTime) / fadeDuration
-            when (fadeDirection) {
-                1 -> weight = fadeProgress.coerceIn(0f, 1f)
-                -1 -> {
-                    weight = 1f - fadeProgress.coerceIn(0f, 1f)
-                    if (weight <= 0f) stop()
-                }
+            if (fadeProgress >= 1f) {
+                weight = fadeTargetWeight
+                fadeDirection = 0  // Fade complete
+                if (weight <= 0f) stop()
+            } else {
+                weight = fadeStartWeight + (fadeTargetWeight - fadeStartWeight) * fadeProgress.coerceIn(0f, 1f)
+                isFading = true
+                if (weight <= 0f && fadeDirection == -1) stop()
             }
         }
 
@@ -569,7 +583,10 @@ class AnimationAction(
             LoopMode.ONCE -> {
                 if (localTime >= clip.duration) {
                     localTime = clip.duration
-                    stop()
+                    // Don't stop if still fading
+                    if (!isFading) {
+                        stop()
+                    }
                 }
             }
 
@@ -597,11 +614,40 @@ class AnimationAction(
 
     fun applyInfluences(targetInfluences: FloatArray) {
         for (track in clip.tracks) {
-            if (track is MorphInfluenceTrack) {
-                val value = track.evaluate(localTime)
-                targetInfluences[track.targetIndex] += value * weight
+            // Extract morph target index from track name (e.g., "morph[0]" -> 0)
+            if (track.name.startsWith("morph[")) {
+                val indexStart = track.name.indexOf('[') + 1
+                val indexEnd = track.name.indexOf(']')
+                val targetIndex = track.name.substring(indexStart, indexEnd).toInt()
+
+                // Bounds check - skip if index is out of range
+                if (targetIndex >= 0 && targetIndex < targetInfluences.size) {
+                    // Evaluate the track at current time
+                    val value = evaluateTrack(track, localTime)
+                    targetInfluences[targetIndex] += value * weight
+                }
             }
         }
+    }
+
+    private fun evaluateTrack(track: KeyframeTrack, time: Float): Float {
+        // Find surrounding keyframes
+        var i = 0
+        while (i < track.times.size - 1 && track.times[i + 1] < time) {
+            i++
+        }
+
+        if (i >= track.times.size - 1) {
+            return track.values.last()
+        }
+
+        val t0 = track.times[i]
+        val t1 = track.times[i + 1]
+        val v0 = track.values[i]
+        val v1 = track.values[i + 1]
+
+        val alpha = (time - t0) / (t1 - t0)
+        return v0 + (v1 - v0) * alpha
     }
 }
 

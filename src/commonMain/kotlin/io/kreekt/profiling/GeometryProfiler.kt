@@ -1,7 +1,6 @@
 package io.kreekt.profiling
 
 import io.kreekt.geometry.BufferGeometry
-import io.kreekt.geometry.BufferAttribute
 
 /**
  * Profiling utilities for geometry operations.
@@ -264,7 +263,14 @@ data class GeometryComplexity(
         }
 
         if (getMemoryUsageMB() > 10f) {
-            recommendations.add("Geometry uses ${String.format("%.2f", getMemoryUsageMB())}MB - consider compression")
+            recommendations.add(
+                "Geometry uses ${
+                    io.kreekt.core.platform.formatFloat(
+                        getMemoryUsageMB(),
+                        2
+                    )
+                }MB - consider compression"
+            )
         }
 
         return recommendations

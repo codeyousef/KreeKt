@@ -34,6 +34,55 @@ class InstancedBufferAttribute(
 
     private var _updateRange = UpdateRange()
 
+    // Override setters to track update range
+    override fun setX(index: Int, value: Float) {
+        super.setX(index, value)
+        trackUpdate(index)
+    }
+
+    override fun setY(index: Int, value: Float) {
+        super.setY(index, value)
+        trackUpdate(index)
+    }
+
+    override fun setZ(index: Int, value: Float) {
+        super.setZ(index, value)
+        trackUpdate(index)
+    }
+
+    override fun setW(index: Int, value: Float) {
+        super.setW(index, value)
+        trackUpdate(index)
+    }
+
+    override fun setXY(index: Int, x: Float, y: Float) {
+        super.setXY(index, x, y)
+        trackUpdate(index)
+    }
+
+    override fun setXYZ(index: Int, x: Float, y: Float, z: Float) {
+        super.setXYZ(index, x, y, z)
+        trackUpdate(index)
+    }
+
+    override fun setXYZW(index: Int, x: Float, y: Float, z: Float, w: Float) {
+        super.setXYZW(index, x, y, z, w)
+        trackUpdate(index)
+    }
+
+    private fun trackUpdate(index: Int) {
+        needsUpdate = true
+        if (_updateRange.count == -1) {
+            // First update
+            _updateRange = UpdateRange(index, 1)
+        } else {
+            // Expand range to include new index
+            val newStart = minOf(_updateRange.offset, index)
+            val newEnd = maxOf(_updateRange.offset + _updateRange.count - 1, index)
+            _updateRange = UpdateRange(newStart, newEnd - newStart + 1)
+        }
+    }
+
     override fun clone(): InstancedBufferAttribute {
         return InstancedBufferAttribute(array.copyOf(), itemSize, normalized, meshPerAttribute).apply {
             needsUpdate = this@InstancedBufferAttribute.needsUpdate

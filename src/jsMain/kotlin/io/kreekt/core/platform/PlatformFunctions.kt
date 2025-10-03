@@ -89,8 +89,8 @@ actual fun <T> platformClone(obj: T): T {
  * Uses performance.memory API if available, estimates otherwise
  */
 actual fun getMemoryUsage(): MemoryUsage {
-    val memory = try {
-        js("performance.memory") as? dynamic
+    val memory: dynamic = try {
+        js("performance.memory")
     } catch (e: Throwable) {
         null
     }

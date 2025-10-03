@@ -27,11 +27,6 @@ class CubeCamera(
     cubeResolution: Int = 256
 ) : Camera() {
 
-    init {
-        near = nearClip
-        far = farClip
-    }
-
     /**
      * The cube render target where the scene is rendered
      */
@@ -42,16 +37,20 @@ class CubeCamera(
     /**
      * Internal cameras for each cube face
      */
-    private val cameraPX = PerspectiveCamera(90f, 1f, near, far)
-    private val cameraNX = PerspectiveCamera(90f, 1f, near, far)
-    private val cameraPY = PerspectiveCamera(90f, 1f, near, far)
-    private val cameraNY = PerspectiveCamera(90f, 1f, near, far)
-    private val cameraPZ = PerspectiveCamera(90f, 1f, near, far)
-    private val cameraNZ = PerspectiveCamera(90f, 1f, near, far)
+    private val cameraPX = PerspectiveCamera(90f, 1f, nearClip, farClip)
+    private val cameraNX = PerspectiveCamera(90f, 1f, nearClip, farClip)
+    private val cameraPY = PerspectiveCamera(90f, 1f, nearClip, farClip)
+    private val cameraNY = PerspectiveCamera(90f, 1f, nearClip, farClip)
+    private val cameraPZ = PerspectiveCamera(90f, 1f, nearClip, farClip)
+    private val cameraNZ = PerspectiveCamera(90f, 1f, nearClip, farClip)
 
     private val cameras = listOf(cameraPX, cameraNX, cameraPY, cameraNY, cameraPZ, cameraNZ)
 
     init {
+        // Set near/far after cameras are initialized
+        near = nearClip
+        far = farClip
+
         // Set up camera orientations for each cube face
         setupCameraOrientations()
 

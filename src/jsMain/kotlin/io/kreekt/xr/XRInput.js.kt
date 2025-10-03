@@ -1,4 +1,8 @@
-package io.kreekt.xr
+package io.kreekt.xr.input
+
+import io.kreekt.xr.EyeTrackingData
+import io.kreekt.xr.XRHandJoint
+import io.kreekt.xr.XRJointPose
 
 /**
  * JavaScript implementation of XR Input internal functions

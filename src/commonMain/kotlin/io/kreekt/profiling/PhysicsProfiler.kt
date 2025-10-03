@@ -151,7 +151,14 @@ data class PhysicsComplexity(
         }
 
         if (averageContactsPerBody > 10) {
-            recommendations.add("High average contacts per body (${String.format("%.1f", averageContactsPerBody)}) - check geometry complexity")
+            recommendations.add(
+                "High average contacts per body (${
+                    io.kreekt.core.platform.formatFloat(
+                        averageContactsPerBody,
+                        1
+                    )
+                }) - check geometry complexity"
+            )
         }
 
         if (islandCount > 50) {

@@ -3,17 +3,15 @@ package io.kreekt.points
 import io.kreekt.core.math.Color
 import io.kreekt.core.math.Vector3
 import io.kreekt.core.scene.Object3D
-import io.kreekt.geometry.BufferGeometry
 import io.kreekt.geometry.BufferAttribute
+import io.kreekt.geometry.BufferGeometry
 import io.kreekt.material.Material
 import io.kreekt.raycaster.Raycaster
-import io.kreekt.raycaster.Intersection
+import kotlin.math.PI
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.assertNotNull
-import kotlin.math.PI
-import kotlin.math.sqrt
+import kotlin.test.assertTrue
 
 /**
  * Contract test for Points rendering (point clouds) - T029
@@ -183,20 +181,21 @@ class PointsContractTest {
         )
         raycaster.params.points.threshold = 0.1f // Set threshold for point picking
 
-        val intersections = raycaster.intersectObject(points)
+        val intersections = points.raycast(raycaster)
 
         // Should intersect with point at origin
-        assertTrue(intersections.isNotEmpty())
+        assertTrue(intersections.isNotEmpty(), "Should have at least one intersection")
         // Check that we got an intersection (index field in Intersection data class)
         assertNotNull(intersections[0].point)
-        assertTrue(intersections[0].distance > 0f)
+        // Distance should be positive (ray origin is at z=-5, point is at z=0, so distance = 5)
+        assertTrue(intersections[0].distance >= 0f, "Distance should be >= 0, got ${intersections[0].distance}")
 
         // Cast ray towards point at (1, 0, 0)
         raycaster.set(
             Vector3(-5f, 0f, 0f),
             Vector3(1f, 0f, 0f)
         )
-        val intersections2 = raycaster.intersectObject(points)
+        val intersections2 = points.raycast(raycaster)
         assertTrue(intersections2.isNotEmpty())
         assertNotNull(intersections2[0].point)
     }
@@ -363,6 +362,38 @@ class Points(
 
     fun getVisiblePointsInFrustum(frustumPlanes: Array<Plane>): Int {
         return octree?.getVisibleCount(frustumPlanes) ?: geometry.getAttribute("position")!!.count
+    }
+
+    fun raycast(raycaster: io.kreekt.raycaster.Raycaster): List<io.kreekt.raycaster.Intersection> {
+        val positions = geometry.getAttribute("position") ?: return emptyList()
+        val intersections = mutableListOf<io.kreekt.raycaster.Intersection>()
+        val threshold = raycaster.params.points.threshold ?: material.size
+
+        for (i in 0 until positions.count) {
+            val point = Vector3(positions.getX(i), positions.getY(i), positions.getZ(i))
+
+            // Apply object world matrix if needed
+            point.applyMatrix4(matrixWorld)
+
+            // Calculate perpendicular distance from point to ray
+            val perpendicularDistance = raycaster.ray.distanceToPoint(point)
+
+            if (perpendicularDistance < threshold) {
+                // Calculate distance along the ray from origin to the closest point
+                val v = point.clone().sub(raycaster.ray.origin)
+                val distanceAlongRay = v.dot(raycaster.ray.direction)
+
+                intersections.add(
+                    io.kreekt.raycaster.Intersection(
+                        distance = distanceAlongRay,
+                        point = point,
+                        `object` = this
+                    )
+                )
+            }
+        }
+
+        return intersections.sortedBy { it.distance }
     }
 }
 

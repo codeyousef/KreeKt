@@ -1,14 +1,13 @@
 package io.kreekt.helper
 
-import io.kreekt.core.math.Color
-import io.kreekt.core.math.Vector3
-import io.kreekt.core.scene.Object3D
-import io.kreekt.camera.Camera
 import io.kreekt.camera.PerspectiveCamera
+import io.kreekt.core.math.Color
+import io.kreekt.core.scene.Object3D
+import io.kreekt.geometry.BufferGeometry
 import io.kreekt.light.DirectionalLight
-import io.kreekt.light.SpotLight
-import io.kreekt.light.PointLight
 import io.kreekt.light.HemisphereLight
+import io.kreekt.light.PointLight
+import io.kreekt.light.SpotLight
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -264,8 +263,11 @@ class LightCameraHelpersContractTest {
 
         // Verify geometry represents split sphere (should have color attribute)
         assertNotNull(lightHelper.geometry, "HemisphereLightHelper should have geometry")
-        val colors = lightHelper.geometry.getAttribute("color")
-        assertNotNull(colors, "HemisphereLightHelper geometry should have color attribute for split sphere")
+        val geom = lightHelper.geometry
+        if (geom is BufferGeometry) {
+            val colors = geom.getAttribute("color")
+            assertNotNull(colors, "HemisphereLightHelper geometry should have color attribute for split sphere")
+        }
     }
 
     /**

@@ -2,6 +2,7 @@ package io.kreekt.core.scene.transform
 
 import io.kreekt.core.math.*
 import io.kreekt.core.scene.Transform
+import io.kreekt.core.scene.extractRotation
 
 /**
  * Transform operation utilities for position, rotation, and scale manipulation.

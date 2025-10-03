@@ -7,8 +7,10 @@ package io.kreekt.geometry
 import io.kreekt.core.math.Box3
 import io.kreekt.core.math.Vector2
 import io.kreekt.core.math.Vector3
-import io.kreekt.geometry.text.*
-import kotlin.math.max
+import io.kreekt.geometry.text.GeometryMerger
+import io.kreekt.geometry.text.PathConverter
+import io.kreekt.geometry.text.ShapeTriangulator
+import io.kreekt.geometry.text.TextLayoutEngine
 
 /**
  * Options for text geometry generation

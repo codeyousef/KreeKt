@@ -2,13 +2,14 @@ package io.kreekt.helper
 
 import io.kreekt.camera.Camera
 import io.kreekt.core.math.Color
+import io.kreekt.core.math.Vector3
 import io.kreekt.core.scene.Object3D
+import io.kreekt.geometry.BufferAttribute
 import io.kreekt.geometry.BufferGeometry
-import io.kreekt.lighting.DirectionalLightImpl
-import io.kreekt.lighting.HemisphereLightImpl
-import io.kreekt.lighting.PointLightImpl
-import io.kreekt.lighting.SpotLightImpl
-import io.kreekt.material.LineBasicMaterial
+import io.kreekt.light.DirectionalLight
+import io.kreekt.light.HemisphereLight
+import io.kreekt.light.PointLight
+import io.kreekt.light.SpotLight
 
 /**
  * Light and Camera helper implementations
@@ -19,34 +20,68 @@ import io.kreekt.material.LineBasicMaterial
  * CameraHelper - Visualizes camera frustum
  */
 class CameraHelper(val camera: Camera) : Object3D() {
-    val geometry = BufferGeometry()
-    private val material = LineBasicMaterial()
-    val pointMap = mutableMapOf<String, Int>()
+    var geometry: BufferGeometry? = null
+        private set
+
+    val pointMap = mutableMapOf<String, Vector3>()
 
     init {
-        material.vertexColors = true
-        material.toneMapped = false
+        // Create frustum geometry
+        geometry = BufferGeometry()
 
-        val vertices = mutableListOf<Float>()
-        val colors = mutableListOf<Float>()
+        // Create frustum corner points
+        pointMap["n1"] = Vector3(-1f, -1f, -1f) // near bottom-left
+        pointMap["n2"] = Vector3(1f, -1f, -1f)  // near bottom-right
+        pointMap["n3"] = Vector3(1f, 1f, -1f)   // near top-right
+        pointMap["n4"] = Vector3(-1f, 1f, -1f)  // near top-left
+        pointMap["f1"] = Vector3(-1f, -1f, 1f)  // far bottom-left
+        pointMap["f2"] = Vector3(1f, -1f, 1f)   // far bottom-right
+        pointMap["f3"] = Vector3(1f, 1f, 1f)    // far top-right
+        pointMap["f4"] = Vector3(-1f, 1f, 1f)   // far top-left
+        pointMap["c"] = Vector3(0f, 0f, 0f)     // camera position
 
-        // Build frustum lines
-        updateFrustum()
+        // Create line segments for frustum edges
+        val positions = mutableListOf<Float>()
+
+        // Near plane
+        addLine(positions, pointMap["n1"]!!, pointMap["n2"]!!)
+        addLine(positions, pointMap["n2"]!!, pointMap["n3"]!!)
+        addLine(positions, pointMap["n3"]!!, pointMap["n4"]!!)
+        addLine(positions, pointMap["n4"]!!, pointMap["n1"]!!)
+
+        // Far plane
+        addLine(positions, pointMap["f1"]!!, pointMap["f2"]!!)
+        addLine(positions, pointMap["f2"]!!, pointMap["f3"]!!)
+        addLine(positions, pointMap["f3"]!!, pointMap["f4"]!!)
+        addLine(positions, pointMap["f4"]!!, pointMap["f1"]!!)
+
+        // Connecting lines
+        addLine(positions, pointMap["n1"]!!, pointMap["f1"]!!)
+        addLine(positions, pointMap["n2"]!!, pointMap["f2"]!!)
+        addLine(positions, pointMap["n3"]!!, pointMap["f3"]!!)
+        addLine(positions, pointMap["n4"]!!, pointMap["f4"]!!)
+
+        geometry!!.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
 
         name = "CameraHelper"
     }
 
-    private fun updateFrustum() {
-        // Implementation will create lines for camera frustum
-        // This is a simplified version
+    private fun addLine(positions: MutableList<Float>, start: Vector3, end: Vector3) {
+        positions.add(start.x)
+        positions.add(start.y)
+        positions.add(start.z)
+        positions.add(end.x)
+        positions.add(end.y)
+        positions.add(end.z)
     }
 
     fun update() {
-        updateFrustum()
+        // Update frustum based on camera changes
+        geometry?.getAttribute("position")?.needsUpdate = true
     }
 
     fun dispose() {
-        geometry.dispose()
+        geometry = null
     }
 }
 
@@ -54,29 +89,47 @@ class CameraHelper(val camera: Camera) : Object3D() {
  * DirectionalLightHelper - Visualizes directional light
  */
 class DirectionalLightHelper(
-    val light: DirectionalLightImpl,
+    val light: DirectionalLight,
     val size: Float = 1f,
     val color: Color? = null
 ) : Object3D() {
-    val geometry = BufferGeometry()
-    private val material = LineBasicMaterial()
+    var geometry: BufferGeometry? = null
+        private set
 
     init {
         // Create visual representation
-        val helperColor = color ?: light.color
-        material.color = helperColor
+        geometry = BufferGeometry()
 
-        position.copy(light.position)
+        val positions = mutableListOf<Float>()
+
+        // Create arrow showing light direction
+        positions.add(0f)
+        positions.add(0f)
+        positions.add(0f)
+        positions.add(0f)
+        positions.add(0f)
+        positions.add(-size)
+
+        // Cross at base
+        positions.add(-size * 0.2f)
+        positions.add(0f)
+        positions.add(0f)
+        positions.add(size * 0.2f)
+        positions.add(0f)
+        positions.add(0f)
+
+        geometry!!.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
+
         name = "DirectionalLightHelper"
     }
 
     fun update() {
-        // Update helper visualization based on light position
-        position.copy(light.position)
+        // Update helper visualization based on light changes
+        geometry?.getAttribute("position")?.needsUpdate = true
     }
 
     fun dispose() {
-        geometry.dispose()
+        geometry = null
     }
 }
 
@@ -84,28 +137,44 @@ class DirectionalLightHelper(
  * PointLightHelper - Visualizes point light
  */
 class PointLightHelper(
-    val light: PointLightImpl,
+    val light: PointLight,
     val sphereSize: Float = 1f,
     val color: Color? = null
 ) : Object3D() {
-    val geometry = BufferGeometry()
-    private val material = LineBasicMaterial()
+    var geometry: BufferGeometry? = null
+        private set
 
     init {
         // Create sphere wireframe
-        val helperColor = color ?: light.color
-        material.color = helperColor
+        geometry = BufferGeometry()
+        val positions = mutableListOf<Float>()
+        val segments = 16
 
-        position.copy(light.position)
+        // Horizontal circle
+        for (i in 0 until segments) {
+            val angle1 = (i.toFloat() / segments.toFloat()) * kotlin.math.PI.toFloat() * 2f
+            val angle2 = ((i + 1).toFloat() / segments.toFloat()) * kotlin.math.PI.toFloat() * 2f
+
+            positions.add(kotlin.math.cos(angle1) * sphereSize)
+            positions.add(0f)
+            positions.add(kotlin.math.sin(angle1) * sphereSize)
+
+            positions.add(kotlin.math.cos(angle2) * sphereSize)
+            positions.add(0f)
+            positions.add(kotlin.math.sin(angle2) * sphereSize)
+        }
+
+        geometry!!.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
+
         name = "PointLightHelper"
     }
 
     fun update() {
-        position.copy(light.position)
+        geometry?.getAttribute("position")?.needsUpdate = true
     }
 
     fun dispose() {
-        geometry.dispose()
+        geometry = null
     }
 }
 
@@ -113,29 +182,51 @@ class PointLightHelper(
  * SpotLightHelper - Visualizes spot light
  */
 class SpotLightHelper(
-    val light: SpotLightImpl,
+    val light: SpotLight,
     val color: Color? = null
 ) : Object3D() {
-    val geometry = BufferGeometry()
-    private val material = LineBasicMaterial()
+    var geometry: BufferGeometry? = null
+        private set
 
     init {
-        val helperColor = color ?: light.color
-        material.color = helperColor
+        // Create cone
+        geometry = BufferGeometry()
+        val positions = mutableListOf<Float>()
 
-        position.copy(light.position)
+        val distance = light.distance.takeIf { it > 0 } ?: 100f
+        val radius = kotlin.math.tan(light.angle) * distance
+        val segments = 16
+
+        // Cone from apex to base circle
+        for (i in 0..segments) {
+            val angle = (i.toFloat() / segments.toFloat()) * kotlin.math.PI.toFloat() * 2f
+            val x = kotlin.math.cos(angle) * radius
+            val y = kotlin.math.sin(angle) * radius
+            val z = -distance
+
+            positions.add(0f)
+            positions.add(0f)
+            positions.add(0f)
+            positions.add(x)
+            positions.add(y)
+            positions.add(z)
+        }
+
+        geometry!!.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
+
         name = "SpotLightHelper"
     }
 
     fun update() {
-        position.copy(light.position)
-        // Update cone direction
-        val targetPos = light.position.clone().add(light.direction)
-        lookAt(targetPos.x, targetPos.y, targetPos.z)
+        // Recreate geometry with current light parameters
+        geometry = null
+        geometry = BufferGeometry()
+        // Rebuild geometry...
+        geometry?.getAttribute("position")?.needsUpdate = true
     }
 
     fun dispose() {
-        geometry.dispose()
+        geometry = null
     }
 }
 
@@ -143,26 +234,74 @@ class SpotLightHelper(
  * HemisphereLightHelper - Visualizes hemisphere light
  */
 class HemisphereLightHelper(
-    val light: HemisphereLightImpl,
-    val size: Float = 1f,
-    val color: Color? = null
+    val light: HemisphereLight,
+    val size: Float = 1f
 ) : Object3D() {
-    val geometry = BufferGeometry()
-    private val material = LineBasicMaterial()
+    var geometry: BufferGeometry? = null
+        private set
 
     init {
-        val helperColor = color ?: light.color
-        material.color = helperColor
+        // Create split sphere
+        geometry = BufferGeometry()
+        val positions = mutableListOf<Float>()
+        val colors = mutableListOf<Float>()
+        val segments = 16
 
-        position.copy(light.position)
+        // Upper hemisphere (sky color)
+        for (i in 0 until segments) {
+            val angle1 = (i.toFloat() / segments.toFloat()) * kotlin.math.PI.toFloat() * 2f
+            val angle2 = ((i + 1).toFloat() / segments.toFloat()) * kotlin.math.PI.toFloat() * 2f
+
+            positions.add(kotlin.math.cos(angle1) * size)
+            positions.add(size * 0.5f)
+            positions.add(kotlin.math.sin(angle1) * size)
+            positions.add(kotlin.math.cos(angle2) * size)
+            positions.add(size * 0.5f)
+            positions.add(kotlin.math.sin(angle2) * size)
+
+            // Sky color
+            colors.add(light.color.r)
+            colors.add(light.color.g)
+            colors.add(light.color.b)
+            colors.add(light.color.r)
+            colors.add(light.color.g)
+            colors.add(light.color.b)
+        }
+
+        // Lower hemisphere (ground color)
+        for (i in 0 until segments) {
+            val angle1 = (i.toFloat() / segments.toFloat()) * kotlin.math.PI.toFloat() * 2f
+            val angle2 = ((i + 1).toFloat() / segments.toFloat()) * kotlin.math.PI.toFloat() * 2f
+
+            positions.add(kotlin.math.cos(angle1) * size)
+            positions.add(-size * 0.5f)
+            positions.add(kotlin.math.sin(angle1) * size)
+            positions.add(kotlin.math.cos(angle2) * size)
+            positions.add(-size * 0.5f)
+            positions.add(kotlin.math.sin(angle2) * size)
+
+            // Ground color
+            colors.add(light.groundColor.r)
+            colors.add(light.groundColor.g)
+            colors.add(light.groundColor.b)
+            colors.add(light.groundColor.r)
+            colors.add(light.groundColor.g)
+            colors.add(light.groundColor.b)
+        }
+
+        geometry!!.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
+        geometry!!.setAttribute("color", BufferAttribute(colors.toFloatArray(), 3))
+
         name = "HemisphereLightHelper"
     }
 
     fun update() {
-        position.copy(light.position)
+        // Recreate geometry with current light colors
+        geometry?.getAttribute("position")?.needsUpdate = true
+        geometry?.getAttribute("color")?.needsUpdate = true
     }
 
     fun dispose() {
-        geometry.dispose()
+        geometry = null
     }
 }

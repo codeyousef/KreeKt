@@ -1,15 +1,13 @@
 package io.kreekt.layers
 
-import io.kreekt.core.scene.Object3D
-import io.kreekt.core.scene.Group
-import io.kreekt.camera.Camera
 import io.kreekt.camera.PerspectiveCamera
-import io.kreekt.raycaster.Raycaster
 import io.kreekt.core.math.Vector3
+import io.kreekt.core.scene.Group
+import io.kreekt.raycaster.Raycaster
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * Contract test for Layer-based visibility - T035
@@ -75,13 +73,15 @@ class LayersContractTest {
 
         val filtered = mutableListOf<Group>()
         for (obj in objects) {
-            // obj.layers is io.kreekt.core.scene.Layers, not io.kreekt.layers.Layers
-            // Just test directly
-            if (raycaster.layers.test(io.kreekt.layers.Layers().apply { set(2) })) {
+            // Convert Object3D.layers mask to io.kreekt.layers.Layers for testing
+            val objLayers = io.kreekt.layers.Layers()
+            objLayers.mask = obj.layers.mask
+
+            if (raycaster.layers.test(objLayers)) {
                 filtered.add(obj)
             }
         }
-        assertEquals(1, filtered.size)
+        assertEquals(1, filtered.size, "Should only find objects on layer 2")
         // Check that we got a filtered result
         assertTrue(filtered.isNotEmpty())
     }

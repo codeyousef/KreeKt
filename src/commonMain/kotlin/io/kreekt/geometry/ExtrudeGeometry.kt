@@ -4,13 +4,10 @@
  */
 package io.kreekt.geometry
 
-import io.kreekt.core.math.*
-import io.kreekt.core.platform.platformClone
+import io.kreekt.core.math.Vector2
+import io.kreekt.core.math.Vector3
+import io.kreekt.shape.Shape
 import kotlin.math.*
-import io.kreekt.core.platform.platformClone
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * Options for extrusion geometry generation
@@ -91,26 +88,8 @@ class DefaultExtrudeUVGenerator : ExtrudeUVGenerator {
 }
 
 /**
- * Shape interface for 2D shapes that can be extruded
- */
-interface Shape {
-    val points: List<Vector2>
-    val holes: List<Path>
-
-    fun getPointsHoles(): Pair<List<Vector2>, List<List<Vector2>>> {
-        return Pair(points, holes.map { it.points })
-    }
-}
-
-/**
- * Path interface for 2D curves and paths
- */
-interface Path {
-    val points: List<Vector2>
-}
-
-/**
  * Simple curve interface for extrusion paths
+ * Note: Shape and Path are imported from io.kreekt.shape and io.kreekt.curve
  */
 interface Curve {
     fun getPoint(t: Float): Vector3
@@ -144,7 +123,9 @@ class ExtrudeGeometry(
         var vertexCounter = 0
 
         for (shape in shapes) {
-            val (shapePoints, holes) = shape.getPointsHoles()
+            val extractedPoints = shape.extractPoints(divisions = 12)
+            val shapePoints = extractedPoints.shape
+            val holes = extractedPoints.holes
 
             // Triangulate the shape
             val triangulatedShape = triangulateShape(shapePoints, holes)
@@ -494,15 +475,7 @@ data class ExtrusionLayer(
     val scaleFactor: Float
 )
 
-/**
- * Simple implementation of Shape interface
- */
-class SimpleShape(override val points: List<Vector2>, override val holes: List<Path> = emptyList()) : Shape
-
-/**
- * Simple implementation of Path interface
- */
-class SimplePath(override val points: List<Vector2>) : Path
+// Note: Shape and Path are imported from io.kreekt.shape and io.kreekt.curve packages
 
 /**
  * Linear curve for straight extrusions
@@ -540,7 +513,7 @@ object ShapeHelper {
             Vector2(-halfWidth, halfHeight)
         )
 
-        return SimpleShape(points)
+        return Shape(points)
     }
 
     /**
@@ -554,7 +527,7 @@ object ShapeHelper {
             points.add(Vector2(cos(angle) * radius, sin(angle) * radius))
         }
 
-        return SimpleShape(points)
+        return Shape(points)
     }
 
     /**
@@ -569,7 +542,7 @@ object ShapeHelper {
             vertices.add(Vector2(cos(angle) * radius, sin(angle) * radius))
         }
 
-        return SimpleShape(vertices)
+        return Shape(vertices)
     }
 
     /**
@@ -586,6 +559,6 @@ object ShapeHelper {
             points.add(Vector2(x * scale / 16f, y * scale / 16f))
         }
 
-        return SimpleShape(points)
+        return Shape(points)
     }
 }

@@ -96,7 +96,7 @@ class ProfilingDashboard {
                 else -> "✗ POOR"
             }
 
-            appendLine("  FPS: ${String.format("%.1f", state.frameStats.averageFps)} $fpsStatus")
+            appendLine("  FPS: ${io.kreekt.core.platform.formatDouble(state.frameStats.averageFps, 1)} $fpsStatus")
             appendLine("  Frame Time: ${formatMs(state.frameStats.averageFrameTime / 1_000_000)} (Target: 16.67ms)")
             appendLine("  Dropped: ${state.frameStats.droppedFrames} frames")
             appendLine()
@@ -112,7 +112,14 @@ class ProfilingDashboard {
             if (state.hotspots.isNotEmpty()) {
                 appendLine("  Top Hotspots:")
                 state.hotspots.take(5).forEach { hotspot ->
-                    appendLine("    • ${hotspot.name}: ${String.format("%.1f", hotspot.percentage)}% (${hotspot.callCount} calls)")
+                    appendLine(
+                        "    • ${hotspot.name}: ${
+                            io.kreekt.core.platform.formatFloat(
+                                hotspot.percentage,
+                                1
+                            )
+                        }% (${hotspot.callCount} calls)"
+                    )
                 }
                 appendLine()
             }
@@ -184,11 +191,11 @@ class ProfilingDashboard {
     }
 
     private fun formatMs(ms: Long): String {
-        return "${String.format("%.2f", ms.toFloat())}ms"
+        return "${io.kreekt.core.platform.formatFloat(ms.toFloat(), 2)}ms"
     }
 
     private fun formatMB(bytes: Long): String {
-        return "${String.format("%.1f", bytes / (1024f * 1024f))}MB"
+        return "${io.kreekt.core.platform.formatFloat(bytes / (1024f * 1024f), 1)}MB"
     }
 }
 
@@ -359,13 +366,13 @@ data class SessionSummary(
         println("═══════════════════════════════════════════════════════════════")
         println("  Profiling Session: $name")
         println("═══════════════════════════════════════════════════════════════")
-        println("  Duration: ${String.format("%.2f", durationSeconds)}s")
+        println("  Duration: ${io.kreekt.core.platform.formatDouble(durationSeconds, 2)}s")
         println("  Frames: $frameCount")
-        println("  Average FPS: ${String.format("%.2f", averageFps)}")
+        println("  Average FPS: ${io.kreekt.core.platform.formatDouble(averageFps, 2)}")
         println()
         println("  Top Hotspots:")
         hotspots.take(5).forEach { hotspot ->
-            println("    • ${hotspot.name}: ${String.format("%.1f", hotspot.percentage)}%")
+            println("    • ${hotspot.name}: ${io.kreekt.core.platform.formatFloat(hotspot.percentage, 1)}%")
         }
         println()
         if (recommendations.isNotEmpty()) {

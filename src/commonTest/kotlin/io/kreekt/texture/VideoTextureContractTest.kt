@@ -197,7 +197,7 @@ class VideoTextureContractTest {
 }
 
 // VideoTexture placeholder
-class VideoTexture : Texture {
+class VideoTexture {
     var source: String? = null
     var video: VideoElement? = null
     var needsUpdate: Boolean = false

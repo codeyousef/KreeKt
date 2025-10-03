@@ -1,9 +1,8 @@
 package io.kreekt.audio
 
 import io.kreekt.camera.Camera
-import io.kreekt.core.scene.Object3D
 import io.kreekt.core.math.Vector3
-import io.kreekt.core.math.Quaternion
+import io.kreekt.core.scene.Object3D
 
 actual class AudioListener actual constructor(camera: Camera?) : Object3D() {
     private val _camera = camera
@@ -12,8 +11,10 @@ actual class AudioListener actual constructor(camera: Camera?) : Object3D() {
 
     actual override fun updateMatrixWorld(force: Boolean) {
         _camera?.let {
+            // Copy position from camera
             position.copy(it.position)
-            quaternion.copy(it.quaternion)
+            // Sync quaternion from camera's rotation (in case rotation was set directly)
+            quaternion.setFromEuler(it.rotation)
         }
         super.updateMatrixWorld(force)
     }

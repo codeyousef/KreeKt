@@ -1,5 +1,7 @@
 package io.kreekt.animation
 
+import io.kreekt.animation.skeleton.Bone
+import io.kreekt.animation.skeleton.IKChain
 import io.kreekt.core.math.Quaternion
 import io.kreekt.core.math.Vector3
 import kotlin.math.PI
@@ -44,7 +46,7 @@ class IKSolver {
          * Most robust for long chains with good performance
          */
         fun solveFABRIK(
-            chain: Skeleton.IKChain,
+            chain: IKChain,
             config: IKConfig = IKConfig()
         ): IKResult {
             val bones = chain.bones
@@ -136,9 +138,9 @@ class IKSolver {
          * Perfect for arms, legs, and simple chains
          */
         fun solveTwoBone(
-            upperBone: Skeleton.Bone,
-            lowerBone: Skeleton.Bone,
-            effector: Skeleton.Bone,
+            upperBone: Bone,
+            lowerBone: Bone,
+            effector: Bone,
             target: Vector3,
             poleVector: Vector3? = null,
             config: IKConfig = IKConfig()
@@ -236,7 +238,7 @@ class IKSolver {
          * Good for general-purpose IK with reasonable performance
          */
         fun solveCCD(
-            chain: Skeleton.IKChain,
+            chain: IKChain,
             config: IKConfig = IKConfig()
         ): IKResult {
             val bones = chain.bones
@@ -308,7 +310,7 @@ class IKSolver {
          * Most accurate but computationally expensive
          */
         fun solveJacobian(
-            chain: Skeleton.IKChain,
+            chain: IKChain,
             config: IKConfig = IKConfig()
         ): IKResult {
             val bones = chain.bones
@@ -364,7 +366,7 @@ class IKSolver {
          * Solve IK chain with automatic solver selection
          */
         fun solveAuto(
-            chain: Skeleton.IKChain,
+            chain: IKChain,
             config: IKConfig = IKConfig()
         ): IKResult {
             return when {
@@ -394,10 +396,10 @@ class IKSolver {
          * Solve multiple IK chains with priorities
          */
         fun solveMultipleChains(
-            chains: List<Pair<Skeleton.IKChain, Float>>, // Chain to priority pairs
+            chains: List<Pair<IKChain, Float>>, // Chain to priority pairs
             config: IKConfig = IKConfig()
-        ): Map<Skeleton.IKChain, IKResult> {
-            val results = mutableMapOf<Skeleton.IKChain, IKResult>()
+        ): Map<IKChain, IKResult> {
+            val results = mutableMapOf<IKChain, IKResult>()
 
             // Sort by priority (higher priority first)
             val sortedChains = chains.sortedByDescending { it.second }
@@ -416,7 +418,7 @@ class IKSolver {
         // Helper functions
 
         private fun stretchToTarget(
-            bones: List<Skeleton.Bone>,
+            bones: List<Bone>,
             positions: List<Vector3>,
             target: Vector3,
             lengths: List<Float>
@@ -431,9 +433,9 @@ class IKSolver {
         }
 
         private fun applyConstraints(
-            bone: Skeleton.Bone,
+            bone: Bone,
             position: Vector3,
-            nextBone: Skeleton.Bone
+            nextBone: Bone
         ) {
             // Apply bone constraints (simplified)
             val constrainedPosition = bone.constraints.applyTranslationConstraints(position)
@@ -441,7 +443,7 @@ class IKSolver {
         }
 
         private fun applyPositionsToBones(
-            bones: List<Skeleton.Bone>,
+            bones: List<Bone>,
             positions: List<Vector3>
         ) {
             for (i in positions.indices) {
@@ -468,7 +470,7 @@ class IKSolver {
             bones.forEach { it.updateMatrixWorld() }
         }
 
-        private fun buildJacobian(bones: List<Skeleton.Bone>, effectorPos: Vector3): Array<FloatArray> {
+        private fun buildJacobian(bones: List<Bone>, effectorPos: Vector3): Array<FloatArray> {
             // Simplified Jacobian construction
             val jacobian = Array(3) { FloatArray(bones.size) }
 
@@ -512,7 +514,7 @@ class IKSolver {
 }
 
 // Extension functions for missing operations
-private fun Skeleton.Bone.worldToLocal(worldPos: Vector3): Vector3 {
+private fun Bone.worldToLocal(worldPos: Vector3): Vector3 {
     // Convert world position to local coordinate space
     val localPos = worldPos.clone()
     // Apply inverse of world matrix transformation

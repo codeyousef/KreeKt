@@ -18,8 +18,8 @@ import kotlinx.atomicfu.update
  */
 object PerformanceProfiler {
 
-    private val enabled = atomic(false)
-    private val config = atomic(ProfilerConfig())
+    internal val enabled = atomic(false)
+    internal val config = atomic(ProfilerConfig())
     private val currentFrame = atomic<FrameProfileData?>(null)
     private val frameHistory = atomic<List<FrameProfileData>>(emptyList())
     private val hotspots = atomic<Map<String, HotspotData>>(emptyMap())
@@ -29,7 +29,7 @@ object PerformanceProfiler {
     private val frameNumber = atomic(0)
 
     // Memory tracking
-    private val memorySnapshots = atomic<List<MemorySnapshot>>(emptyList())
+    private val memorySnapshots = atomic<List<PerformanceMemorySnapshot>>(emptyList())
 
     /**
      * Configure the profiler
@@ -47,6 +47,11 @@ object PerformanceProfiler {
      * Check if profiling is enabled
      */
     fun isEnabled(): Boolean = enabled.value
+
+    /**
+     * Check if memory tracking is enabled
+     */
+    fun isMemoryTrackingEnabled(): Boolean = config.value.trackMemory
 
     /**
      * Start a new frame
@@ -99,19 +104,20 @@ object PerformanceProfiler {
      * Measure execution time of a code block
      */
     inline fun <T> measure(name: String, category: ProfileCategory = ProfileCategory.OTHER, block: () -> T): T {
-        if (!enabled.value) {
+        if (!isEnabled()) {
             return block()
         }
 
         val startTime = Platform.currentTimeNanos()
-        val startMemory = if (config.value.trackMemory) Platform.getUsedMemory() else 0L
+        val trackMemory = isMemoryTrackingEnabled()
+        val startMemory = if (trackMemory) Platform.getUsedMemory() else 0L
 
         return try {
             block()
         } finally {
             val endTime = Platform.currentTimeNanos()
             val duration = endTime - startTime
-            val memoryDelta = if (config.value.trackMemory) {
+            val memoryDelta = if (trackMemory) {
                 Platform.getUsedMemory() - startMemory
             } else 0L
 
@@ -128,7 +134,7 @@ object PerformanceProfiler {
         timing: (T, Long) -> Unit,
         block: () -> T
     ): T {
-        if (!enabled.value) {
+        if (!isEnabled()) {
             return block()
         }
 
@@ -246,12 +252,12 @@ object PerformanceProfiler {
         val latest = snapshots.last()
         val trend = if (snapshots.size >= 2) {
             val previous = snapshots[snapshots.size - 2]
-            latest.totalUsed - previous.totalUsed
+            latest.usedMemory - previous.usedMemory
         } else 0L
 
         return MemoryStats(
-            current = latest.totalUsed,
-            peak = snapshots.maxOfOrNull { it.totalUsed } ?: 0L,
+            current = latest.usedMemory,
+            peak = snapshots.maxOfOrNull { it.usedMemory } ?: 0L,
             trend = trend,
             allocations = latest.allocationRate,
             gcPressure = latest.gcPressure
@@ -320,10 +326,10 @@ object PerformanceProfiler {
     }
 
     private fun captureMemorySnapshot() {
-        val snapshot = MemorySnapshot(
+        val snapshot = PerformanceMemorySnapshot(
             timestamp = Platform.currentTimeNanos(),
-            totalUsed = Platform.getUsedMemory(),
-            totalAvailable = Platform.getTotalMemory(),
+            usedMemory = Platform.getUsedMemory(),
+            totalMemory = Platform.getTotalMemory(),
             allocationRate = estimateAllocationRate(),
             gcPressure = estimateGcPressure()
         )
@@ -343,7 +349,7 @@ object PerformanceProfiler {
 
         if (timeDelta == 0L) return 0L
 
-        val memoryDelta = recent.totalUsed - previous.totalUsed
+        val memoryDelta = recent.usedMemory - previous.usedMemory
         return (memoryDelta * 1_000_000_000L) / timeDelta // bytes per second
     }
 
@@ -354,7 +360,7 @@ object PerformanceProfiler {
 
         val recentDrops = snapshots.takeLast(10)
             .zipWithNext()
-            .count { (prev, curr) -> curr.totalUsed < prev.totalUsed * 0.9f }
+            .count { (prev, curr) -> curr.usedMemory < prev.usedMemory * 0.9f }
 
         return recentDrops / 10f
     }
@@ -593,12 +599,12 @@ private data class HotspotData(
 )
 
 /**
- * Memory snapshot
+ * Performance memory snapshot (renamed to avoid conflict with MemoryProfiler's MemorySnapshot)
  */
-data class MemorySnapshot(
+data class PerformanceMemorySnapshot(
     val timestamp: Long,
-    val totalUsed: Long,
-    val totalAvailable: Long,
+    val usedMemory: Long,
+    val totalMemory: Long,
     val allocationRate: Long,
     val gcPressure: Float
 )

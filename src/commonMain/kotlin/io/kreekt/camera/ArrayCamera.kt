@@ -337,10 +337,14 @@ open class WebGPURenderer {
  */
 class WebGPUCubeRenderTarget(
     val width: Int,
-    val height: Int,
-    val texture: CubeTexture? = null
+    val height: Int
 ) {
+    val texture: CubeTexture = CubeTexture(
+        size = width
+    )
+
     fun dispose() {
         // Dispose of render target resources
+        texture.dispose()
     }
 }

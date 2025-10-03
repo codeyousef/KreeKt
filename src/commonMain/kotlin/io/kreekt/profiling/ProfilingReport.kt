@@ -41,7 +41,12 @@ object ProfilingReport {
                 Recommendation(
                     severity = Severity.HIGH,
                     category = "Performance",
-                    message = "Not meeting 60 FPS target (average: ${String.format("%.1f", frameStats.averageFps)} FPS)",
+                    message = "Not meeting 60 FPS target (average: ${
+                        io.kreekt.core.platform.formatDouble(
+                            frameStats.averageFps,
+                            1
+                        )
+                    } FPS)",
                     suggestion = "Review hotspots and optimize critical rendering paths"
                 )
             )
@@ -52,7 +57,12 @@ object ProfilingReport {
                 Recommendation(
                     severity = Severity.MEDIUM,
                     category = "Performance",
-                    message = "${frameStats.droppedFrames} dropped frames detected (${String.format("%.1f", frameStats.droppedFrames * 100f / frameStats.frameCount)}%)",
+                    message = "${frameStats.droppedFrames} dropped frames detected (${
+                        io.kreekt.core.platform.formatFloat(
+                            frameStats.droppedFrames * 100f / frameStats.frameCount,
+                            1
+                        )
+                    }%)",
                     suggestion = "Investigate frame time spikes in hotspots"
                 )
             )
@@ -65,7 +75,12 @@ object ProfilingReport {
                     Recommendation(
                         severity = Severity.HIGH,
                         category = "Hotspot",
-                        message = "${hotspot.name} consuming ${String.format("%.1f", hotspot.percentage)}% of frame time",
+                        message = "${hotspot.name} consuming ${
+                            io.kreekt.core.platform.formatFloat(
+                                hotspot.percentage,
+                                1
+                            )
+                        }% of frame time",
                         suggestion = "Optimize this operation or reduce call frequency (${hotspot.callCount} calls)"
                     )
                 )
@@ -74,7 +89,12 @@ object ProfilingReport {
                     Recommendation(
                         severity = Severity.MEDIUM,
                         category = "Hotspot",
-                        message = "${hotspot.name} consuming ${String.format("%.1f", hotspot.percentage)}% of frame time",
+                        message = "${hotspot.name} consuming ${
+                            io.kreekt.core.platform.formatFloat(
+                                hotspot.percentage,
+                                1
+                            )
+                        }% of frame time",
                         suggestion = "Consider optimization if this is a critical path"
                     )
                 )
@@ -99,7 +119,12 @@ object ProfilingReport {
                     Recommendation(
                         severity = Severity.MEDIUM,
                         category = "Memory",
-                        message = "High GC pressure detected (${String.format("%.1f", memory.gcPressure * 100)}%)",
+                        message = "High GC pressure detected (${
+                            io.kreekt.core.platform.formatFloat(
+                                memory.gcPressure * 100,
+                                1
+                            )
+                        }%)",
                         suggestion = "Reduce object allocations, use object pooling"
                     )
                 )
@@ -135,7 +160,7 @@ object ProfilingReport {
             // Frame statistics
             appendLine("Frame Statistics:")
             appendLine("-".repeat(80))
-            appendLine("  Average FPS:        ${String.format("%.2f", report.frameStats.averageFps)}")
+            appendLine("  Average FPS:        ${io.kreekt.core.platform.formatDouble(report.frameStats.averageFps, 2)}")
             appendLine("  Average Frame Time: ${formatNanos(report.frameStats.averageFrameTime)}")
             appendLine("  Min Frame Time:     ${formatNanos(report.frameStats.minFrameTime)}")
             appendLine("  Max Frame Time:     ${formatNanos(report.frameStats.maxFrameTime)}")
@@ -150,17 +175,16 @@ object ProfilingReport {
             if (report.hotspots.isNotEmpty()) {
                 appendLine("Performance Hotspots:")
                 appendLine("-".repeat(80))
-                appendLine("  %-40s %12s %10s %12s %8s".format("Name", "Total Time", "Calls", "Avg Time", "% Time"))
+                appendLine("  Name                                     Total Time      Calls     Avg Time   % Time")
                 appendLine("  " + "-".repeat(78))
 
                 report.hotspots.take(10).forEach { hotspot ->
-                    appendLine("  %-40s %12s %10d %12s %7.1f%%".format(
-                        hotspot.name.take(40),
-                        formatNanos(hotspot.totalTime),
-                        hotspot.callCount,
-                        formatNanos(hotspot.averageTime),
-                        hotspot.percentage
-                    ))
+                    val name = hotspot.name.take(40).padEnd(40)
+                    val totalTime = formatNanos(hotspot.totalTime).padStart(12)
+                    val calls = hotspot.callCount.toString().padStart(10)
+                    val avgTime = formatNanos(hotspot.averageTime).padStart(12)
+                    val pct = io.kreekt.core.platform.formatFloat(hotspot.percentage, 1).padStart(7)
+                    appendLine("  $name $totalTime $calls $avgTime $pct%")
                 }
                 appendLine()
             }
@@ -173,7 +197,7 @@ object ProfilingReport {
                 appendLine("  Peak Usage:         ${formatBytes(memory.peak)}")
                 appendLine("  Trend:              ${formatBytes(memory.trend)}")
                 appendLine("  Allocation Rate:    ${formatBytes(memory.allocations)}/s")
-                appendLine("  GC Pressure:        ${String.format("%.1f", memory.gcPressure * 100)}%")
+                appendLine("  GC Pressure:        ${io.kreekt.core.platform.formatFloat(memory.gcPressure * 100, 1)}%")
                 appendLine()
             }
 
@@ -233,7 +257,14 @@ object ProfilingReport {
 
             // Frame stats
             appendLine("    <h2>Frame Statistics</h2>")
-            appendLine("    <div class='stat'><div class='stat-label'>Average FPS</div><div class='stat-value'>${String.format("%.2f", report.frameStats.averageFps)}</div></div>")
+            appendLine(
+                "    <div class='stat'><div class='stat-label'>Average FPS</div><div class='stat-value'>${
+                    io.kreekt.core.platform.formatDouble(
+                        report.frameStats.averageFps,
+                        2
+                    )
+                }</div></div>"
+            )
             appendLine("    <div class='stat'><div class='stat-label'>Average Frame Time</div><div class='stat-value'>${formatNanos(report.frameStats.averageFrameTime)}</div></div>")
             appendLine("    <div class='stat'><div class='stat-label'>95th Percentile</div><div class='stat-value'>${formatNanos(report.frameStats.percentile95)}</div></div>")
             appendLine("    <div class='stat'><div class='stat-label'>Dropped Frames</div><div class='stat-value'>${report.frameStats.droppedFrames}</div></div>")
@@ -250,7 +281,7 @@ object ProfilingReport {
                     appendLine("        <td>${formatNanos(hotspot.totalTime)}</td>")
                     appendLine("        <td>${hotspot.callCount}</td>")
                     appendLine("        <td>${formatNanos(hotspot.averageTime)}</td>")
-                    appendLine("        <td>${String.format("%.1f", hotspot.percentage)}%</td>")
+                    appendLine("        <td>${io.kreekt.core.platform.formatFloat(hotspot.percentage, 1)}%</td>")
                     appendLine("      </tr>")
                 }
                 appendLine("    </table>")
@@ -262,7 +293,14 @@ object ProfilingReport {
                 appendLine("    <div class='stat'><div class='stat-label'>Current Usage</div><div class='stat-value'>${formatBytes(memory.current)}</div></div>")
                 appendLine("    <div class='stat'><div class='stat-label'>Peak Usage</div><div class='stat-value'>${formatBytes(memory.peak)}</div></div>")
                 appendLine("    <div class='stat'><div class='stat-label'>Allocation Rate</div><div class='stat-value'>${formatBytes(memory.allocations)}/s</div></div>")
-                appendLine("    <div class='stat'><div class='stat-label'>GC Pressure</div><div class='stat-value'>${String.format("%.1f", memory.gcPressure * 100)}%</div></div>")
+                appendLine(
+                    "    <div class='stat'><div class='stat-label'>GC Pressure</div><div class='stat-value'>${
+                        io.kreekt.core.platform.formatFloat(
+                            memory.gcPressure * 100,
+                            1
+                        )
+                    }%</div></div>"
+                )
             }
 
             // Recommendations
@@ -293,9 +331,9 @@ object ProfilingReport {
     private fun formatNanos(nanos: Long): String {
         return when {
             nanos < 1_000 -> "${nanos}ns"
-            nanos < 1_000_000 -> "${String.format("%.2f", nanos / 1_000.0)}μs"
-            nanos < 1_000_000_000 -> "${String.format("%.2f", nanos / 1_000_000.0)}ms"
-            else -> "${String.format("%.2f", nanos / 1_000_000_000.0)}s"
+            nanos < 1_000_000 -> "${io.kreekt.core.platform.formatDouble(nanos / 1_000.0, 2)}μs"
+            nanos < 1_000_000_000 -> "${io.kreekt.core.platform.formatDouble(nanos / 1_000_000.0, 2)}ms"
+            else -> "${io.kreekt.core.platform.formatDouble(nanos / 1_000_000_000.0, 2)}s"
         }
     }
 
@@ -305,9 +343,9 @@ object ProfilingReport {
     private fun formatBytes(bytes: Long): String {
         return when {
             bytes < 1024 -> "${bytes}B"
-            bytes < 1024 * 1024 -> "${String.format("%.2f", bytes / 1024.0)}KB"
-            bytes < 1024 * 1024 * 1024 -> "${String.format("%.2f", bytes / (1024.0 * 1024.0))}MB"
-            else -> "${String.format("%.2f", bytes / (1024.0 * 1024.0 * 1024.0))}GB"
+            bytes < 1024 * 1024 -> "${io.kreekt.core.platform.formatDouble(bytes / 1024.0, 2)}KB"
+            bytes < 1024 * 1024 * 1024 -> "${io.kreekt.core.platform.formatDouble(bytes / (1024.0 * 1024.0), 2)}MB"
+            else -> "${io.kreekt.core.platform.formatDouble(bytes / (1024.0 * 1024.0 * 1024.0), 2)}GB"
         }
     }
 }

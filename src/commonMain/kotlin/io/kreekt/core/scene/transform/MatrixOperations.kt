@@ -1,7 +1,10 @@
 package io.kreekt.core.scene.transform
 
-import io.kreekt.core.math.*
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Quaternion
+import io.kreekt.core.math.Vector3
 import io.kreekt.core.scene.Transform
+import io.kreekt.core.scene.setFromMatrixPosition
 
 /**
  * Matrix operation utilities for transform calculations.

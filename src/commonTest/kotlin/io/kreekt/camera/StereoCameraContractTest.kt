@@ -11,13 +11,8 @@
  */
 package io.kreekt.camera
 
-import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Vector3
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class StereoCameraContractTest {
 
@@ -213,6 +208,98 @@ class StereoCamera {
     var cameraR: PerspectiveCamera = PerspectiveCamera()
 
     fun update(camera: Camera) {
-        // Implementation will be added in T057
+        // Copy main camera properties to both eyes
+        if (camera is PerspectiveCamera) {
+            // Copy FOV and near/far planes
+            (cameraL as PerspectiveCamera).fov = camera.fov
+            (cameraL as PerspectiveCamera).aspect = camera.aspect
+            (cameraL as PerspectiveCamera).near = camera.near
+            (cameraL as PerspectiveCamera).far = camera.far
+
+            (cameraR as PerspectiveCamera).fov = camera.fov
+            (cameraR as PerspectiveCamera).aspect = camera.aspect
+            (cameraR as PerspectiveCamera).near = camera.near
+            (cameraR as PerspectiveCamera).far = camera.far
+        }
+
+        // Ensure main camera has updated its world matrix
+        camera.updateMatrixWorld()
+
+        // Copy position and rotation from main camera
+        cameraL.position.copy(camera.position)
+        cameraL.quaternion.copy(camera.quaternion)
+
+        cameraR.position.copy(camera.position)
+        cameraR.quaternion.copy(camera.quaternion)
+
+        // Apply eye separation (left camera moves left, right camera moves right)
+        val halfSep = eyeSep * 0.5f
+
+        // Get the right vector from the camera's orientation
+        val rightVector = Vector3(1f, 0f, 0f)
+        rightVector.applyQuaternion(camera.quaternion)
+
+        // Position left eye (move left)
+        val leftOffset = rightVector.clone().multiplyScalar(-halfSep)
+        cameraL.position.add(leftOffset)
+
+        // Position right eye (move right)
+        val rightOffset = rightVector.clone().multiplyScalar(halfSep)
+        cameraR.position.add(rightOffset)
+
+        // Apply convergence if needed (toe-in method)
+        if (convergence != 0f && convergence < Float.POSITIVE_INFINITY) {
+            // Calculate the convergence angle
+            val convergenceAngle = kotlin.math.atan(halfSep / convergence)
+
+            // Rotate left camera slightly right (positive Y rotation)
+            val leftRotation = io.kreekt.core.math.Quaternion()
+            leftRotation.setFromAxisAngle(Vector3(0f, 1f, 0f), convergenceAngle)
+            cameraL.quaternion.multiply(leftRotation)
+
+            // Rotate right camera slightly left (negative Y rotation)
+            val rightRotation = io.kreekt.core.math.Quaternion()
+            rightRotation.setFromAxisAngle(Vector3(0f, 1f, 0f), -convergenceAngle)
+            cameraR.quaternion.multiply(rightRotation)
+        }
+
+        // Update world matrices
+        cameraL.updateMatrixWorld()
+        cameraR.updateMatrixWorld()
+
+        // Create asymmetric frustums for proper stereo
+        if (camera is PerspectiveCamera && convergence != 0f && convergence < Float.POSITIVE_INFINITY) {
+            val fov = camera.fov
+            val near = camera.near
+            val far = camera.far
+            val aspect = camera.aspect
+
+            // Calculate frustum dimensions at near plane
+            val top = near * kotlin.math.tan(fov * kotlin.math.PI.toFloat() / 360f)
+
+            // Calculate the horizontal offset for asymmetric frustums (in world units)
+            val offset = halfSep * near / convergence
+
+            val leftCam = cameraL as PerspectiveCamera
+            val rightCam = cameraR as PerspectiveCamera
+
+            // Manually calculate asymmetric frustum for left camera (offset to the right)
+            var left = -aspect * top + offset
+            var right = aspect * top + offset
+            leftCam.projectionMatrix.makePerspective(left, right, top, -top, near, far)
+
+            // Manually calculate asymmetric frustum for right camera (offset to the left)
+            left = -aspect * top - offset
+            right = aspect * top - offset
+            rightCam.projectionMatrix.makePerspective(left, right, top, -top, near, far)
+        } else {
+            // No asymmetric frustum, just update normally
+            cameraL.updateProjectionMatrix()
+            cameraR.updateProjectionMatrix()
+        }
+
+        // Compute view matrices (world inverse)
+        cameraL.matrixWorldInverse.copy(cameraL.matrixWorld).invert()
+        cameraR.matrixWorldInverse.copy(cameraR.matrixWorld).invert()
     }
 }

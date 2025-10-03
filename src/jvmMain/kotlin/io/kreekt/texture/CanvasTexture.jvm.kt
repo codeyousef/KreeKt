@@ -1,5 +1,6 @@
 package io.kreekt.texture
 
+import io.kreekt.renderer.TextureFormat
 import java.awt.Color
 import java.awt.Graphics2D
 import java.awt.RenderingHints
@@ -9,13 +10,10 @@ import java.nio.ByteBuffer
 /**
  * JVM implementation of CanvasTexture using BufferedImage
  */
-actual class CanvasTexture actual constructor(
-    width: Int,
-    height: Int
-) : CanvasTextureBase() {
-
-    actual override val width: Int = width
-    actual override val height: Int = height
+actual class CanvasTexture private actual constructor(
+    actual override val width: Int,
+    actual override val height: Int
+) : Texture() {
 
     private val bufferedImage: BufferedImage = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
     private val graphics: Graphics2D = bufferedImage.createGraphics().apply {
@@ -23,9 +21,41 @@ actual class CanvasTexture actual constructor(
         setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
     }
 
-    init {
-        // Initialize AFTER all properties are created
-        initCanvasTexture("CanvasTexture")
+    // Override parent properties to work around Kotlin compiler bug with expect/actual inheritance
+    // The compiler generates invokevirtual calls to child class setters that don't exist
+    override var name: String
+        get() = super.name
+        set(value) {
+            super.name = value
+        }
+
+    override var format: TextureFormat
+        get() = super.format
+        set(value) {
+            super.format = value
+        }
+
+    override var generateMipmaps: Boolean
+        get() = super.generateMipmaps
+        set(value) {
+            super.generateMipmaps = value
+        }
+
+    override var needsUpdate: Boolean
+        get() = super.needsUpdate
+        set(value) {
+            super.needsUpdate = value
+        }
+
+    actual companion object {
+        actual operator fun invoke(width: Int, height: Int): CanvasTexture {
+            val texture = CanvasTexture(width, height)
+            texture.format = TextureFormat.RGBA8
+            texture.generateMipmaps = false
+            texture.needsUpdate = true
+            texture.name = "CanvasTexture"
+            return texture
+        }
     }
 
     /**
@@ -34,7 +64,7 @@ actual class CanvasTexture actual constructor(
     actual fun clear(r: Float, g: Float, b: Float, a: Float) {
         graphics.background = Color(r, g, b, a)
         graphics.clearRect(0, 0, width, height)
-        markNeedsUpdate()
+        markTextureNeedsUpdate()
     }
 
     /**
@@ -82,7 +112,7 @@ actual class CanvasTexture actual constructor(
     fun drawText(text: String, x: Float, y: Float, color: Color = Color.WHITE) {
         graphics.color = color
         graphics.drawString(text, x, y)
-        markNeedsUpdate()
+        markTextureNeedsUpdate()
     }
 
     /**
@@ -95,7 +125,7 @@ actual class CanvasTexture actual constructor(
         } else {
             graphics.drawRect(x, y, width, height)
         }
-        markNeedsUpdate()
+        markTextureNeedsUpdate()
     }
 
     /**
@@ -109,7 +139,7 @@ actual class CanvasTexture actual constructor(
         } else {
             graphics.drawOval(x - radius, y - radius, diameter, diameter)
         }
-        markNeedsUpdate()
+        markTextureNeedsUpdate()
     }
 
     override fun dispose() {

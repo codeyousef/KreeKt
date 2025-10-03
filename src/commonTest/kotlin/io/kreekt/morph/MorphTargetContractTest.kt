@@ -1,12 +1,11 @@
 package io.kreekt.morph
 
-import io.kreekt.core.math.Vector3
-import io.kreekt.geometry.BufferGeometry
 import io.kreekt.geometry.BufferAttribute
+import io.kreekt.geometry.BufferGeometry
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 /**
  * Contract test for Morph target blend shapes - T031
@@ -413,14 +412,24 @@ fun BufferGeometry.getMorphTargetByName(name: String): MorphTarget? {
 }
 
 class MorphBlender(private val geometry: BufferGeometry) {
-    private val influences = FloatArray(geometry.morphTargets?.size ?: 0)
+    private val morphTargetCount = maxOf(
+        geometry.morphTargets?.size ?: 0,
+        geometry.morphAttributes.values.maxOfOrNull { it.size } ?: 0
+    )
+    private val influences = FloatArray(morphTargetCount)
 
     fun setInfluence(index: Int, value: Float) {
-        influences[index] = value.coerceIn(0f, 1f)
+        if (index >= 0 && index < influences.size) {
+            influences[index] = value.coerceIn(0f, 1f)
+        }
     }
 
     fun getInfluence(index: Int): Float {
-        return influences[index]
+        return if (index >= 0 && index < influences.size) {
+            influences[index]
+        } else {
+            0f
+        }
     }
 
     fun setInfluenceByName(name: String, value: Float) {
