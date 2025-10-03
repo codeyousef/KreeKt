@@ -50,11 +50,14 @@ This example demonstrates the core functionality of the KreeKt 3D library with a
 
 ```bash
 # Run directly
-./gradlew :examples:basic-scene:run
+./gradlew :examples:basic-scene:runJvm
+
+# Or use the simple launcher
+./gradlew :examples:basic-scene:runSimple
 
 # Or build and run the JAR
-./gradlew :examples:basic-scene:build
-java -jar examples/basic-scene/build/libs/basic-scene.jar
+./gradlew :examples:basic-scene:jvmJar
+java -jar examples/basic-scene/build/libs/basic-scene-jvm.jar
 ```
 
 **Desktop Controls:**
@@ -66,14 +69,16 @@ java -jar examples/basic-scene/build/libs/basic-scene.jar
 ### 🌐 **Web Browser (JavaScript)**
 
 ```bash
-# Start development server
+# Run in browser (opens automatically)
+./gradlew :examples:basic-scene:runJs
+
+# Or start development server manually
 ./gradlew :examples:basic-scene:jsBrowserDevelopmentRun
+# Then open http://localhost:8080
 
 # Or build for production
 ./gradlew :examples:basic-scene:jsBrowserDistribution
 ```
-
-Then open `http://localhost:8080` in your browser.
 
 **Web Controls:**
 - `WASD` - Move camera forward/back/left/right

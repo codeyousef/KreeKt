@@ -186,6 +186,19 @@ cd kreekt
 ./gradlew jsTest
 ```
 
+### Try the Examples
+
+```bash
+# Run the basic scene example (Desktop)
+./gradlew :examples:basic-scene:runJvm
+
+# Run in browser
+./gradlew :examples:basic-scene:runJs
+# Opens automatically in your default browser
+```
+
+See the [Examples](#-examples) section below for more details and additional examples.
+
 ---
 
 ## 📊 Performance Targets
@@ -322,6 +335,50 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ---
 
 ## 🎨 Examples
+
+### Running the Examples
+
+KreeKt includes comprehensive example projects demonstrating various features:
+
+#### 🖥️ **Basic Scene Example**
+
+A complete 3D scene with rotating objects, dynamic lighting, and camera controls.
+
+```bash
+# Desktop (JVM)
+./gradlew :examples:basic-scene:runJvm
+
+# Web Browser
+./gradlew :examples:basic-scene:runJs
+# Opens automatically in your default browser
+```
+
+**Features:**
+
+- PBR materials with metallic/roughness
+- Multiple light types (directional, point, spot, ambient)
+- Animated objects and camera
+- Keyboard/mouse controls
+
+**Controls:**
+
+- `WASD` - Move camera
+- `Q/E` - Move up/down
+- `Mouse` - Look around
+
+See [examples/basic-scene/README.md](examples/basic-scene/README.md) for detailed instructions.
+
+#### 📊 **Profiling Example**
+
+Performance profiling and benchmarking tools.
+
+```bash
+./gradlew :examples:profiling-example:run
+```
+
+See [examples/profiling-example/README.md](examples/profiling-example/README.md) for details.
+
+### Code Examples
 
 ```kotlin
 // 🌟 Basic Scene with Lighting
