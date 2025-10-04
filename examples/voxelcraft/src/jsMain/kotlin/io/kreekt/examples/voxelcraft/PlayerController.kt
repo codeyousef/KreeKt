@@ -1,0 +1,121 @@
+package io.kreekt.examples.voxelcraft
+
+import kotlinx.browser.document
+import org.w3c.dom.events.KeyboardEvent
+import org.w3c.dom.events.MouseEvent
+import kotlin.math.cos
+import kotlin.math.sin
+
+/**
+ * PlayerController for keyboard input and movement
+ *
+ * Handles WASD movement, spacebar/shift for vertical movement,
+ * F key for flight toggle, and mouse clicks for block interaction.
+ *
+ * Movement is camera-relative (forward = direction player is facing).
+ *
+ * Data model: data-model.md Section 5 (Player movement)
+ */
+class PlayerController(
+    private val player: Player,
+    private val blockInteraction: BlockInteraction? = null
+) {
+
+    private val keysPressed = mutableSetOf<String>()
+    private var moveSpeed = 5.0 // blocks per second
+    private var flySpeed = 10.0 // blocks per second when flying
+
+    init {
+        setupKeyboardListeners()
+        setupMouseListeners()
+    }
+
+    private fun setupKeyboardListeners() {
+        document.addEventListener("keydown", { event ->
+            val key = (event as KeyboardEvent).key.lowercase()
+            handleKeyDown(key)
+        })
+
+        document.addEventListener("keyup", { event ->
+            val key = (event as KeyboardEvent).key.lowercase()
+            handleKeyUp(key)
+        })
+    }
+
+    /**
+     * Handle key press
+     *
+     * @param key Key pressed (lowercase)
+     */
+    fun handleKeyDown(key: String) {
+        keysPressed.add(key)
+
+        // Toggle flight with F key
+        if (key == "f") {
+            player.toggleFlight()
+            println("✈️ Flight: ${if (player.isFlying) "ON" else "OFF"}")
+        }
+    }
+
+    /**
+     * Handle key release
+     *
+     * @param key Key released (lowercase)
+     */
+    fun handleKeyUp(key: String) {
+        keysPressed.remove(key)
+    }
+
+    private fun setupMouseListeners() {
+        document.addEventListener("mousedown", { event ->
+            val mouseEvent = event as MouseEvent
+            when (mouseEvent.button.toInt()) {
+                0 -> blockInteraction?.handleLeftClick() // Left click
+                2 -> blockInteraction?.handleRightClick() // Right click
+            }
+        })
+    }
+
+    /**
+     * Update player position based on input
+     *
+     * Called every frame with deltaTime.
+     *
+     * @param deltaTime Time since last frame (seconds)
+     */
+    fun update(deltaTime: Float) {
+        val speed = if (player.isFlying) flySpeed else moveSpeed
+        val distance = speed * deltaTime
+
+        val yaw = player.rotation.yaw
+        val forward = Position(-sin(yaw) * distance, 0.0, -cos(yaw) * distance)
+        val right = Position(cos(yaw) * distance, 0.0, -sin(yaw) * distance)
+
+        // WASD movement
+        if (keysPressed.contains("w")) {
+            player.move(forward)
+        }
+        if (keysPressed.contains("s")) {
+            player.move(Position(-forward.x, 0.0, -forward.z))
+        }
+        if (keysPressed.contains("a")) {
+            player.move(Position(-right.x, 0.0, -right.z))
+        }
+        if (keysPressed.contains("d")) {
+            player.move(right)
+        }
+
+        // Vertical movement (flight or jump)
+        if (player.isFlying) {
+            if (keysPressed.contains(" ")) { // Spacebar - move up
+                player.move(Position(0.0, distance, 0.0))
+            }
+            if (keysPressed.contains("shift")) { // Shift - move down
+                player.move(Position(0.0, -distance, 0.0))
+            }
+        } else {
+            // TODO: Implement jump with spacebar
+            // TODO: Apply gravity
+        }
+    }
+}

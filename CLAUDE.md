@@ -352,7 +352,44 @@ ValidationConfiguration.incremental() // Validates only changed components
 
 The validation system provides real-time feedback during development through IDE plugins and build integration.
 
+## Examples
+
+### VoxelCraft - Minecraft Clone Example
+
+**Path**: `examples/voxelcraft/`
+**Platform**: JavaScript (WebGL2)
+**Status**: In Development (Spec: 014-create-a-basic)
+
+A fully functional creative-mode voxel building game demonstrating KreeKt's capabilities:
+
+**Features**:
+
+- Procedurally generated 512x512x256 block world using Simplex noise
+- Chunk-based rendering with greedy meshing (1,024 chunks, 16x16x256 each)
+- First-person camera controls with Pointer Lock API
+- WASD movement with collision detection and physics
+- Flight mode with vertical movement
+- Block breaking/placing with raycasting
+- Inventory system (unlimited blocks in creative mode)
+- LocalStorage persistence with RLE + gzip compression
+- 7-10 block types (Grass, Dirt, Stone, Wood, Leaves, Sand, Water)
+- Performance: 60 FPS target, 30 FPS minimum (constitutional requirement)
+
+**Technical Highlights**:
+
+- Demonstrates KreeKt scene graph, cameras, and geometries
+- Advanced mesh generation (face culling, greedy meshing)
+- Terrain generation with natural features (trees, caves)
+- Browser storage integration (save/load game state)
+- Input handling (keyboard + mouse with Pointer Lock)
+- Performance optimization (frustum culling, chunk batching)
+
+**Run**: `./gradlew :examples:voxelcraft:runJs`
+
 ## Recent Changes
+
+- **2025-10-04**: VoxelCraft example specification and implementation plan created (014-create-a-basic)
+- **2025-10-04**: Added comprehensive documentation (18 files, ~10,000 lines, 93.4% coverage)
 - 012-complete-three-js: Added Kotlin 1.9+ with Multiplatform plugin
 - 011-reference-https-threejs: Added Kotlin 1.9+ with Multiplatform plugin
 - 010-systematically-address-all: Added Kotlin 1.9+ with Kotlin Multiplatform plugin
