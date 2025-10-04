@@ -1,28 +1,44 @@
 # Getting Started with KreeKt
 
-This guide will help you get started with KreeKt, a Kotlin Multiplatform 3D graphics library.
+> **Learn how to create your first 3D scene with KreeKt in minutes**
 
-## Prerequisites
+## 📋 Prerequisites
 
-- Kotlin 1.9+
-- Gradle 8.0+
-- For JVM: Java 17+ with LWJGL 3.3.3 support
-- For Web: Modern browser with WebGPU support (or WebGL2 fallback)
-- For Android: API level 24+ with Vulkan support
-- For iOS: iOS 14+ with MoltenVK support
+### Required
 
-## Installation
+- **Kotlin**: 1.9+
+- **Gradle**: 8.0+
+- **JDK**: 11+ (for JVM target)
 
-### Gradle (Kotlin DSL)
+### Platform-Specific
 
-Add KreeKt to your `build.gradle.kts`:
+- **JVM**: LWJGL-compatible system (Windows, Linux, macOS)
+- **JavaScript**: Modern browser with WebGL2 support
+- **Native**: Platform-specific compilers (GCC, Clang, or MSVC)
+
+## 🚀 Quick Setup
+
+### 1. Add KreeKt to Your Project
+
+#### Gradle (Kotlin DSL)
 
 ```kotlin
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+// build.gradle.kts
 plugins {
-    kotlin("multiplatform") version "1.9.21"
+    kotlin("multiplatform") version "1.9.20"
 }
 
 kotlin {
+    // Choose your targets
     jvm()
     js(IR) {
         browser()
@@ -31,372 +47,574 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("io.kreekt:kreekt-core:1.0.0")
+                implementation("io.kreekt:kreekt-core:0.1.0-alpha01")
             }
         }
     }
 }
 ```
 
-### Maven
+### 2. Create Your First Scene
 
-```xml
-<dependency>
-    <groupId>io.kreekt</groupId>
-    <artifactId>kreekt-core</artifactId>
-    <version>1.0.0</version>
-</dependency>
-```
-
-## Your First Scene
-
-Let's create a simple 3D scene with a rotating cube.
-
-### Step 1: Create a Scene
-
-```kotlin
-import io.kreekt.core.scene.Scene
-import io.kreekt.camera.PerspectiveCamera
-
-// Create the scene (container for all 3D objects)
-val scene = Scene()
-
-// Create a camera
-val camera = PerspectiveCamera(
-    fov = 75f,                    // Field of view in degrees
-    aspect = windowWidth / windowHeight,  // Aspect ratio
-    near = 0.1f,                  // Near clipping plane
-    far = 1000f                   // Far clipping plane
-)
-camera.position.z = 5f            // Move camera back to see the scene
-```
-
-### Step 2: Create Geometry and Material
-
-```kotlin
-import io.kreekt.geometry.BoxGeometry
-import io.kreekt.material.MeshStandardMaterial
-import io.kreekt.mesh.Mesh
-import io.kreekt.core.math.Color
-
-// Create a box geometry (1x1x1 cube)
-val geometry = BoxGeometry(1f, 1f, 1f)
-
-// Create a material with a green color
-val material = MeshStandardMaterial().apply {
-    color = Color(0x00ff00)  // Green
-    metalness = 0.5f
-    roughness = 0.5f
-}
-
-// Combine geometry and material into a mesh
-val cube = Mesh(geometry, material)
-scene.add(cube)
-```
-
-### Step 3: Add Lighting
-
-```kotlin
-import io.kreekt.light.DirectionalLight
-import io.kreekt.light.AmbientLight
-
-// Add ambient light for overall illumination
-val ambientLight = AmbientLight(Color(0x404040), 0.5f)
-scene.add(ambientLight)
-
-// Add directional light for shadows
-val directionalLight = DirectionalLight(Color(0xffffff), 1.0f)
-directionalLight.position.set(5f, 5f, 5f)
-scene.add(directionalLight)
-```
-
-### Step 4: Initialize Renderer
-
-```kotlin
-import io.kreekt.renderer.WebGPURenderer
-
-// Create renderer
-val renderer = createRenderer() // Platform-specific factory function
-
-// Set renderer size
-renderer.setSize(windowWidth, windowHeight)
-
-// Enable shadows (optional)
-renderer.shadowMap.enabled = true
-```
-
-### Step 5: Animation Loop
-
-```kotlin
-import kotlin.math.PI
-
-var lastTime = 0.0
-
-fun animate(currentTime: Double) {
-    val deltaTime = (currentTime - lastTime) / 1000.0
-    lastTime = currentTime
-
-    // Rotate the cube
-    cube.rotation.x += 0.01f
-    cube.rotation.y += 0.01f
-
-    // Render the scene
-    renderer.render(scene, camera)
-
-    // Request next frame
-    window.requestAnimationFrame(::animate)
-}
-
-// Start animation
-animate(0.0)
-```
-
-## Complete Example
-
-Here's the complete code:
+Create a file `src/commonMain/kotlin/FirstScene.kt`:
 
 ```kotlin
 import io.kreekt.core.scene.*
 import io.kreekt.core.math.*
+import io.kreekt.geometry.primitives.*
+import io.kreekt.material.SimpleMaterial
 import io.kreekt.camera.PerspectiveCamera
-import io.kreekt.geometry.BoxGeometry
-import io.kreekt.material.MeshStandardMaterial
-import io.kreekt.mesh.Mesh
-import io.kreekt.light.*
+import io.kreekt.renderer.Renderer
+
+class FirstScene {
+    // Scene components
+    private val scene = Scene()
+    private lateinit var camera: PerspectiveCamera
+    private lateinit var cube: Mesh
+
+    fun initialize(aspectRatio: Float = 16f / 9f) {
+        // 1. Create camera
+        camera = PerspectiveCamera(
+            fov = 75f,           // Field of view
+            aspect = aspectRatio, // Aspect ratio
+            near = 0.1f,         // Near clipping plane
+            far = 1000f          // Far clipping plane
+        ).apply {
+            position.set(0f, 0f, 5f) // Move camera back
+        }
+
+        // 2. Create a colored cube
+        val geometry = BoxGeometry(
+            width = 2f,
+            height = 2f,
+            depth = 2f
+        )
+
+        val material = SimpleMaterial(
+            albedo = Color(0.8f, 0.3f, 0.2f), // Orange-red color
+            metallic = 0.3f,
+            roughness = 0.4f,
+            materialName = "CubeMaterial"
+        )
+
+        cube = Mesh(geometry, material).apply {
+            position.set(0f, 0f, 0f)
+        }
+
+        // 3. Add cube to scene
+        scene.add(cube)
+    }
+
+    fun render(renderer: Renderer, deltaTime: Float) {
+        // Rotate the cube
+        cube.rotation.x += deltaTime * 0.5f
+        cube.rotation.y += deltaTime * 0.3f
+
+        // Render the scene
+        renderer.render(scene, camera)
+    }
+}
+```
+
+### 3. Platform-Specific Entry Points
+
+#### JVM (Desktop)
+
+Create `src/jvmMain/kotlin/Main.kt`:
+
+```kotlin
+import io.kreekt.renderer.createRenderer
+import io.kreekt.renderer.RendererResult
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
+
+fun main() = runBlocking {
+    println("🚀 Starting KreeKt First Scene")
+
+    // Create renderer (platform-specific)
+    val rendererResult = createRenderer()
+    val renderer = when (rendererResult) {
+        is RendererResult.Success -> rendererResult.value
+        is RendererResult.Error -> {
+            println("❌ Failed to create renderer: ${rendererResult.exception.message}")
+            return@runBlocking
+        }
+    }
+
+    // Configure renderer
+    renderer.setSize(1280, 720)
+    renderer.clearColor = Color(0.1f, 0.1f, 0.2f) // Dark blue background
+
+    // Initialize scene
+    val scene = FirstScene()
+    scene.initialize(aspectRatio = 1280f / 720f)
+
+    println("✅ Scene initialized")
+    println("🎬 Starting render loop...")
+
+    // Simple render loop
+    var lastTime = System.currentTimeMillis()
+    var running = true
+    var frameCount = 0
+
+    while (running && frameCount < 600) { // Run for ~10 seconds at 60fps
+        val currentTime = System.currentTimeMillis()
+        val deltaTime = (currentTime - lastTime) / 1000f
+        lastTime = currentTime
+
+        scene.render(renderer, deltaTime)
+
+        frameCount++
+        delay(16) // ~60 FPS
+
+        if (frameCount % 60 == 0) {
+            println("Frame $frameCount rendered")
+        }
+    }
+
+    println("🏁 Rendering complete")
+    renderer.dispose()
+}
+```
+
+#### JavaScript (Browser)
+
+Create `src/jsMain/kotlin/Main.kt`:
+
+```kotlin
+import io.kreekt.renderer.createRenderer
+import io.kreekt.renderer.RendererResult
+import io.kreekt.core.math.Color
+import kotlinx.browser.document
+import kotlinx.browser.window
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 fun main() {
-    // Scene setup
-    val scene = Scene()
-
-    // Camera setup
-    val camera = PerspectiveCamera(
-        fov = 75f,
-        aspect = 800f / 600f,
-        near = 0.1f,
-        far = 1000f
-    )
-    camera.position.z = 5f
-
-    // Create cube
-    val geometry = BoxGeometry(1f, 1f, 1f)
-    val material = MeshStandardMaterial().apply {
-        color = Color(0x00ff00)
-        metalness = 0.5f
-        roughness = 0.5f
+    // Wait for DOM to load
+    window.onload = {
+        GlobalScope.launch {
+            startApp()
+        }
     }
-    val cube = Mesh(geometry, material)
-    scene.add(cube)
+}
 
-    // Lighting
-    val ambientLight = AmbientLight(Color(0x404040), 0.5f)
-    scene.add(ambientLight)
+suspend fun startApp() {
+    console.log("🚀 Starting KreeKt Web App")
 
-    val directionalLight = DirectionalLight(Color(0xffffff), 1.0f)
-    directionalLight.position.set(5f, 5f, 5f)
-    scene.add(directionalLight)
+    // Get canvas element
+    val canvas = document.getElementById("canvas")
+        ?: document.createElement("canvas").also {
+            document.body?.appendChild(it)
+        }
 
-    // Renderer
-    val renderer = createRenderer()
-    renderer.setSize(800, 600)
+    // Create renderer
+    val rendererResult = createRenderer()
+    val renderer = when (rendererResult) {
+        is RendererResult.Success -> rendererResult.value
+        is RendererResult.Error -> {
+            console.error("Failed to create renderer", rendererResult.exception)
+            return
+        }
+    }
+
+    // Configure renderer
+    val width = window.innerWidth
+    val height = window.innerHeight
+    renderer.setSize(width, height)
+    renderer.clearColor = Color(0.1f, 0.1f, 0.2f)
+
+    // Initialize scene
+    val scene = FirstScene()
+    scene.initialize(aspectRatio = width.toFloat() / height.toFloat())
+
+    console.log("✅ Scene initialized")
 
     // Animation loop
     var lastTime = 0.0
+
     fun animate(currentTime: Double) {
-        val deltaTime = (currentTime - lastTime) / 1000.0
+        val deltaTime = ((currentTime - lastTime) / 1000.0).toFloat()
         lastTime = currentTime
 
-        cube.rotation.x += 0.01f
-        cube.rotation.y += 0.01f
-
-        renderer.render(scene, camera)
+        scene.render(renderer, deltaTime)
 
         window.requestAnimationFrame(::animate)
     }
 
-    animate(0.0)
+    window.requestAnimationFrame(::animate)
 }
 ```
 
-## Platform-Specific Setup
-
-### JVM (Desktop)
-
-```kotlin
-// build.gradle.kts
-kotlin {
-    jvm {
-        compilations.all {
-            kotlinOptions.jvmTarget = "17"
-        }
-    }
-
-    sourceSets {
-        val jvmMain by getting {
-            dependencies {
-                implementation("io.kreekt:kreekt-jvm:1.0.0")
-                implementation("org.lwjgl:lwjgl:3.3.3")
-                implementation("org.lwjgl:lwjgl-vulkan:3.3.3")
-            }
-        }
-    }
-}
-```
-
-### JavaScript (Web)
-
-```kotlin
-// build.gradle.kts
-kotlin {
-    js(IR) {
-        browser {
-            webpackTask {
-                cssSupport {
-                    enabled.set(true)
-                }
-            }
-        }
-        binaries.executable()
-    }
-}
-```
+Create `src/jsMain/resources/index.html`:
 
 ```html
-<!-- index.html -->
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>KreeKt App</title>
+    <title>KreeKt First Scene</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    <script src="app.js"></script>
+    <script src="your-app.js"></script>
 </body>
 </html>
 ```
 
-### Android
+### 4. Run Your Application
+
+```bash
+# JVM (Desktop)
+./gradlew runJvm
+
+# JavaScript (Browser)
+./gradlew jsBrowserDevelopmentRun
+# Opens automatically in your default browser
+```
+
+## 📚 Core Concepts
+
+### Scene Graph
+
+KreeKt uses a hierarchical scene graph where every object is an `Object3D`:
 
 ```kotlin
-// build.gradle.kts
-android {
-    compileSdk = 34
-    defaultConfig {
-        minSdk = 24
-        targetSdk = 34
-    }
+val scene = Scene()
+
+// Create parent object
+val parent = Mesh(geometry, material).apply {
+    position.set(0f, 2f, 0f)
 }
 
-kotlin {
-    androidTarget {
-        compilations.all {
-            kotlinOptions {
-                jvmTarget = "17"
-            }
+// Create child object
+val child = Mesh(childGeometry, childMaterial).apply {
+    position.set(1f, 0f, 0f) // Relative to parent
+}
+
+// Build hierarchy
+parent.add(child)
+scene.add(parent)
+
+// Transformations cascade through hierarchy
+parent.rotation.y = PI.toFloat() / 4f // Child rotates with parent
+```
+
+### Transformations
+
+Each Object3D has position, rotation, and scale:
+
+```kotlin
+val mesh = Mesh(geometry, material)
+
+// Position (Vector3)
+mesh.position.set(x = 5f, y = 0f, z = -3f)
+
+// Rotation (Euler angles in radians)
+mesh.rotation.x = PI.toFloat() / 4f  // 45 degrees
+mesh.rotation.y = PI.toFloat() / 2f  // 90 degrees
+
+// Scale (Vector3)
+mesh.scale.set(2f, 1f, 1f) // Twice as wide
+
+// Or use helper methods
+mesh.translateX(5f)
+mesh.rotateY(PI.toFloat() / 4f)
+mesh.scale.multiply(1.5f)
+```
+
+### Cameras
+
+KreeKt provides multiple camera types:
+
+```kotlin
+// Perspective Camera (3D with depth)
+val perspCamera = PerspectiveCamera(
+    fov = 75f,        // Vertical field of view
+    aspect = 16f/9f,  // Aspect ratio
+    near = 0.1f,      // Near clipping plane
+    far = 1000f       // Far clipping plane
+)
+perspCamera.position.z = 5f
+perspCamera.lookAt(Vector3.ZERO)
+
+// Orthographic Camera (2D/isometric)
+val orthoCamera = OrthographicCamera(
+    left = -10f,
+    right = 10f,
+    top = 10f,
+    bottom = -10f,
+    near = 0.1f,
+    far = 100f
+)
+```
+
+### Geometries
+
+KreeKt includes many built-in geometries:
+
+```kotlin
+// Primitives
+val box = BoxGeometry(width = 1f, height = 1f, depth = 1f)
+val sphere = SphereGeometry(radius = 1f, widthSegments = 32, heightSegments = 16)
+val plane = PlaneGeometry(width = 10f, height = 10f)
+val cylinder = CylinderGeometry(radiusTop = 1f, radiusBottom = 1f, height = 2f)
+val cone = ConeGeometry(radius = 1f, height = 2f)
+val torus = TorusGeometry(radius = 1f, tube = 0.4f)
+
+// Advanced
+val capsule = CapsuleGeometry(radius = 0.5f, length = 2f)
+val torusKnot = TorusKnotGeometry(radius = 1f, tube = 0.3f, p = 2, q = 3)
+```
+
+### Materials
+
+Different material types for different rendering needs:
+
+```kotlin
+// SimpleMaterial (PBR-like, good default)
+val simple = SimpleMaterial(
+    albedo = Color(1f, 0f, 0f),      // Red
+    metallic = 0.5f,                 // Half metallic
+    roughness = 0.3f,                // Fairly smooth
+    emissive = Color(0.1f, 0f, 0f),  // Slight glow
+    materialName = "RedMetal"
+)
+
+// MeshBasicMaterial (unlit, flat color)
+val basic = MeshBasicMaterial().apply {
+    color = Color(0f, 1f, 0f) // Green
+}
+
+// MeshStandardMaterial (PBR)
+val standard = MeshStandardMaterial().apply {
+    color = Color(0x4488ff)
+    metalness = 0.7f
+    roughness = 0.2f
+}
+
+// MeshPhongMaterial (classic Phong shading)
+val phong = MeshPhongMaterial().apply {
+    color = Color(0xff00ff)
+    shininess = 30f
+}
+```
+
+## 🎯 Complete Working Example
+
+Here's a complete scene with multiple objects and animation:
+
+```kotlin
+import io.kreekt.core.scene.*
+import io.kreekt.core.math.*
+import io.kreekt.geometry.primitives.*
+import io.kreekt.material.*
+import io.kreekt.camera.PerspectiveCamera
+import kotlin.math.*
+
+class CompleteScene {
+    private val scene = Scene()
+    private lateinit var camera: PerspectiveCamera
+    private val objects = mutableListOf<Mesh>()
+    private var time = 0f
+
+    fun initialize() {
+        // Background color
+        scene.background = Background.Color(Color(0.05f, 0.05f, 0.1f))
+
+        // Setup camera
+        camera = PerspectiveCamera(75f, 16f / 9f, 0.1f, 1000f).apply {
+            position.set(0f, 5f, 10f)
+            lookAt(Vector3.ZERO)
         }
+
+        // Create ground plane
+        val ground = Mesh(
+            PlaneGeometry(20f, 20f),
+            SimpleMaterial(
+                albedo = Color(0.3f, 0.3f, 0.3f),
+                roughness = 0.9f,
+                materialName = "Ground"
+            )
+        ).apply {
+            rotation.x = -PI.toFloat() / 2f // Make horizontal
+        }
+        scene.add(ground)
+
+        // Create multiple cubes in a circle
+        repeat(8) { i ->
+            val angle = (i / 8f) * PI.toFloat() * 2f
+            val radius = 5f
+
+            val cube = Mesh(
+                BoxGeometry(1f, 1f, 1f),
+                SimpleMaterial(
+                    albedo = Color(
+                        sin(angle) * 0.5f + 0.5f,
+                        cos(angle * 1.5f) * 0.5f + 0.5f,
+                        sin(angle * 0.7f) * 0.5f + 0.5f
+                    ),
+                    metallic = 0.3f + (i / 8f) * 0.4f,
+                    roughness = 0.2f + (i / 8f) * 0.3f,
+                    materialName = "Cube$i"
+                )
+            ).apply {
+                position.set(
+                    cos(angle) * radius,
+                    1f,
+                    sin(angle) * radius
+                )
+            }
+
+            scene.add(cube)
+            objects.add(cube)
+        }
+
+        // Central sphere
+        val sphere = Mesh(
+            SphereGeometry(1.5f, 32, 16),
+            SimpleMaterial(
+                albedo = Color(0.2f, 0.6f, 0.9f),
+                metallic = 0.8f,
+                roughness = 0.2f,
+                emissive = Color(0f, 0.1f, 0.2f),
+                materialName = "CenterSphere"
+            )
+        ).apply {
+            position.set(0f, 2f, 0f)
+        }
+        scene.add(sphere)
+        objects.add(sphere)
+    }
+
+    fun update(deltaTime: Float) {
+        time += deltaTime
+
+        // Rotate cubes
+        objects.dropLast(1).forEachIndexed { index, cube ->
+            cube.rotation.y = time * 0.5f + index * 0.1f
+            cube.position.y = 1f + sin(time * 2f + index) * 0.3f
+        }
+
+        // Float and rotate central sphere
+        val sphere = objects.last()
+        sphere.rotation.x = time * 0.3f
+        sphere.rotation.y = time * 0.7f
+        sphere.position.y = 2f + sin(time * 1.5f) * 0.5f
+
+        // Orbit camera
+        val cameraRadius = 12f
+        camera.position.x = cos(time * 0.2f) * cameraRadius
+        camera.position.z = sin(time * 0.2f) * cameraRadius
+        camera.position.y = 5f + sin(time * 0.3f) * 2f
+        camera.lookAt(Vector3(0f, 1f, 0f))
+    }
+
+    fun render(renderer: Renderer) {
+        renderer.render(scene, camera)
     }
 }
 ```
 
-```xml
-<!-- AndroidManifest.xml -->
-<manifest>
-    <uses-feature android:name="android.hardware.vulkan.level" android:required="true" />
-    <uses-feature android:glEsVersion="0x00030000" android:required="true" />
-</manifest>
-```
-
-## Next Steps
-
-- Read the [Materials Guide](materials-guide.md) to learn about different material types
-- Explore the [Animation Guide](animation-guide.md) for character animation
-- Check out the [API Reference](../api-reference/README.md) for detailed documentation
-- Browse [Examples](../examples/basic-usage.md) for more code samples
-
-## Common Patterns
-
-### Loading Models
-
-```kotlin
-import io.kreekt.loader.GLTFLoader
-
-val loader = GLTFLoader()
-loader.load("models/character.gltf") { gltf ->
-    scene.add(gltf.scene)
-}
-```
+## 🎮 Adding Interactivity
 
 ### Camera Controls
 
 ```kotlin
 import io.kreekt.controls.OrbitControls
 
-val controls = OrbitControls(camera, renderer.domElement)
-controls.enableDamping = true
-controls.dampingFactor = 0.05f
+val controls = OrbitControls(camera).apply {
+    enableDamping = true
+    dampingFactor = 0.05f
+    minDistance = 5f
+    maxDistance = 20f
+}
 
-// In animation loop
-fun animate(time: Double) {
-    controls.update()
-    renderer.render(scene, camera)
+// In your update loop
+fun update(deltaTime: Float) {
+    controls.update(deltaTime)
+    // ... other updates
 }
 ```
 
-### Handling Window Resize
+## 🔧 Troubleshooting
 
+### Common Issues
+
+**Issue**: Renderer creation fails
 ```kotlin
-window.addEventListener("resize") {
-    val width = window.innerWidth
-    val height = window.innerHeight
-
-    camera.aspect = width / height
-    camera.updateProjectionMatrix()
-
-    renderer.setSize(width, height)
+// Check renderer result properly
+when (val result = createRenderer()) {
+    is RendererResult.Success -> {
+        val renderer = result.value
+        // Use renderer
+    }
+    is RendererResult.Error -> {
+        println("Error: ${result.exception.message}")
+        result.exception.printStackTrace()
+    }
 }
 ```
 
-## Troubleshooting
-
-### WebGPU Not Available
-
-If WebGPU is not available in your browser, KreeKt automatically falls back to WebGL2:
-
+**Issue**: Objects not visible
 ```kotlin
-if (renderer.capabilities.webgpu) {
-    println("Using WebGPU")
-} else {
-    println("Using WebGL2 fallback")
+// Ensure camera is positioned correctly
+camera.position.z = 5f  // Move camera back
+camera.lookAt(Vector3.ZERO)  // Point at origin
+
+// Check object positions
+println("Object position: ${mesh.position}")
+println("Camera position: ${camera.position}")
+```
+
+**Issue**: Black screen
+```kotlin
+// Set clear color
+renderer.clearColor = Color(0.1f, 0.1f, 0.2f)
+
+// Ensure scene has objects
+println("Scene children: ${scene.children.size}")
+
+// Verify rendering
+scene.traverse { obj ->
+    println("Object: ${obj::class.simpleName} at ${obj.position}")
 }
 ```
 
-### Performance Issues
+## 📚 Next Steps
 
-For large scenes, enable optimization features:
+- **[Platform-Specific Setup](platform-specific.md)** - Detailed platform configuration
+- **[API Reference](../api-reference/README.md)** - Complete API documentation
+- **[Examples](../examples/basic-usage.md)** - More code examples
+- **[Architecture Overview](../architecture/overview.md)** - How KreeKt works
 
-```kotlin
-// Enable frustum culling
-renderer.frustumCulling = true
+## 💡 Tips
 
-// Use LOD (Level of Detail)
-import io.kreekt.lod.LOD
+1. **Start Simple**: Begin with basic shapes and materials
+2. **Use SimpleMaterial**: Good default material for most use cases
+3. **Check Positions**: Use `println()` to debug object positions
+4. **Frame Rate**: Target 16ms (60 FPS) for smooth animation
+5. **Object Pooling**: Reuse objects when possible for better performance
 
-val lod = LOD()
-lod.addLevel(highDetailMesh, 0f)
-lod.addLevel(mediumDetailMesh, 50f)
-lod.addLevel(lowDetailMesh, 100f)
-scene.add(lod)
+## 🤝 Need Help?
 
-// Enable instancing for repeated objects
-import io.kreekt.instancing.InstancedMesh
+- Check the [examples/basic-scene](../../examples/basic-scene/) project
+- Read the [API documentation](../api-reference/README.md)
+- Open an issue on GitHub
+- Join our community discussions
 
-val instancedMesh = InstancedMesh(geometry, material, count = 1000)
-scene.add(instancedMesh)
-```
+---
 
-## Resources
-
-- [API Documentation](../api-reference/README.md)
-- [Examples Repository](https://github.com/your-org/kreekt-examples)
-- [Community Discord](https://discord.gg/kreekt)
-- [Three.js Migration Guide](migration-from-threejs.md)
+**Happy Creating! 🎨**
