@@ -1,12 +1,10 @@
 package io.kreekt.helper
 
-import io.kreekt.core.math.Vector3
 import io.kreekt.core.math.Box3
 import io.kreekt.core.math.Color
 import io.kreekt.core.scene.Object3D
-import io.kreekt.geometry.primitives.BoxGeometry
-import io.kreekt.geometry.BufferGeometry
 import io.kreekt.geometry.BufferAttribute
+import io.kreekt.geometry.BufferGeometry
 import io.kreekt.material.LineBasicMaterial
 
 /**
@@ -41,7 +39,17 @@ class BoxHelper(
 
     fun update() {
         val box = Box3()
-        // box.setFromObject(`object`) // TODO: implement setFromObject extension
+        // Calculate bounding box from object and its children
+        // This would traverse object hierarchy and compute bounds
+        // For now, using object's geometry bounds if available
+        val objectGeometry = (`object` as? io.kreekt.core.scene.Mesh)?.geometry
+        if (objectGeometry != null) {
+            objectGeometry.computeBoundingBox()
+            val bbox = objectGeometry.boundingBox
+            if (bbox != null) {
+                box.copy(bbox)
+            }
+        }
 
         if (box.isEmpty()) return
 
@@ -69,9 +77,9 @@ class BoxHelper(
         )
 
         // Update positions by replacing the entire attribute
-        geometry.setAttribute("position", BufferAttribute(positions, 3))
+        this.geometry.setAttribute("position", BufferAttribute(positions, 3))
 
-        geometry.computeBoundingSphere()
+        this.geometry.computeBoundingSphere()
     }
 
     fun setFromObject(`object`: Object3D) {

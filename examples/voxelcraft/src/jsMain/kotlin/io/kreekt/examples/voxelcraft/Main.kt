@@ -6,6 +6,7 @@ import io.kreekt.renderer.RendererConfig
 import io.kreekt.renderer.webgl.WebGLRenderer
 import kotlinx.browser.document
 import kotlinx.browser.window
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.w3c.dom.HTMLCanvasElement
@@ -23,7 +24,7 @@ import org.w3c.dom.HTMLCanvasElement
  */
 
 fun main() {
-    println("🎮 VoxelCraft Starting...")
+    Logger.info("🎮 VoxelCraft Starting...")
 
     window.addEventListener("load", {
         GlobalScope.launch {
@@ -33,12 +34,12 @@ fun main() {
 }
 
 suspend fun initGame() {
-    println("🌍 Initializing VoxelCraft...")
+    Logger.info("🌍 Initializing VoxelCraft...")
 
     // Get canvas element
     val canvas = document.getElementById("kreekt-canvas") as? HTMLCanvasElement
     if (canvas == null) {
-        println("❌ Canvas element not found!")
+        Logger.error("❌ Canvas element not found!")
         return
     }
 
@@ -58,14 +59,14 @@ suspend fun initGame() {
 
     if (savedState != null) {
         updateLoadingProgress("Loading saved world...")
-        println("📂 Restoring from save...")
+        Logger.info("📂 Restoring from save...")
 
         // Restore world state
         window.setTimeout({
             savedState.restore().let { restoredWorld ->
-                // Copy restored data to our world
-                // For now just generate fresh (saved state restoration needs world reference)
-                generateTerrainAsync(world, startTime, canvas)
+                GlobalScope.launch {
+                    continueInitialization(restoredWorld, js("Date.now()") as Double - startTime, canvas)
+                }
             }
         }, 10)
     } else {
@@ -73,8 +74,9 @@ suspend fun initGame() {
     }
 }
 
+@OptIn(DelicateCoroutinesApi::class)
 fun generateTerrainAsync(world: VoxelWorld, startTime: Double, canvas: HTMLCanvasElement) {
-    println("🌍 Generating world...")
+    Logger.info("🌍 Generating world...")
     updateLoadingProgress("Generating terrain... 0%")
 
     // Use setTimeout to make generation async and allow UI updates
@@ -85,14 +87,14 @@ fun generateTerrainAsync(world: VoxelWorld, startTime: Double, canvas: HTMLCanva
 
             // Log progress every 10%
             if (percent % 10 == 0 && current != total) {
-                println("⏳ Generation progress: $percent%")
+                Logger.debug("⏳ Generation progress: $percent%")
             }
         }
 
         val generationTime = js("Date.now()") as Double - startTime
-        println("✅ World ready in ${generationTime.toInt()}ms")
-        println("📊 Chunks: ${world.chunkCount}")
-        println("👤 Player: ${world.player.position}")
+        Logger.info("✅ World ready in ${generationTime.toInt()}ms")
+        Logger.info("📊 Chunks: ${world.chunkCount}")
+        Logger.info("👤 Player: ${world.player.position}")
 
         GlobalScope.launch {
             continueInitialization(world, generationTime, canvas)
@@ -111,12 +113,12 @@ suspend fun continueInitialization(world: VoxelWorld, generationTime: Double, ca
 
     val initResult = renderer.initialize(surface)
     if (initResult !is io.kreekt.renderer.RendererResult.Success) {
-        println("❌ Renderer initialization failed!")
+        Logger.error("❌ Renderer initialization failed!")
         updateLoadingProgress("Renderer initialization failed!")
         return
     }
 
-    println("✅ Renderer initialized")
+    Logger.info("✅ Renderer initialized")
 
     // Create camera
     val camera = PerspectiveCamera(
@@ -139,7 +141,7 @@ suspend fun continueInitialization(world: VoxelWorld, generationTime: Double, ca
     window.setInterval({
         val result = storage.save(world)
         if (!result.success) {
-            println("⚠️ Auto-save failed: ${result.error}")
+            Logger.warn("⚠️ Auto-save failed: ${result.error}")
         }
     }, 30000)
 
@@ -171,8 +173,8 @@ suspend fun continueInitialization(world: VoxelWorld, generationTime: Double, ca
             world.player.position.z.toFloat()
         )
         camera.rotation.set(
-            world.player.rotation.pitch.toFloat(),
-            world.player.rotation.yaw.toFloat(),
+            world.player.rotation.x.toFloat(),
+            world.player.rotation.y.toFloat(),
             0.0f
         )
 
@@ -203,8 +205,8 @@ suspend fun continueInitialization(world: VoxelWorld, generationTime: Double, ca
     // Hide loading screen and start
     window.setTimeout({
         hideLoadingScreen()
-        println("🚀 Game loop started!")
-        println("🎮 Controls: WASD=Move, Mouse=Look, F=Flight, Space/Shift=Up/Down")
+        Logger.info("🚀 Game loop started!")
+        Logger.info("🎮 Controls: WASD=Move, Mouse=Look, F=Flight, Space/Shift=Up/Down")
         gameLoop()
     }, 1000)
 }
@@ -262,8 +264,10 @@ class VoxelCraft(val seed: Long) {
 
     companion object {
         fun fromSavedState(state: Any): VoxelCraft {
-            // TODO: Implement state restoration
-            return VoxelCraft(12345L)
+            val worldState = state as WorldState
+            return VoxelCraft(worldState.seed).apply {
+                // World is already restored in WorldState.restore()
+            }
         }
     }
 }

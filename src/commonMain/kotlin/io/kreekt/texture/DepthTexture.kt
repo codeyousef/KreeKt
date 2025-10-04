@@ -1,7 +1,7 @@
 package io.kreekt.texture
 
-import io.kreekt.renderer.TextureFormat
 import io.kreekt.renderer.TextureFilter
+import io.kreekt.renderer.TextureFormat
 import io.kreekt.renderer.TextureWrap
 
 /**
@@ -21,9 +21,10 @@ class DepthTexture(
         name = "DepthTexture"
         // Depth textures have specific settings
         // Map depth format to texture format
-        // Note: The base TextureFormat may not have all depth formats,
-        // so we use the most common RGBA8 as default and rely on the depthFormat field
-        this.format = TextureFormat.RGBA8  // Placeholder, actual format determined by depthFormat
+        // Note: The base TextureFormat enum may not have all depth-specific formats,
+        // so we use RGBA8 as a placeholder. The actual depth format is determined
+        // by the depthFormat field and handled by the renderer during texture creation.
+        this.format = TextureFormat.RGBA8  // Temporary; renderer uses depthFormat for actual GPU format
 
         this.type = when (depthFormat) {
             DepthTextureFormat.DEPTH16 -> TextureType.UNSIGNED_SHORT

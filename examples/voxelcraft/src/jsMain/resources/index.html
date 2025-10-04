@@ -470,16 +470,6 @@
     }
 
     updateFPS();
-
-    // Mock position update (will be replaced by actual game logic)
-    function updateHUD() {
-        // These will be updated by Kotlin game code
-        document.getElementById('position').textContent = 'X: 0, Y: 100, Z: 0';
-        document.getElementById('flight-status').textContent = 'OFF';
-        document.getElementById('chunks').textContent = '0 / 1024';
-    }
-
-    updateHUD();
 </script>
 </body>
 </html>

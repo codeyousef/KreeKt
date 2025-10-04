@@ -36,9 +36,9 @@ class CameraController(
         document.addEventListener("pointerlockchange", {
             isPointerLocked = document.asDynamic().pointerLockElement == canvas
             if (isPointerLocked) {
-                println("🔒 Pointer locked - mouse controls camera")
+                Logger.debug("🔒 Pointer locked - mouse controls camera")
             } else {
-                println("🔓 Pointer unlocked")
+                Logger.debug("🔓 Pointer unlocked")
             }
         })
     }

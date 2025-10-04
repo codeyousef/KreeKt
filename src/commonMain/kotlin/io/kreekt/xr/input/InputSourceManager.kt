@@ -131,8 +131,8 @@ class XRInputSourceManager(
 
     private suspend fun updateHandJoints(hand: DefaultXRHand) {
         val jointPoses = getPlatformHandJointPoses(hand)
-        jointPoses.forEach { (joint: XRHandJoint, pose: XRJointPose) ->
-            hand.updateJointPose(joint, pose)
+        jointPoses.forEach { entry ->
+            hand.updateJointPose(entry.key, entry.value)
         }
     }
 

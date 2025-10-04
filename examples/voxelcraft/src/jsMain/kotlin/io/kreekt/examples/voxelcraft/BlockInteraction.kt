@@ -36,7 +36,7 @@ class BlockInteraction(
         // Add to inventory
         player.inventory.add(block, 1)
 
-        println("⛏️ Broke ${block.name} at (${target.x}, ${target.y}, ${target.z})")
+        Logger.info("⛏️ Broke ${block.name} at (${target.x}, ${target.y}, ${target.z})")
     }
 
     /**
@@ -53,14 +53,14 @@ class BlockInteraction(
 
         // Cannot place inside player
         if (isInsidePlayer(placePos)) {
-            println("⚠️ Cannot place block inside player")
+            Logger.warn("⚠️ Cannot place block inside player")
             return
         }
 
         // Check if space is empty
         val existing = world.getBlock(placePos.x, placePos.y, placePos.z)
         if (existing != null && existing != BlockType.Air) {
-            println("⚠️ Cannot place block in occupied space")
+            Logger.warn("⚠️ Cannot place block in occupied space")
             return
         }
 
@@ -68,7 +68,7 @@ class BlockInteraction(
         val selectedBlock = player.inventory.selectedBlock
         world.setBlock(placePos.x, placePos.y, placePos.z, selectedBlock)
 
-        println("🧱 Placed ${selectedBlock.name} at (${placePos.x}, ${placePos.y}, ${placePos.z})")
+        Logger.info("🧱 Placed ${selectedBlock.name} at (${placePos.x}, ${placePos.y}, ${placePos.z})")
     }
 
     /**
@@ -89,9 +89,9 @@ class BlockInteraction(
 
         var distance = 0.0
         while (distance < maxDistance) {
-            val x = floor(origin.x + direction.x * distance).toInt()
-            val y = floor(origin.y + 1.6 + direction.y * distance).toInt() // Eye level
-            val z = floor(origin.z + direction.z * distance).toInt()
+            val x = floor(origin.x.toDouble() + direction.x * distance).toInt()
+            val y = floor(origin.y.toDouble() + 1.6 + direction.y * distance).toInt() // Eye level
+            val z = floor(origin.z.toDouble() + direction.z * distance).toInt()
 
             val block = world.getBlock(x, y, z)
             if (block != null && block != BlockType.Air) {
@@ -112,8 +112,8 @@ class BlockInteraction(
      * @return Direction vector (normalized)
      */
     private fun getViewDirection(): Direction {
-        val pitch = player.rotation.pitch
-        val yaw = player.rotation.yaw
+        val pitch = player.rotation.x.toDouble()
+        val yaw = player.rotation.y.toDouble()
 
         val cosPitch = kotlin.math.cos(pitch)
         val sinPitch = kotlin.math.sin(pitch)

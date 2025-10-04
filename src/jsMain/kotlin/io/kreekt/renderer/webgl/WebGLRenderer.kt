@@ -9,6 +9,7 @@ import io.kreekt.core.scene.Scene
 import io.kreekt.geometry.BufferGeometry
 import io.kreekt.material.MeshBasicMaterial
 import io.kreekt.renderer.*
+import io.kreekt.util.KreektLogger
 import org.khronos.webgl.*
 import org.w3c.dom.HTMLCanvasElement
 
@@ -115,7 +116,7 @@ class WebGLRenderer(
             // Create default shader program
             createBasicShaderProgram()
 
-            println("✅ WebGL Renderer initialized")
+            KreektLogger.info("WebGLRenderer", "WebGL Renderer initialized successfully")
             return RendererResult.Success(Unit)
         } catch (e: Exception) {
             console.error("WebGLRenderer initialization failed", e)

@@ -1,5 +1,6 @@
 package io.kreekt.examples.voxelcraft
 
+import io.kreekt.core.math.Vector3
 import kotlinx.serialization.Serializable
 
 /**
@@ -31,8 +32,10 @@ data class WorldState(
          * @return WorldState with compressed chunk data
          */
         fun from(world: VoxelWorld): WorldState {
-            // TODO: Only save modified/non-empty chunks (optimization)
-            val serializedChunks = emptyList<SerializedChunk>() // Stub for now
+            // Only save modified/non-empty chunks (optimization)
+            val serializedChunks = world.chunks.values
+                .filter { !it.isEmpty() } // Only save non-empty chunks
+                .map { SerializedChunk.from(it) }
 
             return WorldState(
                 seed = world.seed,
@@ -55,11 +58,17 @@ data class WorldState(
         val world = VoxelWorld(seed)
 
         // Restore player state
-        world.player.position.set(playerPosition.x, playerPosition.y, playerPosition.z)
-        world.player.rotation.set(playerRotation.pitch, playerRotation.yaw)
+        world.player.position =
+            Vector3(playerPosition.x.toFloat(), playerPosition.y.toFloat(), playerPosition.z.toFloat())
+        world.player.rotation = Vector3(playerRotation.pitch.toFloat(), playerRotation.yaw.toFloat(), 0.0f)
         world.player.isFlying = isFlying
 
-        // TODO: Apply chunk modifications from chunks list
+        // Apply chunk modifications from chunks list
+        chunks.forEach { serializedChunk ->
+            val chunkPos = ChunkPosition(serializedChunk.chunkX, serializedChunk.chunkZ)
+            val chunk = world.getChunk(chunkPos) ?: return@forEach
+            chunk.deserialize(serializedChunk.compressedBlocks)
+        }
 
         return world
     }
@@ -74,7 +83,7 @@ data class SerializableVector3(
     val y: Double,
     val z: Double
 ) {
-    constructor(pos: Position) : this(pos.x, pos.y, pos.z)
+    constructor(vec: Vector3) : this(vec.x.toDouble(), vec.y.toDouble(), vec.z.toDouble())
 }
 
 /**
@@ -85,7 +94,7 @@ data class SerializableRotation(
     val pitch: Double,
     val yaw: Double
 ) {
-    constructor(rot: Rotation) : this(rot.pitch, rot.yaw)
+    constructor(vec: Vector3) : this(vec.x.toDouble(), vec.y.toDouble())
 }
 
 /**

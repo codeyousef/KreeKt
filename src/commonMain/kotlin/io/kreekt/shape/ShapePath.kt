@@ -1,8 +1,8 @@
 package io.kreekt.shape
 
-import io.kreekt.core.math.Vector2
 import io.kreekt.core.math.Color
-import io.kreekt.curve.*
+import io.kreekt.core.math.Vector2
+import io.kreekt.curve.Path
 
 /**
  * ShapePath represents a collection of shapes that can be used to create complex 2D paths
@@ -124,8 +124,10 @@ class ShapePath {
             val tmpPath = subPaths[i]
             val tmpShape = Shape()
 
-            tmpShape.curves.clear()
-            tmpShape.curves.addAll(tmpPath.curves)
+            // Copy segments from path to shape
+            // Note: Shape extends Path, so it also uses segments
+            tmpShape.segments.clear()
+            tmpShape.segments.addAll(tmpPath.segments)
 
             shapes.add(tmpShape)
         }

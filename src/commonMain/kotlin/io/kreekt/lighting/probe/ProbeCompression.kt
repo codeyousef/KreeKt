@@ -4,7 +4,8 @@
  */
 package io.kreekt.lighting.probe
 
-import io.kreekt.lighting.*
+import io.kreekt.lighting.LightProbe
+import io.kreekt.lighting.ProbeCompressionFormat
 
 /**
  * Compresses probe data using various formats
@@ -67,8 +68,45 @@ class ProbeDataCompressor {
     }
 
     private fun serializeIrradianceMaps(probes: List<LightProbe>): ByteArray {
-        // Serialize full irradiance map data
-        return ByteArray(probes.size * 256)  // Placeholder
+        // Serialize full irradiance map data as RGB float triplets
+        // Each probe has SH coefficients (Vector3 RGB triplets) that we'll store as floats
+        // Assuming 9 SH coefficients (L2) * 3 components (RGB as xyz) * 4 bytes per float = 108 bytes per probe
+        val bytesPerProbe = 9 * 3 * 4
+        val buffer = ByteArray(probes.size * bytesPerProbe)
+
+        var offset = 0
+        for (probe in probes) {
+            // Extract SH coefficients from probe (nullable)
+            val shCoeffs = probe.sh?.coefficients ?: emptyArray()
+
+            // Serialize each coefficient (Vector3 represents RGB)
+            for (coeff in shCoeffs) {
+                // Store x, y, z as RGB channels
+                buffer.setFloat(offset, coeff.x)
+                offset += 4
+                buffer.setFloat(offset, coeff.y)
+                offset += 4
+                buffer.setFloat(offset, coeff.z)
+                offset += 4
+            }
+
+            // Pad with zeros if no SH data
+            while (offset % bytesPerProbe != 0) {
+                buffer.setFloat(offset, 0f)
+                offset += 4
+            }
+        }
+
+        return buffer
+    }
+
+    // Helper to write float to ByteArray
+    private fun ByteArray.setFloat(offset: Int, value: Float) {
+        val bits = value.toBits()
+        this[offset] = (bits shr 24).toByte()
+        this[offset + 1] = (bits shr 16).toByte()
+        this[offset + 2] = (bits shr 8).toByte()
+        this[offset + 3] = bits.toByte()
     }
 
     private fun compressToSphericalHarmonics(probes: List<LightProbe>, coefficientCount: Int): ByteArray {

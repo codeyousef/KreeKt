@@ -1,5 +1,6 @@
 package io.kreekt.examples.voxelcraft
 
+import io.kreekt.core.math.Vector3
 import kotlinx.browser.document
 import org.w3c.dom.events.KeyboardEvent
 import org.w3c.dom.events.MouseEvent
@@ -53,7 +54,7 @@ class PlayerController(
         // Toggle flight with F key
         if (key == "f") {
             player.toggleFlight()
-            println("✈️ Flight: ${if (player.isFlying) "ON" else "OFF"}")
+            Logger.info("✈️ Flight: ${if (player.isFlying) "ON" else "OFF"}")
         }
     }
 
@@ -87,19 +88,19 @@ class PlayerController(
         val speed = if (player.isFlying) flySpeed else moveSpeed
         val distance = speed * deltaTime
 
-        val yaw = player.rotation.yaw
-        val forward = Position(-sin(yaw) * distance, 0.0, -cos(yaw) * distance)
-        val right = Position(cos(yaw) * distance, 0.0, -sin(yaw) * distance)
+        val yaw = player.rotation.y.toDouble()
+        val forward = Vector3((-sin(yaw) * distance).toFloat(), 0.0f, (-cos(yaw) * distance).toFloat())
+        val right = Vector3((cos(yaw) * distance).toFloat(), 0.0f, (-sin(yaw) * distance).toFloat())
 
         // WASD movement
         if (keysPressed.contains("w")) {
             player.move(forward)
         }
         if (keysPressed.contains("s")) {
-            player.move(Position(-forward.x, 0.0, -forward.z))
+            player.move(Vector3(-forward.x, 0.0f, -forward.z))
         }
         if (keysPressed.contains("a")) {
-            player.move(Position(-right.x, 0.0, -right.z))
+            player.move(Vector3(-right.x, 0.0f, -right.z))
         }
         if (keysPressed.contains("d")) {
             player.move(right)
@@ -108,14 +109,17 @@ class PlayerController(
         // Vertical movement (flight or jump)
         if (player.isFlying) {
             if (keysPressed.contains(" ")) { // Spacebar - move up
-                player.move(Position(0.0, distance, 0.0))
+                player.move(Vector3(0.0f, distance.toFloat(), 0.0f))
             }
             if (keysPressed.contains("shift")) { // Shift - move down
-                player.move(Position(0.0, -distance, 0.0))
+                player.move(Vector3(0.0f, -distance.toFloat(), 0.0f))
             }
         } else {
-            // TODO: Implement jump with spacebar
-            // TODO: Apply gravity
+            // Jump with spacebar
+            if (keysPressed.contains(" ")) {
+                player.jump()
+            }
+            // Gravity is now handled in player.update()
         }
     }
 }

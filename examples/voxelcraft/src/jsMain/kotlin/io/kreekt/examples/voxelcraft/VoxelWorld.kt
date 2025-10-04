@@ -10,7 +10,7 @@ import io.kreekt.core.scene.Scene
  * Data model: data-model.md Section 4
  */
 class VoxelWorld(val seed: Long) {
-    private val chunks = mutableMapOf<ChunkPosition, Chunk>()
+    val chunks = mutableMapOf<ChunkPosition, Chunk>()
     val player = Player(this)
     private val generator = TerrainGenerator(seed)
     val scene = Scene()
@@ -33,7 +33,7 @@ class VoxelWorld(val seed: Long) {
         }
 
         // Spawn player above terrain
-        player.position.set(0.0, 100.0, 0.0)
+        player.position.set(0.0f, 100.0f, 0.0f)
         isGenerated = true
     }
 
@@ -56,6 +56,10 @@ class VoxelWorld(val seed: Long) {
         val (localX, localZ) = chunkPos.toLocalCoordinates(x, z)
         chunk.setBlock(localX, y, localZ, type)
         return true
+    }
+
+    fun getChunk(position: ChunkPosition): Chunk? {
+        return chunks[position]
     }
 
     fun update(deltaTime: Float) {

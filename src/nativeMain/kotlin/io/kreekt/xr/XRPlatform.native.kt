@@ -14,8 +14,8 @@ class NativeXRDepthInfo(
     override val rawValueToMeters: Float
 ) : XRDepthInfo {
     override fun getDepthInMeters(x: Float, y: Float): Float {
-        // Native implementation would access platform-specific depth buffer
-        // For now, return a default value
+        // Native implementation would require platform-specific depth buffer access
+        // via OpenXR or platform-specific AR/VR APIs
         return 0.0f
     }
 }

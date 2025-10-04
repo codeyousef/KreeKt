@@ -13,11 +13,9 @@
  */
 package io.kreekt.material
 
-import io.kreekt.core.math.*
 import io.kreekt.core.platform.currentTimeMillis
 import io.kreekt.core.scene.Material
-import kotlinx.serialization.Serializable
-import kotlin.math.*
+import io.kreekt.util.KreektLogger
 
 /**
  * Material quality levels
@@ -261,7 +259,10 @@ class MaterialProcessor(
                     }
                     is MaterialValidationResult.Warning -> {
                         // Log warnings but continue processing
-                        println("Material warnings: ${validation.warnings.joinToString()}")
+                        KreektLogger.warn(
+                            "MaterialProcessor",
+                            "Material warnings: ${validation.warnings.joinToString()}"
+                        )
                     }
                     MaterialValidationResult.Valid -> {
                         // Continue processing

@@ -37,7 +37,7 @@ class WorldStorage {
             localStorage[STORAGE_KEY] = json
 
             val sizeBytes = json.length
-            println("💾 World saved: ${sizeBytes / 1024}KB")
+            Logger.info("💾 World saved: ${sizeBytes / 1024}KB")
 
             SaveResult(
                 success = true,
@@ -53,7 +53,7 @@ class WorldStorage {
                 else -> "Save failed: ${e.message}"
             }
 
-            println("❌ Save error: $errorMsg")
+            Logger.error("❌ Save error: $errorMsg")
 
             SaveResult(
                 success = false,
@@ -76,11 +76,11 @@ class WorldStorage {
             val json = localStorage[STORAGE_KEY] ?: return null
             val worldState = Json.decodeFromString<WorldState>(json)
 
-            println("📂 World loaded: seed=${worldState.seed}")
+            Logger.info("📂 World loaded: seed=${worldState.seed}")
 
             worldState
         } catch (e: Exception) {
-            println("⚠️ Load error: ${e.message}")
+            Logger.error("⚠️ Load error: ${e.message}")
             null
         }
     }
@@ -92,7 +92,7 @@ class WorldStorage {
      */
     fun clear() {
         localStorage.removeItem(STORAGE_KEY)
-        println("🗑️ World save cleared")
+        Logger.info("🗑️ World save cleared")
     }
 
     /**

@@ -9,9 +9,12 @@ import io.kreekt.core.math.Vector3
 import io.kreekt.core.scene.Material
 import io.kreekt.core.scene.Object3D
 import io.kreekt.core.scene.Scene
-import io.kreekt.lighting.shadow.*
+import io.kreekt.lighting.shadow.FrustumCalculator
+import io.kreekt.lighting.shadow.ShadowGenerator
+import io.kreekt.lighting.shadow.ShadowSampler
 import io.kreekt.renderer.Texture
 import kotlin.math.PI
+import io.kreekt.material.Material as ConcreteMaterial
 
 /**
  * High-quality shadow mapping implementation
@@ -113,6 +116,9 @@ class ShadowMapperImpl : ShadowMapper {
     }
 
     override fun updateShadowUniforms(light: Light, material: Material) {
+        // Cast to concrete material to access setUniform extension
+        if (material !is ConcreteMaterial) return
+
         val shadowMatrix = getShadowMatrix(light, PerspectiveCamera())
 
         material.setUniform("shadowMatrix", shadowMatrix)
@@ -216,9 +222,17 @@ var Light.shadowQuality: ShadowQuality
 
 /**
  * Extension function for Material to set uniforms
+ *
+ * Note: This stores uniforms in Material's userData map.
+ * Renderers should read from userData["uniforms"] when compiling shaders.
  */
-fun Material.setUniform(name: String, value: Any) {
-    // Placeholder implementation
+fun ConcreteMaterial.setUniform(name: String, value: Any) {
+    @Suppress("UNCHECKED_CAST")
+    val uniforms = userData.getOrPut("uniforms") {
+        mutableMapOf<String, Any>()
+    } as MutableMap<String, Any>
+
+    uniforms[name] = value
 }
 
 // Re-export shadow quality
