@@ -392,32 +392,27 @@
     // Prevent context menu on right click
     document.addEventListener('contextmenu', (e) => e.preventDefault());
 
-    // Start game - request pointer lock
+    // Start game - show loading screen
     function startGame() {
-        const canvas = document.getElementById('kreekt-canvas');
         const overlay = document.getElementById('controls-overlay');
-
-        // Request pointer lock
-        canvas.requestPointerLock = canvas.requestPointerLock ||
-            canvas.mozRequestPointerLock ||
-            canvas.webkitRequestPointerLock;
-
-        if (canvas.requestPointerLock) {
-            canvas.requestPointerLock();
-        }
+        const loading = document.getElementById('loading');
 
         // Hide controls overlay
         overlay.classList.add('hidden');
 
         // Show loading screen
-        const loading = document.getElementById('loading');
         loading.classList.remove('hidden');
+
+        // Mark game as started (prevents controls from showing on ESC)
+        gameStarted = true;
     }
 
     // Pointer lock change event
     document.addEventListener('pointerlockchange', lockChangeAlert, false);
     document.addEventListener('mozpointerlockchange', lockChangeAlert, false);
     document.addEventListener('webkitpointerlockchange', lockChangeAlert, false);
+
+    let gameStarted = false;
 
     function lockChangeAlert() {
         const canvas = document.getElementById('kreekt-canvas');
@@ -429,8 +424,10 @@
             console.log('Pointer locked');
         } else {
             console.log('Pointer unlocked');
-            // Show controls again if pointer unlocked
-            overlay.classList.remove('hidden');
+            // Only show controls if game hasn't started yet
+            if (!gameStarted) {
+                overlay.classList.remove('hidden');
+            }
         }
     }
 

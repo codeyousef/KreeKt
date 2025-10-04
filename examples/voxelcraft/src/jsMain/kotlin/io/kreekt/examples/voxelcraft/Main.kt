@@ -1,9 +1,9 @@
 package io.kreekt.examples.voxelcraft
 
 import io.kreekt.camera.PerspectiveCamera
+import io.kreekt.renderer.RenderSurface
 import io.kreekt.renderer.RendererConfig
 import io.kreekt.renderer.webgl.WebGLRenderer
-import io.kreekt.renderer.RenderSurface
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.GlobalScope
@@ -217,6 +217,13 @@ fun updateLoadingProgress(message: String) {
 fun hideLoadingScreen() {
     val loading = document.getElementById("loading")
     loading?.setAttribute("class", "loading hidden")
+
+    // Request pointer lock to start gameplay
+    val canvas = document.getElementById("kreekt-canvas") as? HTMLCanvasElement
+    canvas?.let {
+        js("canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock")
+        js("if (canvas.requestPointerLock) canvas.requestPointerLock()")
+    }
 }
 
 fun updateHUD(world: VoxelWorld) {
