@@ -52,3 +52,4 @@ yarn-error.log*
 Thumbs.db
 .directory
 *.pid
+/docs/private/

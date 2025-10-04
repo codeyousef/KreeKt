@@ -25,10 +25,7 @@ rootProject.name = "kreekt"
 // include(":tools:cicd")
 // include(":tools:api-server")
 
-// Library modules
-include(":kreekt-loader")
-include(":kreekt-exporter")
-include(":kreekt-helpers")
+// Library modules (future expansion)
 // kreekt-postprocessing needs architectural fixes - temporarily disabled
 // include(":kreekt-postprocessing")
 
