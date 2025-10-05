@@ -23,7 +23,7 @@ class CatmullRomCurve3(
         var weight = p - intPoint
 
         if (closed) {
-            intPoint += if (intPoint > 0) 0 else (l / if (l > 1) 1 else 0 + 1) * l
+            intPoint += if (intPoint > 0) 0 else (l / maxOf(1, l) + 1) * l
         } else if (weight == 0f && intPoint == l - 1) {
             intPoint = l - 2
             weight = 1f

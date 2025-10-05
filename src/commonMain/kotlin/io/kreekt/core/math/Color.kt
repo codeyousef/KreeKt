@@ -150,7 +150,7 @@ data class Color(
     fun setHSL(h: Float, s: Float, l: Float): Color {
         val hue = ((h % 1f) + 1f) % 1f // Ensure hue is in [0, 1)
 
-        if (s == 0f) {
+        if (kotlin.math.abs(s) < 0.000001f) {
             // Achromatic (gray)
             r = l
             g = l
@@ -192,7 +192,7 @@ data class Color(
         var s = 0f
         val l = sum / 2f
 
-        if (diff != 0f) {
+        if (kotlin.math.abs(diff) >= 0.000001f) {
             s = if (l < 0.5f) diff / sum else diff / (2f - sum)
 
             h = when (max) {

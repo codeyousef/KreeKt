@@ -17,6 +17,11 @@ internal class ShadowGenerator(
     private val frustumCalculator: FrustumCalculator
 ) {
 
+    companion object {
+        private var idCounter = 0
+        private fun nextId(): Int = ++idCounter
+    }
+
     private var shadowBias: Float = 0.0005f
 
     fun setShadowBias(bias: Float) {
@@ -109,9 +114,14 @@ internal class ShadowGenerator(
             val cascades = frustumCalculator.calculateCascadeSplits(camera, cascadeCount)
             val shadowMaps = mutableListOf<io.kreekt.lighting.ShadowCascade>()
 
-            for (i in 0 until cascadeCount) {
+            for (i in 0 until cascadeCount - 1) {
                 val cascade = generateCascade(light, scene, camera, cascades[i], cascades[i + 1])
                 shadowMaps.add(cascade)
+            }
+            // Handle last cascade
+            if (cascadeCount > 0 && cascades.size > cascadeCount - 1) {
+                val lastCascade = generateCascade(light, scene, camera, cascades[cascadeCount - 1], camera.far)
+                shadowMaps.add(lastCascade)
             }
 
             val cascadedMap = CascadedShadowMapImpl(
@@ -247,7 +257,7 @@ internal class ShadowGenerator(
 
     private fun createShadowTexture(width: Int, height: Int): Texture {
         return object : Texture {
-            override val id: Int = (kotlin.random.Random.nextFloat() * 10000).toInt()
+            override val id: Int = nextId()
             override var needsUpdate: Boolean = true
             override val width: Int = width
             override val height: Int = height
@@ -260,7 +270,7 @@ internal class ShadowGenerator(
 
     private fun createCascadedTexture(cascades: List<ShadowCascade>): Texture {
         return object : Texture {
-            override val id: Int = (kotlin.random.Random.nextFloat() * 10000).toInt()
+            override val id: Int = nextId()
             override var needsUpdate: Boolean = true
             override val width: Int = 1024
             override val height: Int = 1024

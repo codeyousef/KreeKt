@@ -213,16 +213,16 @@ internal fun Matrix4.applyScale(scale: Vector3): Matrix4 {
 internal fun Matrix4.setLookAt(eye: Vector3, target: Vector3, up: Vector3): Matrix4 {
     val z = eye.clone().sub(target).normalize()
 
-    if (z.lengthSq() == 0f) {
+    if (abs(z.lengthSq()) < 0.000001f) {
         // eye and target are in the same position
         z.z = 1f
     }
 
     val x = up.clone().cross(z).normalize()
 
-    if (x.lengthSq() == 0f) {
+    if (abs(x.lengthSq()) < 0.000001f) {
         // up and z are parallel
-        if (abs(up.z) == 1f) {
+        if (abs(abs(up.z) - 1f) < 0.000001f) {
             z.x += 0.0001f
         } else {
             z.z += 0.0001f

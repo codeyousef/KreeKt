@@ -108,15 +108,17 @@ open class Path {
                         val y = segment.center.y + segment.radius.y * kotlin.math.sin(angle)
                         points.add(Vector2(x, y))
                     }
-                    current = points.last().clone()
+                    current = points.lastOrNull()?.clone() ?: current
                 }
             }
         }
 
         if (autoClose && points.size > 2) {
             // Ensure the path is closed
-            if (points.first().distanceToSquared(points.last()) > 0.0001f) {
-                points.add(points.first().clone())
+            val firstPoint = points.firstOrNull()
+            val lastPoint = points.lastOrNull()
+            if (firstPoint != null && lastPoint != null && firstPoint.distanceToSquared(lastPoint) > 0.0001f) {
+                points.add(firstPoint.clone())
             }
         }
 

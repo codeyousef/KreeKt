@@ -120,7 +120,10 @@ internal fun Matrix4.invertMatrix(): Matrix4 {
 
     val det = n11 * t11 + n21 * t12 + n31 * t13 + n41 * t14
 
-    if (det == 0f) throw IllegalArgumentException("Cannot invert matrix with determinant 0")
+    val epsilon = 1e-10f
+    if (kotlin.math.abs(det) < epsilon) {
+        throw IllegalArgumentException("Cannot invert matrix with determinant near zero: $det")
+    }
 
     val detInv = 1f / det
 

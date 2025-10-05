@@ -269,7 +269,7 @@ data class Vector3(
         return set(cx, cy, cz)
     }
 
-    fun length(): Float = sqrt(x * x + y * y + (z * z))
+    fun length(): Float = sqrt(x * x + y * y + z * z)
     fun lengthSquared(): Float = x * x + y * y + z * z
 
     fun normalize(): Vector3 {
@@ -282,7 +282,7 @@ data class Vector3(
         val dx = x - other.x
         val dy = y - other.y
         val dz = z - other.z
-        return dx * dx + dy * dy + (dz * dz)
+        return dx * dx + dy * dy + dz * dz
     }
 
     // Three.js compatibility aliases
@@ -504,7 +504,8 @@ data class Vector3(
                abs(z - other.z) < epsilon
     }
 
-    fun isZero(): Boolean = x == 0f && y == 0f && z == 0f
+    fun isZero(epsilon: Float = 0.000001f): Boolean =
+        abs(x) < epsilon && abs(y) < epsilon && abs(z) < epsilon
 
     fun maxComponent(): Float = maxOf(maxOf(abs(x), abs(y)), abs(z))
 

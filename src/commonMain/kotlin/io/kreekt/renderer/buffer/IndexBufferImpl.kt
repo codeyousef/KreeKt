@@ -16,7 +16,12 @@ internal class DefaultIndexBuffer(
     override val type: BufferType = BufferType.INDEX
     override val access: BufferAccess = BufferAccess.WRITE_ONLY
     override var needsUpdate: Boolean = false
-    override val count: Int get() = (size / indexType.size).toInt()
+    override val count: Int get() {
+        if (size % indexType.size != 0L) {
+            throw IllegalStateException("Buffer size $size is not a multiple of index type size ${indexType.size}")
+        }
+        return (size / indexType.size).toInt()
+    }
 
     private var data: ByteArray? = null
     private var isMapped = false
@@ -98,8 +103,12 @@ internal class DefaultIndexBuffer(
                 this.data = ByteArray(this.size.toInt())
             }
 
+            val destinationData = this.data ?: return RendererResult.Error(
+                RendererException.InvalidState("Destination buffer data is null")
+            )
+
             sourceData.copyInto(
-                destination = this.data!!,
+                destination = destinationData,
                 destinationOffset = dstOffset.toInt(),
                 startIndex = srcOffset.toInt(),
                 endIndex = (srcOffset + actualSize).toInt()

@@ -118,7 +118,7 @@ class DirectionalLightHelper(
         positions.add(0f)
         positions.add(0f)
 
-        geometry!!.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
+        geometry?.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
 
         name = "DirectionalLightHelper"
     }
@@ -164,7 +164,7 @@ class PointLightHelper(
             positions.add(kotlin.math.sin(angle2) * sphereSize)
         }
 
-        geometry!!.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
+        geometry?.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
 
         name = "PointLightHelper"
     }
@@ -212,7 +212,7 @@ class SpotLightHelper(
             positions.add(z)
         }
 
-        geometry!!.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
+        geometry?.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
 
         name = "SpotLightHelper"
     }
@@ -289,8 +289,8 @@ class HemisphereLightHelper(
             colors.add(light.groundColor.b)
         }
 
-        geometry!!.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
-        geometry!!.setAttribute("color", BufferAttribute(colors.toFloatArray(), 3))
+        geometry?.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
+        geometry?.setAttribute("color", BufferAttribute(colors.toFloatArray(), 3))
 
         name = "HemisphereLightHelper"
     }

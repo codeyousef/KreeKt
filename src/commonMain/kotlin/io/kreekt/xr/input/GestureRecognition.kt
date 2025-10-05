@@ -158,7 +158,9 @@ class HandGestureDetector(
 
         if (recentPositions.size < 10) return false
 
-        val movement = recentPositions.last().clone().sub(recentPositions.first())
+        val firstPos = recentPositions.firstOrNull() ?: return false
+        val lastPos = recentPositions.lastOrNull() ?: return false
+        val movement = lastPos.clone().sub(firstPos)
         val speed = movement.length() / (10f / 60f)
 
         return movement.normalize().dot(direction) > 0.7f && speed > 0.3f

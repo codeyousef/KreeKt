@@ -156,7 +156,13 @@ class DefaultSkeletalAnimationSystem(
         // Similar to AnimationAction interpolation but simplified
         val times = track.times
         val values = track.values
-        val valuesPerKey = values.size / times.size
+
+        // Check for empty times to avoid division by zero
+        if (times.isEmpty()) {
+            return floatArrayOf()
+        }
+
+        val valuesPerKey = if (times.isNotEmpty()) values.size / times.size else 0
 
         var index = 0
         for (i in times.indices) {

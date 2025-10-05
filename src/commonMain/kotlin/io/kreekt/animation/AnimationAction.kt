@@ -284,7 +284,13 @@ class DefaultClipAction(
     private fun interpolateTrack(track: KeyframeTrack, time: Float): FloatArray {
         val times = track.times
         val values = track.values
-        val valuesPerKey = values.size / times.size
+
+        // Check for empty times to avoid division by zero
+        if (times.isEmpty()) {
+            return floatArrayOf()
+        }
+
+        val valuesPerKey = if (times.isNotEmpty()) values.size / times.size else 0
 
         // Find the keyframe indices
         var index = 0

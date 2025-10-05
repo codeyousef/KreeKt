@@ -323,8 +323,8 @@ class MorphTargetTrack(
         }
 
         // Handle edge cases
-        if (i >= track.times.size - 1) return track.values.last()
-        if (time <= track.times[0]) return track.values[0]
+        if (i >= track.times.size - 1) return track.values.lastOrNull() ?: 0f
+        if (time <= track.times[0]) return track.values.firstOrNull() ?: 0f
 
         // Linear interpolation between keyframes
         val t0 = track.times[i]

@@ -176,7 +176,8 @@ data class Vector2(
         return abs(x - other.x) < epsilon && abs(y - other.y) < epsilon
     }
 
-    fun isZero(): Boolean = x == 0f && y == 0f
+    fun isZero(epsilon: Float = 0.000001f): Boolean =
+        abs(x) < epsilon && abs(y) < epsilon
 
     // Three.js compatibility aliases
     fun distanceTo(other: Vector2): Float = distance(other)

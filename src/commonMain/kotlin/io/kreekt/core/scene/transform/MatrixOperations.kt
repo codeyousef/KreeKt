@@ -30,10 +30,11 @@ fun Transform.updateWorldMatrix(): Matrix4 {
     updateLocalMatrix()
 
     if (needsWorldMatrixUpdate) {
-        if (parent == null) {
+        val parentObj = parent
+        if (parentObj == null) {
             worldMatrix.copy(localMatrix)
         } else {
-            worldMatrix.multiplyMatrices(parent!!.updateWorldMatrix(), localMatrix)
+            worldMatrix.multiplyMatrices(parentObj.updateWorldMatrix(), localMatrix)
         }
         needsWorldMatrixUpdate = false
     }

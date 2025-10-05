@@ -5,6 +5,7 @@
 
 import io.kreekt.renderer.Renderer
 import io.kreekt.renderer.RendererResult
+import io.kreekt.renderer.RendererException
 import org.lwjgl.glfw.GLFW.*
 
 actual fun createRenderer(): RendererResult<Renderer> {
@@ -14,7 +15,7 @@ actual fun createRenderer(): RendererResult<Renderer> {
         val renderer = OpenGLDesktopRenderer()
         RendererResult.Success(renderer)
     } catch (e: Exception) {
-        RendererResult.Error("Failed to create OpenGL renderer: ${e.message}")
+        RendererResult.Error(RendererException.UnsupportedFeature("Failed to create OpenGL renderer: ${e.message}"))
     }
 }
 

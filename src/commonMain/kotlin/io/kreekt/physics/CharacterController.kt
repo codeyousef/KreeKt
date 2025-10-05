@@ -89,15 +89,15 @@ class CharacterControllerImpl(
             field = value
         }
 
-    private val _walkDirection = MutableStateFlow(Vector3.ZERO)
+    private val _walkDirection = MutableStateFlow(Vector3(0f, 0f, 0f))
     override var walkDirection: Vector3
-        get() = _walkDirection.value
-        set(value) { _walkDirection.value = value }
+        get() = _walkDirection.value.clone()
+        set(value) { _walkDirection.value = value.clone() }
 
-    private val _velocityForTimeInterval = MutableStateFlow(Vector3.ZERO)
+    private val _velocityForTimeInterval = MutableStateFlow(Vector3(0f, 0f, 0f))
     override var velocityForTimeInterval: Vector3
-        get() = _velocityForTimeInterval.value
-        set(value) { _velocityForTimeInterval.value = value }
+        get() = _velocityForTimeInterval.value.clone()
+        set(value) { _velocityForTimeInterval.value = value.clone() }
 
     // Character state
     private val _onGround = MutableStateFlow(false)

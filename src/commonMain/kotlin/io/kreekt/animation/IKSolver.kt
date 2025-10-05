@@ -85,7 +85,11 @@ class IKSolver {
                 if (currentPositions.isEmpty()) {
                     return IKResult(false, 0, Float.MAX_VALUE, false)
                 }
-                currentPositions[currentPositions.size - 1] = target.clone()
+                val lastIndex = currentPositions.size - 1
+                if (lastIndex < 0) {
+                    return IKResult(false, 0, Float.MAX_VALUE, false)
+                }
+                currentPositions[lastIndex] = target.clone()
 
                 for (i in currentPositions.size - 2 downTo 0) {
                     val directionVector = currentPositions[i].clone()

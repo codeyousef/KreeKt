@@ -14,6 +14,13 @@ class PlaneGeometry(
     heightSegments: Int = 1
 ) : PrimitiveGeometry() {
 
+    init {
+        require(width > 0) { "width must be > 0, got $width" }
+        require(height > 0) { "height must be > 0, got $height" }
+        require(widthSegments >= 1) { "widthSegments must be >= 1, got $widthSegments" }
+        require(heightSegments >= 1) { "heightSegments must be >= 1, got $heightSegments" }
+    }
+
     class PlaneParameters(
         var width: Float,
         var height: Float,

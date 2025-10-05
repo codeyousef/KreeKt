@@ -284,9 +284,9 @@ data class Ray(
     fun intersectPlane(plane: Plane, target: Vector3): Boolean {
         val denominator = plane.normal.dot(direction)
 
-        if (denominator == 0f) {
+        if (abs(denominator) < 0.000001f) {
             // Ray is parallel to plane
-            return if (plane.distanceToPoint(origin) == 0f) {
+            return if (abs(plane.distanceToPoint(origin)) < 0.000001f) {
                 // Ray lies in plane
                 target.copy(origin)
                 true
@@ -308,8 +308,8 @@ data class Ray(
      */
     fun intersectsPlane(plane: Plane): Boolean {
         val denominator = plane.normal.dot(direction)
-        if (denominator == 0f) {
-            return plane.distanceToPoint(origin) == 0f
+        if (abs(denominator) < 0.000001f) {
+            return abs(plane.distanceToPoint(origin)) < 0.000001f
         }
         val t = -(origin.dot(plane.normal) + plane.constant) / denominator
         return t >= 0f

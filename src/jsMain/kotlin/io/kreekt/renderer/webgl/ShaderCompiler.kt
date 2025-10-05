@@ -68,7 +68,7 @@ class ShaderCompiler(private val gl: dynamic) {
             gl.compileShader(shader)
 
             // Check compilation status
-            val compiled = gl.getShaderParameter(shader, 35713) as Boolean // COMPILE_STATUS
+            val compiled = (gl.getShaderParameter(shader, 35713) as? Boolean) ?: false // COMPILE_STATUS
             if (!compiled) {
                 val infoLog = gl.getShaderInfoLog(shader) ?: "Unknown compilation error"
                 gl.deleteShader(shader)
@@ -140,7 +140,7 @@ class ShaderCompiler(private val gl: dynamic) {
             gl.linkProgram(program)
 
             // Check link status
-            val linked = gl.getProgramParameter(program, 35714) as Boolean // LINK_STATUS
+            val linked = (gl.getProgramParameter(program, 35714) as? Boolean) ?: false // LINK_STATUS
             if (!linked) {
                 val infoLog = gl.getProgramInfoLog(program) ?: "Unknown linking error"
                 cleanupProgram(program, vertexShader, fragmentShader)
@@ -336,11 +336,11 @@ class ShaderCompiler(private val gl: dynamic) {
 
         try {
             // Get number of active attributes
-            val numAttributes = gl.getProgramParameter(program, 35721) as Int // ACTIVE_ATTRIBUTES
+            val numAttributes = (gl.getProgramParameter(program, 35721) as? Int) ?: 0 // ACTIVE_ATTRIBUTES
             info["activeAttributes"] = numAttributes
 
             // Get number of active uniforms
-            val numUniforms = gl.getProgramParameter(program, 35718) as Int // ACTIVE_UNIFORMS
+            val numUniforms = (gl.getProgramParameter(program, 35718) as? Int) ?: 0 // ACTIVE_UNIFORMS
             info["activeUniforms"] = numUniforms
 
             // Get all active attributes

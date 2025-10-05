@@ -186,11 +186,12 @@ object BezierUtils {
         if (k > n || k < 0) return 0
         if (k == 0 || k == n) return 1
 
-        var result = 1
+        // Use Long to prevent overflow for larger values
+        var result = 1L
         for (i in 0 until k) {
-            result = result * (n - i) / (i + 1)
+            result = (result * (n - i)) / (i + 1)
         }
-        return result
+        return result.toInt()
     }
 
     /**

@@ -38,9 +38,24 @@ fun Matrix4.extractRotation(matrix: Matrix4): Matrix4 {
     val te = elements
     val me = matrix.elements
 
-    val scaleX = 1f / Vector3(me[0], me[1], me[2]).length()
-    val scaleY = 1f / Vector3(me[4], me[5], me[6]).length()
-    val scaleZ = 1f / Vector3(me[8], me[9], me[10]).length()
+    val EPSILON = 0.000001f
+
+    val lengthX = Vector3(me[0], me[1], me[2]).length()
+    val lengthY = Vector3(me[4], me[5], me[6]).length()
+    val lengthZ = Vector3(me[8], me[9], me[10]).length()
+
+    if (lengthX < EPSILON || lengthY < EPSILON || lengthZ < EPSILON) {
+        // Degenerate matrix - return identity rotation
+        te[0] = 1f; te[1] = 0f; te[2] = 0f; te[3] = 0f
+        te[4] = 0f; te[5] = 1f; te[6] = 0f; te[7] = 0f
+        te[8] = 0f; te[9] = 0f; te[10] = 1f; te[11] = 0f
+        te[12] = 0f; te[13] = 0f; te[14] = 0f; te[15] = 1f
+        return this
+    }
+
+    val scaleX = 1f / lengthX
+    val scaleY = 1f / lengthY
+    val scaleZ = 1f / lengthZ
 
     te[0] = me[0] * scaleX
     te[1] = me[1] * scaleX

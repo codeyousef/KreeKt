@@ -16,7 +16,15 @@ internal class DefaultVertexBuffer(
 
     override val access: BufferAccess = BufferAccess.WRITE_ONLY
     override var needsUpdate: Boolean = false
-    override val count: Int get() = (size / stride).toInt()
+    override val count: Int get() {
+        if (stride <= 0) {
+            throw IllegalStateException("Invalid stride: $stride")
+        }
+        if (size % stride != 0L) {
+            throw IllegalStateException("Buffer size $size is not a multiple of stride $stride")
+        }
+        return (size / stride).toInt()
+    }
 
     private var data: ByteArray? = null
     private var isMapped = false

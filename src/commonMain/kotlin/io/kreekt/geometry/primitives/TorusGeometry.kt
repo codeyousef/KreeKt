@@ -17,6 +17,13 @@ class TorusGeometry(
     arc: Float = PI.toFloat() * 2f
 ) : PrimitiveGeometry() {
 
+    init {
+        require(radius > 0) { "radius must be > 0, got $radius" }
+        require(tube > 0) { "tube must be > 0, got $tube" }
+        require(radialSegments >= 3) { "radialSegments must be >= 3, got $radialSegments" }
+        require(tubularSegments >= 3) { "tubularSegments must be >= 3, got $tubularSegments" }
+    }
+
     class TorusParameters(
         var radius: Float,
         var tube: Float,

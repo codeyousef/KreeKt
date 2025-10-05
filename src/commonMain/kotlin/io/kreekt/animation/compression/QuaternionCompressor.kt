@@ -69,7 +69,10 @@ object QuaternionCompressor {
 
         // Quantize remaining components
         val maxValue = (1 shl bits) - 1
-        val scale = maxValue / sqrt(1f - components[largestIndex] * components[largestIndex])
+        val EPSILON = 0.000001f
+        val sqrtArg = (1f - components[largestIndex] * components[largestIndex]).coerceAtLeast(EPSILON)
+        val sqrtValue = sqrt(sqrtArg).coerceAtLeast(EPSILON)
+        val scale = maxValue / sqrtValue
 
         // Simplified compression - real implementation would pack bits efficiently
         val packedData = when (largestIndex) {

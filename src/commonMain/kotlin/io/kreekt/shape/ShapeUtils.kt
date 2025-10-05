@@ -17,6 +17,8 @@ object ShapeUtils {
      */
     fun area(contour: List<Vector2>): Float {
         val n = contour.size
+        if (n < 3) return 0f // Need at least 3 points for an area
+
         var a = 0f
 
         for (p in 0 until n) {
@@ -198,7 +200,7 @@ object ShapeUtils {
             if (p != null && pNext != null && hy <= p.y && hy >= pNext.y && pNext.y != p.y) {
                 // Guard against division by zero
                 val denominator = pNext.y - p.y
-                val x = if (denominator != 0f) {
+                val x = if (kotlin.math.abs(denominator) >= 0.000001f) {
                     p.x + (hy - p.y) * (pNext.x - p.x) / denominator
                 } else {
                     p.x // Degenerate case: vertical line segment
@@ -269,6 +271,11 @@ object ShapeUtils {
                 }
                 break
             }
+        }
+
+        // Warn if iteration limit was reached (possible infinite loop or complex polygon)
+        if (iterations >= maxIterations) {
+            println("WARNING: ShapeUtils.earcutLinked reached max iterations ($maxIterations). Polygon may be too complex or malformed.")
         }
     }
 

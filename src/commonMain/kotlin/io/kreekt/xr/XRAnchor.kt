@@ -73,6 +73,7 @@ class DefaultXRAnchor(
             persistentHandle?.let { handle ->
                 // Note: Platform-specific cleanup would happen here
                 // Cannot call suspend function from non-suspend delete()
+                // TODO: Consider making delete() a suspend function or launching cleanup asynchronously
             }
 
             // Stop tracking

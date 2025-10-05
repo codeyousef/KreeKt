@@ -19,6 +19,12 @@ class SphereGeometry(
     thetaLength: Float = PI.toFloat()
 ) : PrimitiveGeometry() {
 
+    init {
+        require(radius > 0) { "radius must be > 0, got $radius" }
+        require(widthSegments >= 3) { "widthSegments must be >= 3, got $widthSegments" }
+        require(heightSegments >= 2) { "heightSegments must be >= 2, got $heightSegments" }
+    }
+
     class SphereParameters(
         var radius: Float,
         var widthSegments: Int,
@@ -105,9 +111,8 @@ class SphereGeometry(
 
                 vertices.addAll(listOf(x, y, z))
 
-                // Normal (normalized position vector for sphere)
-                val length = sqrt(x * x + y * y + (z * z))
-                normals.addAll(listOf(x / length, y / length, z / length))
+                // Normal (for a sphere, the normal is position / radius)
+                normals.addAll(listOf(x / params.radius, y / params.radius, z / params.radius))
 
                 // UV coordinates
                 uvs.addAll(listOf(u + uOffset, 1f - v))

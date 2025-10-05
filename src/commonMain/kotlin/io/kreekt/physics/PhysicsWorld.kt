@@ -9,6 +9,9 @@ import io.kreekt.physics.PhysicsOperationResult.Success
 /**
  * Default implementation of PhysicsWorld
  * Provides a complete physics simulation environment
+ *
+ * NOTE: This implementation is NOT thread-safe. All operations must be called from a single thread.
+ * For multi-threaded environments, external synchronization is required.
  */
 class DefaultPhysicsWorld(
     initialGravity: Vector3 = Vector3(0f, -9.81f, 0f)
@@ -20,6 +23,7 @@ class DefaultPhysicsWorld(
     override var solverIterations: Int = 10
     override var broadphase: BroadphaseType = BroadphaseType.DYNAMIC_AABB_TREE
 
+    // Note: These collections are not thread-safe. Access must be synchronized externally
     private val rigidBodies = mutableListOf<RigidBody>()
     private val rigidBodyMap = mutableMapOf<String, RigidBody>()
     private val constraints = mutableListOf<PhysicsConstraint>()
@@ -28,7 +32,7 @@ class DefaultPhysicsWorld(
     private var isPaused = false
     private var isDisposed = false
 
-    // Event callbacks
+    // Event callbacks - not thread-safe
     private val triggerEnterCallbacks = mutableListOf<(RigidBody, RigidBody) -> Unit>()
     private val collisionCallbacks = mutableListOf<(CollisionContact) -> Unit>()
 

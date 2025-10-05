@@ -209,10 +209,10 @@ class RapierPhysicsWorld(
                 val obj1 = collider1.userData() as? CollisionObject
                 val obj2 = collider2.userData() as? CollisionObject
 
-                if (obj1 != null && obj2 != null) {
+                if (obj1 != null && obj2 != null && obj1 is RigidBody && obj2 is RigidBody) {
                     val contact = CollisionContact(
-                        bodyA = obj1 as RigidBody,
-                        bodyB = obj2 as RigidBody,
+                        bodyA = obj1,
+                        bodyB = obj2,
                         point = extractContactNormal(collider1, collider2),
                         normal = extractContactNormal(collider1, collider2),
                         impulse = 0f

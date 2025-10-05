@@ -217,7 +217,8 @@ data class Vector4(
                abs(w - other.w) < epsilon
     }
 
-    fun isZero(): Boolean = x == 0f && y == 0f && z == 0f && w == 0f
+    fun isZero(epsilon: Float = 0.000001f): Boolean =
+        abs(x) < epsilon && abs(y) < epsilon && abs(z) < epsilon && abs(w) < epsilon
 
     override fun toString(): String = "Vector4($x, $y, $z, $w)"
 

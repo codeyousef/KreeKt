@@ -16,6 +16,15 @@ class BoxGeometry(
     depthSegments: Int = 1
 ) : PrimitiveGeometry() {
 
+    init {
+        require(width > 0) { "width must be > 0, got $width" }
+        require(height > 0) { "height must be > 0, got $height" }
+        require(depth > 0) { "depth must be > 0, got $depth" }
+        require(widthSegments >= 1) { "widthSegments must be >= 1, got $widthSegments" }
+        require(heightSegments >= 1) { "heightSegments must be >= 1, got $heightSegments" }
+        require(depthSegments >= 1) { "depthSegments must be >= 1, got $depthSegments" }
+    }
+
     class BoxParameters(
         var width: Float,
         var height: Float,

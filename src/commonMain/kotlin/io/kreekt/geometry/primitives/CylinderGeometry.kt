@@ -20,6 +20,14 @@ open class CylinderGeometry(
     thetaLength: Float = PI.toFloat() * 2f
 ) : PrimitiveGeometry() {
 
+    init {
+        require(radiusTop >= 0) { "radiusTop must be >= 0, got $radiusTop" }
+        require(radiusBottom >= 0) { "radiusBottom must be >= 0, got $radiusBottom" }
+        require(height > 0) { "height must be > 0, got $height" }
+        require(radialSegments >= 3) { "radialSegments must be >= 3, got $radialSegments" }
+        require(heightSegments >= 1) { "heightSegments must be >= 1, got $heightSegments" }
+    }
+
     class CylinderParameters(
         var radiusTop: Float,
         var radiusBottom: Float,

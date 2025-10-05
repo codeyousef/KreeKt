@@ -54,10 +54,10 @@ class DefaultExtrudeUVGenerator : ExtrudeUVGenerator {
             "Invalid vertex indices for UV generation"
         }
 
-        val a = vertices[indexA]
-        val b = vertices[indexB]
-        val c = vertices[indexC]
-        val d = vertices[indexD]
+        val a = vertices.getOrNull(indexA) ?: return emptyList()
+        val b = vertices.getOrNull(indexB) ?: return emptyList()
+        val c = vertices.getOrNull(indexC) ?: return emptyList()
+        val d = vertices.getOrNull(indexD) ?: return emptyList()
 
         return if (abs(a.y - b.y) < abs(a.x - b.x)) {
             listOf(
@@ -82,9 +82,9 @@ class DefaultExtrudeUVGenerator : ExtrudeUVGenerator {
             "Invalid vertex indices for top UV generation"
         }
 
-        val a = vertices[indexA]
-        val b = vertices[indexB]
-        val c = vertices[indexC]
+        val a = vertices.getOrNull(indexA) ?: return emptyList()
+        val b = vertices.getOrNull(indexB) ?: return emptyList()
+        val c = vertices.getOrNull(indexC) ?: return emptyList()
 
         return listOf(
             Vector2(a.x, a.y),

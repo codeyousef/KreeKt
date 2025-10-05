@@ -89,8 +89,8 @@ data class Quaternion(
     /**
      * Checks if this quaternion represents no rotation
      */
-    fun isIdentity(): Boolean {
-        return x == 0f && y == 0f && z == 0f && w == 1f
+    fun isIdentity(epsilon: Float = 0.000001f): Boolean {
+        return abs(x) < epsilon && abs(y) < epsilon && abs(z) < epsilon && abs(w - 1f) < epsilon
     }
 
     /**
@@ -358,8 +358,8 @@ data class Quaternion(
      * Spherical linear interpolation to another quaternion
      */
     fun slerp(qb: Quaternion, t: Float): Quaternion {
-        if (t == 0f) return this
-        if (t == 1f) return copy(qb)
+        if (abs(t) < 0.000001f) return this
+        if (abs(t - 1f) < 0.000001f) return copy(qb)
 
         val x = this.x; val y = this.y; val z = this.z; val w = this.w
 
@@ -434,7 +434,7 @@ data class Quaternion(
         val z1 = src1[srcOffset1 + 2]
         val w1 = src1[srcOffset1 + 3]
 
-        if (t == 0f) {
+        if (abs(t) < 0.000001f) {
             dst[dstOffset + 0] = x0
             dst[dstOffset + 1] = y0
             dst[dstOffset + 2] = z0

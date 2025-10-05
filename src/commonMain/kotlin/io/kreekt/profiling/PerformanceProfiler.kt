@@ -235,7 +235,7 @@ object PerformanceProfiler {
                     category = data.category,
                     totalTime = data.totalTime,
                     callCount = data.callCount,
-                    averageTime = data.totalTime / data.callCount,
+                    averageTime = if (data.callCount > 0) data.totalTime / data.callCount else 0L,
                     percentage = calculatePercentage(data.totalTime)
                 )
             }
@@ -249,7 +249,7 @@ object PerformanceProfiler {
         val snapshots = memorySnapshots.value
         if (snapshots.isEmpty()) return null
 
-        val latest = snapshots.last()
+        val latest = snapshots.lastOrNull() ?: return null
         val trend = if (snapshots.size >= 2) {
             val previous = snapshots[snapshots.size - 2]
             latest.usedMemory - previous.usedMemory
@@ -343,8 +343,8 @@ object PerformanceProfiler {
         val snapshots = memorySnapshots.value
         if (snapshots.size < 2) return 0L
 
-        val recent = snapshots.last()
-        val previous = snapshots[snapshots.size - 2]
+        val recent = snapshots.lastOrNull() ?: return 0L
+        val previous = snapshots.getOrNull(snapshots.size - 2) ?: return 0L
         val timeDelta = recent.timestamp - previous.timestamp
 
         if (timeDelta == 0L) return 0L
@@ -366,7 +366,7 @@ object PerformanceProfiler {
     }
 
     private fun calculateFps(averageFrameTimeNanos: Double): Double {
-        if (averageFrameTimeNanos == 0.0) return 0.0
+        if (averageFrameTimeNanos < 0.001) return 0.0
         return 1_000_000_000.0 / averageFrameTimeNanos
     }
 

@@ -40,10 +40,12 @@ class Raycaster(
             }
 
             is OrthographicCamera -> {
+                val denominator = camera.near - camera.far
+                val z = if (kotlin.math.abs(denominator) < 0.00001f) 0f else (camera.near + camera.far) / denominator
                 ray.origin.set(
                     coords.x,
                     coords.y,
-                    (camera.near + camera.far) / (camera.near - camera.far)
+                    z
                 ).unproject(camera)
 
                 ray.direction.set(0f, 0f, -1f)

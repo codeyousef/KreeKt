@@ -17,6 +17,14 @@ class RingGeometry(
     thetaLength: Float = PI.toFloat() * 2f
 ) : PrimitiveGeometry() {
 
+    init {
+        require(innerRadius >= 0) { "innerRadius must be >= 0, got $innerRadius" }
+        require(outerRadius > 0) { "outerRadius must be > 0, got $outerRadius" }
+        require(outerRadius > innerRadius) { "outerRadius must be > innerRadius" }
+        require(thetaSegments >= 3) { "thetaSegments must be >= 3, got $thetaSegments" }
+        require(phiSegments >= 1) { "phiSegments must be >= 1, got $phiSegments" }
+    }
+
     class RingParameters(
         var innerRadius: Float,
         var outerRadius: Float,

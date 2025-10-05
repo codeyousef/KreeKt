@@ -60,7 +60,7 @@ class LODGenerator {
         return LodResult(
             levels = lodLevels.toList(),
             originalTriangleCount = originalTriangleCount,
-            totalReduction = if (lodLevels.size > 1) {
+            totalReduction = if (lodLevels.size > 1 && originalTriangleCount > 0) {
                 1f - (lodLevels.last().triangleCount.toFloat() / originalTriangleCount)
             } else {
                 0f

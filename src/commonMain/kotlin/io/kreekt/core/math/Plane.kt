@@ -149,9 +149,9 @@ data class Plane(
         val direction = Vector3().copy(line.end).sub(line.start)
         val denominator = normal.dot(direction)
 
-        if (denominator == 0f) {
+        if (abs(denominator) < 0.000001f) {
             // Line is parallel to plane
-            return if (distanceToPoint(line.start) == 0f) {
+            return if (abs(distanceToPoint(line.start)) < 0.000001f) {
                 target.copy(line.start)
                 true
             } else {

@@ -168,10 +168,15 @@ class MaxRectsPackager : RectanglePacker {
     }
 
     private fun mergeRectangles() {
-        // Simplified merge - real implementation would be more sophisticated
+        // Simplified merge with iteration limit to prevent infinite loops
         var merged = true
-        while (merged) {
+        var iterations = 0
+        val maxIterations = freeRectangles.size * freeRectangles.size
+
+        while (merged && iterations < maxIterations) {
             merged = false
+            iterations++
+
             for (i in freeRectangles.indices) {
                 for (j in i + 1 until freeRectangles.size) {
                     val rect1 = freeRectangles[i]
@@ -187,6 +192,10 @@ class MaxRectsPackager : RectanglePacker {
                 }
                 if (merged) break
             }
+        }
+
+        if (iterations >= maxIterations) {
+            println("WARNING: Rectangle merging hit iteration limit ($maxIterations)")
         }
     }
 
