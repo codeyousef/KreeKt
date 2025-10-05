@@ -396,7 +396,8 @@ data class Quaternion(
 
         val sqrSinHalfTheta = 1f - cosHalfTheta * cosHalfTheta
 
-        if (sqrSinHalfTheta <= Float.MIN_VALUE) {
+        // Use stricter threshold to avoid numerical instability
+        if (sqrSinHalfTheta <= 0.000001f) {
             val s = 1f - t
             this.w = s * w + t * qw
             this.x = s * x + t * qx
@@ -442,7 +443,7 @@ data class Quaternion(
             return
         }
 
-        if (t == 1f) {
+        if (abs(t - 1f) < 0.000001f) {
             dst[dstOffset + 0] = x1
             dst[dstOffset + 1] = y1
             dst[dstOffset + 2] = z1
@@ -452,17 +453,18 @@ data class Quaternion(
 
         var cosHalfTheta = x0 * x1 + y0 * y1 + z0 * z1 + w0 * w1
 
+        // Store destination quaternion, potentially negated for shortest path
+        var qx = x1
+        var qy = y1
+        var qz = z1
+        var qw = w1
+
         if (cosHalfTheta < 0f) {
-            x0 = -x1
-            y0 = -y1
-            z0 = -z1
-            w0 = -w1
+            qx = -x1
+            qy = -y1
+            qz = -z1
+            qw = -w1
             cosHalfTheta = -cosHalfTheta
-        } else {
-            x0 = x1
-            y0 = y1
-            z0 = z1
-            w0 = w1
         }
 
         if (cosHalfTheta >= 1f) {
@@ -473,24 +475,24 @@ data class Quaternion(
             return
         }
 
-        val halfTheta = acos(cosHalfTheta)
+        val halfTheta = acos(cosHalfTheta.coerceIn(-1f, 1f))
         val sinHalfTheta = sqrt(1f - (cosHalfTheta * cosHalfTheta))
 
         if (abs(sinHalfTheta) < 0.001f) {
-            dst[dstOffset + 0] = 0.5f * (x0 + x1)
-            dst[dstOffset + 1] = 0.5f * (y0 + y1)
-            dst[dstOffset + 2] = 0.5f * (z0 + z1)
-            dst[dstOffset + 3] = 0.5f * (w0 + w1)
+            dst[dstOffset + 0] = 0.5f * (x0 + qx)
+            dst[dstOffset + 1] = 0.5f * (y0 + qy)
+            dst[dstOffset + 2] = 0.5f * (z0 + qz)
+            dst[dstOffset + 3] = 0.5f * (w0 + qw)
             return
         }
 
         val ratioA = sin((1f - t) * halfTheta) / sinHalfTheta
         val ratioB = sin((t * halfTheta)) / sinHalfTheta
 
-        dst[dstOffset + 0] = x0 * ratioA + x1 * ratioB
-        dst[dstOffset + 1] = y0 * ratioA + y1 * ratioB
-        dst[dstOffset + 2] = z0 * ratioA + z1 * ratioB
-        dst[dstOffset + 3] = w0 * ratioA + (w1 * ratioB)
+        dst[dstOffset + 0] = x0 * ratioA + qx * ratioB
+        dst[dstOffset + 1] = y0 * ratioA + qy * ratioB
+        dst[dstOffset + 2] = z0 * ratioA + qz * ratioB
+        dst[dstOffset + 3] = w0 * ratioA + (qw * ratioB)
     }
 
     /**

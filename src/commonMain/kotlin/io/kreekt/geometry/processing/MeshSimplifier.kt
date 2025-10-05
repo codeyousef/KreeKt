@@ -69,7 +69,7 @@ class MeshSimplifier {
         }
         result.setAttribute("position", BufferAttribute(positionArray, 3))
 
-        // Set index
+        // Set index (BufferAttribute expects FloatArray, convert indices)
         val indexArray = indices.map { it.toFloat() }.toFloatArray()
         result.setIndex(BufferAttribute(indexArray, 1))
 

@@ -39,7 +39,7 @@ object GroundDetector {
         return if (raycastResult?.hasHit == true) {
             val groundDistance = raycastResult.distance - stepHeight
             val groundNormal = raycastResult.hitNormal
-            val slopeAngle = acos(groundNormal.dot(Vector3.UNIT_Y))
+            val slopeAngle = acos(groundNormal.dot(Vector3.UNIT_Y).coerceIn(-1f, 1f))
 
             val isOnGround = slopeAngle <= maxSlopeAngle && groundDistance <= stepHeight
 

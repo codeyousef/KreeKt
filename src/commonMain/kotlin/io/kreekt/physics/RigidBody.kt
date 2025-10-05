@@ -373,8 +373,8 @@ class DefaultRigidBody(
 
             // Integrate angular motion
             val angularVelocityLength = angularVelocity.length()
-            val newRotation = if (angularVelocityLength > 0f) {
-                val axis = angularVelocity.normalize()
+            val newRotation = if (angularVelocityLength > 0.001f) {
+                val axis = angularVelocity.clone().normalize()
                 val angle = angularVelocityLength * deltaTime
                 val deltaRotation = Quaternion.fromAxisAngle(axis, angle)
                 rotation.multiply(deltaRotation).normalize()

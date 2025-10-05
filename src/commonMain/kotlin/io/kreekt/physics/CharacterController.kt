@@ -224,9 +224,16 @@ class CharacterControllerImpl(
         var movement = Vector3.ZERO
 
         // Add walk direction (horizontal movement)
-        if (walkDirection.length() > 0.001f) {
-            val horizontalMovement = Vector3(walkDirection.x, 0f, walkDirection.z).normalize()
-            val movementSpeed = walkDirection.length()
+        val walkLen = walkDirection.length()
+        if (walkLen > 0.001f) {
+            val horizontalVec = Vector3(walkDirection.x, 0f, walkDirection.z)
+            val horizontalLen = horizontalVec.length()
+            val horizontalMovement = if (horizontalLen > 0.001f) {
+                horizontalVec.normalize()
+            } else {
+                Vector3.ZERO
+            }
+            val movementSpeed = walkLen
 
             if (_onGround.value) {
                 movement = horizontalMovement * (movementSpeed * deltaTime)
@@ -437,7 +444,13 @@ class CharacterControllerImpl(
         val sweepResult = SweepTester.sweep(world, currentPosition, targetPosition, characterRadius, characterHeight)
 
         return if (sweepResult.hasHit) {
-            val direction = (targetPosition - currentPosition).normalize()
+            val directionVec = targetPosition - currentPosition
+            val dirLen = directionVec.length()
+            val direction = if (dirLen > 0.001f) {
+                directionVec.normalize()
+            } else {
+                return currentPosition // Already at target
+            }
             val safeDistance = maxOf(0f, sweepResult.distance - skinWidth)
             currentPosition + (direction * safeDistance)
         } else {

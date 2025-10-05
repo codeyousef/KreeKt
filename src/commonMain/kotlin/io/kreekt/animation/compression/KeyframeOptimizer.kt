@@ -29,7 +29,7 @@ object KeyframeOptimizer {
         val filteredKeyframes = mutableListOf<Keyframe>()
 
         // Always keep first keyframe
-        if (config.preserveFirstLastKeys) {
+        if (config.preserveFirstLastKeys && track.keyframes.isNotEmpty()) {
             filteredKeyframes.add(track.keyframes.first())
         }
 

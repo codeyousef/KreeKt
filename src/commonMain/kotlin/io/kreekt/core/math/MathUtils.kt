@@ -43,3 +43,50 @@ fun floatEquals(a: Float, b: Float, epsilon: Float = EPSILON): Boolean {
 fun floatIsZero(value: Float, epsilon: Float = EPSILON): Boolean {
     return abs(value) < epsilon
 }
+
+/**
+ * Safe normalization that checks for zero-length vectors
+ * Returns a normalized copy if length > epsilon, otherwise returns zero vector
+ */
+fun Vector3.safeNormalized(epsilon: Float = 0.001f): Vector3 {
+    val len = length()
+    return if (len > epsilon) {
+        clone().apply { divideScalar(len) }
+    } else {
+        Vector3.ZERO
+    }
+}
+
+/**
+ * Safe normalization that checks for zero-length vectors
+ * Returns a normalized copy if length > epsilon, otherwise returns zero vector
+ */
+fun Vector2.safeNormalized(epsilon: Float = 0.001f): Vector2 {
+    val len = length()
+    return if (len > epsilon) {
+        clone().apply { divideScalar(len) }
+    } else {
+        Vector2.ZERO
+    }
+}
+
+/**
+ * Safe acos that clamps input to valid domain [-1, 1]
+ */
+fun safeAcos(value: Float): Float = kotlin.math.acos(value.coerceIn(-1f, 1f))
+
+/**
+ * Safe asin that clamps input to valid domain [-1, 1]
+ */
+fun safeAsin(value: Float): Float = kotlin.math.asin(value.coerceIn(-1f, 1f))
+
+/**
+ * Extension function to check if float is approximately zero
+ */
+fun Float.isApproxZero(epsilon: Float = EPSILON): Boolean = abs(this) < epsilon
+
+/**
+ * Extension function to check if float is approximately equal to another
+ */
+fun Float.isApproxEqual(other: Float, epsilon: Float = EPSILON): Boolean =
+    abs(this - other) < epsilon

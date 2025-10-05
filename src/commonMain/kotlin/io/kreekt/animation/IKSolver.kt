@@ -188,14 +188,19 @@ class IKSolver {
             val b = lowerLength
             val c = targetDistance
 
-            // Angle at upper joint
+            // Validate lengths to avoid division by zero or NaN
+            if (a < 0.001f || b < 0.001f || c < 0.001f) {
+                return IKResult(false, 0, Float.MAX_VALUE, false)
+            }
+
+            // Angle at upper joint (clamp to avoid acos domain errors)
             val upperAngle = acos(
-                (((a * a)) + ((c * c)) - ((b * b))) / (2 * (a * c))
+                ((a * a + c * c - b * b) / (2 * a * c)).coerceIn(-1f, 1f)
             )
 
-            // Angle at lower joint
+            // Angle at lower joint (clamp to avoid acos domain errors)
             val lowerAngle = acos(
-                (((a * a)) + ((b * b)) - ((c * c))) / (2 * (a * b))
+                ((a * a + b * b - c * c) / (2 * a * b)).coerceIn(-1f, 1f)
             )
 
             // Direction to target
@@ -214,7 +219,12 @@ class IKSolver {
             }
 
             // Calculate upper bone rotation
-            val upperAxis = toTarget.clone().cross(poleDirection).normalize()
+            val upperAxisVec = toTarget.clone().cross(poleDirection)
+            val upperAxisLen = upperAxisVec.length()
+            if (upperAxisLen < 0.001f) {
+                return IKResult(false, 0, 0f, false) // Parallel vectors - no valid rotation
+            }
+            val upperAxis = upperAxisVec.normalize()
             val upperRotation = Quaternion().setFromAxisAngle(upperAxis, upperAngle)
 
             // Calculate new lower position
@@ -225,7 +235,12 @@ class IKSolver {
             // Calculate lower bone rotation
             val toLower = newLowerPos.clone().subtract(upperPos).normalize()
             val toTargetFromLower = target.clone().subtract(newLowerPos).normalize()
-            val lowerAxis = toLower.clone().cross(toTargetFromLower).normalize()
+            val lowerAxisVec = toLower.clone().cross(toTargetFromLower)
+            val lowerAxisLen = lowerAxisVec.length()
+            if (lowerAxisLen < 0.001f) {
+                return IKResult(false, 0, 0f, false) // Parallel vectors - no valid rotation
+            }
+            val lowerAxis = lowerAxisVec.normalize()
             val lowerRotation = Quaternion().setFromAxisAngle(lowerAxis, PI.toFloat() - lowerAngle)
 
             // Apply rotations
@@ -279,7 +294,15 @@ class IKSolver {
                     val toTarget = target.clone().subtract(bonePos).normalize()
 
                     // Calculate rotation needed
-                    val rotationAxis = toEffector.clone().cross(toTarget).normalize()
+                    val rotationAxisVec = toEffector.clone().cross(toTarget)
+                    val rotationAxisLen = rotationAxisVec.length()
+
+                    if (rotationAxisLen < 0.001f) {
+                        // Vectors are parallel, skip this iteration
+                        continue
+                    }
+
+                    val rotationAxis = rotationAxisVec.normalize()
                     val rotationAngle = acos(toEffector.dot(toTarget).coerceIn(-1f, 1f))
 
                     // Apply damping

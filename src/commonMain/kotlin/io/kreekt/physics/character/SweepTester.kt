@@ -31,8 +31,11 @@ object SweepTester {
         characterHeight: Float
     ): SweepResult {
         // Simplified sweep test - this would use the physics world's sweep functionality
-        val direction = (to - from).normalize()
         val distance = (to - from).length()
+        if (distance < 0.001f) {
+            return SweepResult(false, 0f, Vector3.UNIT_Y, from, null)
+        }
+        val direction = (to - from).normalize()
 
         // Perform raycast from character center
         val rayStart = from + Vector3(0f, characterHeight * 0.5f, 0f)

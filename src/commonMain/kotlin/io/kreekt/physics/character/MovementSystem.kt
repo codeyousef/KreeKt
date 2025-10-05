@@ -23,7 +23,7 @@ object MovementSystem {
         val movementDistance = movement.length()
         if (movementDistance < 0.001f) return startPosition
 
-        val movementDirection = movement.normalize()
+        val movementDirection = movement.clone().normalize() // Don't mutate input
         var currentPosition = startPosition
 
         // Slide along surfaces
@@ -52,9 +52,10 @@ object MovementSystem {
 
                 // Calculate slide direction
                 val slideDirection = calculateSlideDirection(movementDirection, sweepResult.normal, maxSlopeAngle)
+                val slideLen = slideDirection.length()
 
-                if (slideDirection.length() > 0.001f) {
-                    movementDirection.set(slideDirection.normalize())
+                if (slideLen > 0.001f) {
+                    movementDirection.copy(slideDirection.clone().normalize())
                 } else {
                     break // Cannot slide further
                 }
@@ -97,7 +98,7 @@ object MovementSystem {
             // Check if we hit the ground or ceiling
             if (movement.y < 0f) {
                 // Falling - check if we hit the ground
-                val slopeAngle = kotlin.math.acos(sweepResult.normal.dot(Vector3.UNIT_Y))
+                val slopeAngle = kotlin.math.acos(sweepResult.normal.dot(Vector3.UNIT_Y).coerceIn(-1f, 1f))
                 if (slopeAngle <= maxSlopeAngle) {
                     onGroundCallback(true, sweepResult.normal, sweepResult.hitObject)
                 }
@@ -124,11 +125,12 @@ object MovementSystem {
         val projectedMovement = movementDirection - surfaceNormal * movementDirection.dot(surfaceNormal)
 
         // Check if surface is too steep to walk on
-        val slopeAngle = kotlin.math.acos(surfaceNormal.dot(Vector3.UNIT_Y))
+        val slopeAngle = kotlin.math.acos(surfaceNormal.dot(Vector3.UNIT_Y).coerceIn(-1f, 1f))
         if (slopeAngle > maxSlopeAngle) {
             // Too steep - slide down the slope
             val downSlope = Vector3.UNIT_Y - surfaceNormal * Vector3.UNIT_Y.dot(surfaceNormal)
-            return downSlope.normalize()
+            val len = downSlope.length()
+            return if (len > 0.001f) downSlope.normalize() else Vector3.ZERO
         }
 
         return projectedMovement

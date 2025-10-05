@@ -89,7 +89,7 @@ class BoneHierarchyManager(private val bones: List<Bone>) {
                     errors.add("Circular dependency detected involving bone: ${bone.name}")
                     break
                 }
-                visited.add(current)
+                visited.add(current)  // Move here - add AFTER check
                 current = current.parent
             }
         }

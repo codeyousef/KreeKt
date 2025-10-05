@@ -172,8 +172,9 @@ class DefaultPhysicsWorld(
     override fun raycast(from: Vector3, to: Vector3, groups: Int): RaycastResult? {
         if (isDisposed) return null
 
-        val direction = (to - from).normalized()
         val distance = from.distanceTo(to)
+        if (distance < 0.001f) return null
+        val direction = (to - from).normalized()
 
         // Simple raycast implementation - check intersection with all rigid bodies
         var closestHit: RaycastResult? = null
@@ -317,11 +318,19 @@ class DefaultPhysicsWorld(
                 val bodyB = rigidBodies[j]
 
                 if (bodiesIntersect(bodyA, bodyB)) {
+                    val normalVec = bodyB.getWorldTransform().getTranslation() - bodyA.getWorldTransform().getTranslation()
+                    val normalLen = normalVec.length()
+                    val normal = if (normalLen > 0.001f) {
+                        normalVec.normalized()
+                    } else {
+                        Vector3.UNIT_Y // Default normal if bodies are at same position
+                    }
+
                     val contact = CollisionContact(
                         bodyA = bodyA,
                         bodyB = bodyB,
                         point = bodyA.getWorldTransform().getTranslation(),
-                        normal = (bodyB.getWorldTransform().getTranslation() - bodyA.getWorldTransform().getTranslation()).normalized(),
+                        normal = normal,
                         distance = 0f,
                         impulse = 0f
                     )
@@ -376,7 +385,12 @@ class DefaultPhysicsWorld(
 
         if (distance <= radius) {
             val hitPoint = closestPoint
-            val hitNormal = (hitPoint - bodyPos).normalized()
+            val normalVec = hitPoint - bodyPos
+            val hitNormal = if (normalVec.length() > 0.001f) {
+                normalVec.normalized()
+            } else {
+                direction
+            }
             return object : RaycastResult {
                 override val hasHit: Boolean = true
                 override val hitObject: CollisionObject = body
