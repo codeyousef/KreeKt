@@ -156,8 +156,24 @@ class DefaultXRHand(
     }
 
     private fun calculateJointAngle(p1: Vector3, p2: Vector3, p3: Vector3): Float {
-        val v1 = p1.clone().sub(p2).normalize()
-        val v2 = p3.clone().sub(p2).normalize()
+        val v1 = p1.clone().sub(p2)
+        val v1Length = v1.length()
+        if (v1Length > 0.001f) {
+            v1.normalize()
+        } else {
+            // Default to up vector if degenerate
+            v1.set(0f, 1f, 0f)
+        }
+
+        val v2 = p3.clone().sub(p2)
+        val v2Length = v2.length()
+        if (v2Length > 0.001f) {
+            v2.normalize()
+        } else {
+            // Default to forward vector if degenerate
+            v2.set(0f, 0f, 1f)
+        }
+
         return acos(v1.dot(v2).coerceIn(-1f, 1f)) * 180f / PI.toFloat()
     }
 }

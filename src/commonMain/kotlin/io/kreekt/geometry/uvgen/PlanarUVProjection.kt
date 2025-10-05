@@ -33,9 +33,22 @@ fun generatePlanarUV(
     val uvCoordinates = FloatArray((vertexCount * 2))
 
     // Create projection plane
-    val normal = options.normal.clone().normalize()
+    val normalLength = options.normal.length()
+    val normal = if (normalLength > 0.001f) {
+        options.normal.clone().normalize()
+    } else {
+        // Default to Z-axis if normal is degenerate
+        Vector3(0f, 0f, 1f)
+    }
     val uAxis = calculateUAxis(normal, options.upVector)
-    val vAxis = normal.clone().cross(uAxis).normalize()
+    val vAxisRaw = normal.clone().cross(uAxis)
+    val vAxisLength = vAxisRaw.length()
+    val vAxis = if (vAxisLength > 0.001f) {
+        vAxisRaw.normalize()
+    } else {
+        // Fallback to perpendicular vector
+        Vector3(0f, 1f, 0f)
+    }
 
     // Project all vertices onto the plane
     val projectedPoints = mutableListOf<Vector2>()
@@ -79,16 +92,31 @@ fun generatePlanarUV(
 }
 
 internal fun calculateUAxis(normal: Vector3, upVector: Vector3): Vector3 {
-    val up = upVector.clone().normalize()
-    val uAxis = up.cross(normal).normalize()
-
-    // If up vector is parallel to normal, use a different reference
-    if (uAxis.length() < 0.001f) {
-        val fallback = if (abs(normal.y) < 0.9f) Vector3(0f, 1f, 0f) else Vector3(1f, 0f, 0f)
-        return fallback.cross(normal).normalize()
+    val upLength = upVector.length()
+    val up = if (upLength > 0.001f) {
+        upVector.clone().normalize()
+    } else {
+        // Default to Y-up if up vector is degenerate
+        Vector3(0f, 1f, 0f)
     }
 
-    return uAxis
+    val uAxisRaw = up.cross(normal)
+    val uAxisLength = uAxisRaw.length()
+
+    // If up vector is parallel to normal, use a different reference
+    if (uAxisLength < 0.001f) {
+        val fallback = if (abs(normal.y) < 0.9f) Vector3(0f, 1f, 0f) else Vector3(1f, 0f, 0f)
+        val fallbackCross = fallback.cross(normal)
+        val fallbackLength = fallbackCross.length()
+        return if (fallbackLength > 0.001f) {
+            fallbackCross.normalize()
+        } else {
+            // Ultimate fallback to X-axis
+            Vector3(1f, 0f, 0f)
+        }
+    }
+
+    return uAxisRaw.normalize()
 }
 
 internal fun calculateProjectionBounds(points: List<Vector2>): Box2 {

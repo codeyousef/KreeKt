@@ -33,7 +33,13 @@ fun generateCylindricalUV(
     val uvCoordinates = FloatArray((vertexCount * 2))
 
     // Transform to cylinder space
-    val axis = options.axis.clone().normalize()
+    val axisLength = options.axis.length()
+    val axis = if (axisLength > 0.001f) {
+        options.axis.clone().normalize()
+    } else {
+        // Default to Y-axis if axis is degenerate
+        Vector3(0f, 1f, 0f)
+    }
     val boundingBox = geometry.computeBoundingBox()
     val height = boundingBox.getSize(Vector3()).dot(axis)
     val center = boundingBox.getCenter(Vector3())
@@ -81,8 +87,12 @@ private fun projectToCylinder(
     var angle = atan2(radialVector.z, radialVector.x)
     if (angle < 0) angle = angle + 2 * PI.toFloat()
 
-    // Calculate height coordinate
-    val heightCoord = (axisProjection.length() + height * 0.5f) / height
+    // Calculate height coordinate with safe division
+    val heightCoord = if (height > 0.001f) {
+        (axisProjection.length() + height * 0.5f) / height
+    } else {
+        0.5f // Default to middle if height is zero
+    }
 
     val u = angle / (2 * PI.toFloat())
     val v = heightCoord.coerceIn(0f, 1f)

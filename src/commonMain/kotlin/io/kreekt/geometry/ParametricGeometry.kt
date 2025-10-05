@@ -57,12 +57,12 @@ class ParametricGeometry(
         // Pre-calculate positions for normal computation
         val positions = Array(sliceCount) { Array(params.stacks + 1) { Vector3() } }
 
-        // Generate positions
+        // Generate positions with safe division
         for (i in 0..params.slices) {
-            val u = i.toFloat() / params.slices.toFloat()
+            val u = if (params.slices > 0) i.toFloat() / params.slices.toFloat() else 0f
 
             for (j in 0..params.stacks) {
-                val v = j.toFloat() / params.stacks.toFloat()
+                val v = if (params.stacks > 0) j.toFloat() / params.stacks.toFloat() else 0f
 
                 val target = Vector3()
                 params.func(u, v, target)
@@ -76,10 +76,10 @@ class ParametricGeometry(
         val normal = Vector3()
 
         for (i in 0..params.slices) {
-            val u = i.toFloat() / params.slices.toFloat()
+            val u = if (params.slices > 0) i.toFloat() / params.slices.toFloat() else 0f
 
             for (j in 0..params.stacks) {
-                val v = j.toFloat() / params.stacks.toFloat()
+                val v = if (params.stacks > 0) j.toFloat() / params.stacks.toFloat() else 0f
 
                 val p = positions[i][j]
                 vertices.addAll(listOf(p.x, p.y, p.z))
@@ -102,7 +102,14 @@ class ParametricGeometry(
                 }
 
                 // Normal is cross product of partial derivatives
-                normal.crossVectors(pu, pv).normalize()
+                normal.crossVectors(pu, pv)
+                val normalLength = normal.length()
+                if (normalLength > 0.001f) {
+                    normal.normalize()
+                } else {
+                    // Fallback to up direction for degenerate surfaces
+                    normal.set(0f, 1f, 0f)
+                }
                 normals.addAll(listOf(normal.x, normal.y, normal.z))
 
                 // UV coordinates

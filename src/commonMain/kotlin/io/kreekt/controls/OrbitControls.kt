@@ -130,7 +130,11 @@ class OrbitControls(
         // Handle smooth animation to target
         state.targetPosition?.let { targetPos ->
             val elapsed = getCurrentTime() - state.animationStartTime
-            val progress = (elapsed / state.animationDuration).coerceIn(0f, 1f)
+            val progress = if (state.animationDuration > 0f) {
+                (elapsed / state.animationDuration).coerceIn(0f, 1f)
+            } else {
+                1f
+            }
 
             if (progress >= 1f) {
                 // Animation complete
@@ -319,8 +323,9 @@ class OrbitControls(
             panUp(2f * deltaY * targetDistance / 1000f, cam.matrix)
         } else {
             // Orthographic projection
-            panLeft(deltaX * (cam.right - cam.left) / cam.zoom / 1000f, cam.matrix)
-            panUp(deltaY * (cam.top - cam.bottom) / cam.zoom / 1000f, cam.matrix)
+            val zoomFactor = if (abs(cam.zoom) > 0.001f) cam.zoom else 1f
+            panLeft(deltaX * (cam.right - cam.left) / zoomFactor / 1000f, cam.matrix)
+            panUp(deltaY * (cam.top - cam.bottom) / zoomFactor / 1000f, cam.matrix)
         }
     }
 

@@ -97,9 +97,22 @@ class TorusKnotGeometry(
             B.crossVectors(T, N)
             N.crossVectors(B, T)
 
-            // Normalize vectors
-            B.normalize()
-            N.normalize()
+            // Normalize vectors with zero-length check
+            val bLength = B.length()
+            if (bLength > 0.001f) {
+                B.normalize()
+            } else {
+                // Fallback to perpendicular vector
+                B.set(0f, 1f, 0f)
+            }
+
+            val nLength = N.length()
+            if (nLength > 0.001f) {
+                N.normalize()
+            } else {
+                // Fallback to perpendicular vector
+                N.set(1f, 0f, 0f)
+            }
 
             for (j in 0..params.radialSegments) {
                 val v = j.toFloat() / params.radialSegments.toFloat() * PI.toFloat() * 2f
@@ -115,7 +128,14 @@ class TorusKnotGeometry(
                 vertices.addAll(listOf(vertex.x, vertex.y, vertex.z))
 
                 // Normal (from center of tube to vertex)
-                normal.copy(vertex).subtract(P1).normalize()
+                normal.copy(vertex).subtract(P1)
+                val normalLength = normal.length()
+                if (normalLength > 0.001f) {
+                    normal.normalize()
+                } else {
+                    // Fallback to radial direction
+                    normal.set(cos(v), sin(v), 0f)
+                }
                 normals.addAll(listOf(normal.x, normal.y, normal.z))
 
                 // UV coordinates
@@ -154,7 +174,8 @@ class TorusKnotGeometry(
     private fun calculatePositionOnCurve(u: Float, p: Int, q: Int, radius: Float, target: Vector3) {
         val qu = q.toFloat() * u
         val pu = p.toFloat() * u
-        val quOverP = qu / p.toFloat()
+        // Safe division with check for zero p
+        val quOverP = if (p != 0) qu / p.toFloat() else 0f
 
         val cs = cos(pu)
         val sn = sin(pu)

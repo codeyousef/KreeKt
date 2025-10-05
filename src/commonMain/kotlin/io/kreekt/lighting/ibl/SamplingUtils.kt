@@ -16,7 +16,7 @@ internal object SamplingUtils {
      * Hammersley sequence for low-discrepancy sampling
      */
     fun hammersley(i: Int, n: Int): Vector2 {
-        val x = i.toFloat() / n
+        val x = if (n > 0) i.toFloat() / n else 0f
         val y = radicalInverseVDC(i)
         return Vector2(x, y)
     }
@@ -41,8 +41,13 @@ internal object SamplingUtils {
         val alpha = roughness * roughness
 
         val phi = 2f * PI.toFloat() * xi.x
-        val cosTheta = sqrt((1f - xi.y) / (1f + (alpha * alpha - 1f) * xi.y))
-        val sinTheta = sqrt(1f - (cosTheta * cosTheta))
+        val denominator = 1f + (alpha * alpha - 1f) * xi.y
+        val cosTheta = if (abs(denominator) > 0.000001f) {
+            sqrt(max(0f, (1f - xi.y) / denominator))
+        } else {
+            1f
+        }
+        val sinTheta = sqrt(max(0f, 1f - (cosTheta * cosTheta)))
 
         val halfVector = Vector3(
             cos(phi) * sinTheta,
@@ -51,7 +56,13 @@ internal object SamplingUtils {
         )
 
         val up = if (abs(normal.z) < 0.999f) Vector3(0f, 0f, 1f) else Vector3(1f, 0f, 0f)
-        val tangent = up.cross(normal).normalized
+        val tangentRaw = up.cross(normal)
+        val tangentLength = tangentRaw.length()
+        val tangent = if (tangentLength > 0.001f) {
+            tangentRaw.normalize()
+        } else {
+            Vector3(1f, 0f, 0f)
+        }
         val bitangent = normal.cross(tangent)
 
         return tangent * halfVector.x + bitangent * halfVector.y + normal * halfVector.z
@@ -66,7 +77,13 @@ internal object SamplingUtils {
         val sinPhi = sin(phi)
         val cosPhi = cos(phi)
 
-        val tangent = normal.cross(Vector3.UP).normalized
+        val tangentRaw = normal.cross(Vector3.UP)
+        val tangentLength = tangentRaw.length()
+        val tangent = if (tangentLength > 0.001f) {
+            tangentRaw.normalize()
+        } else {
+            Vector3(1f, 0f, 0f)
+        }
         val bitangent = normal.cross(tangent)
 
         return tangent * sinTheta * cosPhi + bitangent * sinTheta * sinPhi + (normal * cosTheta)

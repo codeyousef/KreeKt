@@ -19,7 +19,12 @@ internal object BRDFCalculator {
         val alpha = roughness * roughness
         val alpha2 = alpha * alpha
         val denom = nDotH * nDotH * (alpha2 - 1f) + 1f
-        return alpha2 / (PI.toFloat() * (denom * denom))
+        val denomSq = denom * denom
+        return if (abs(denomSq) > 0.000001f) {
+            alpha2 / (PI.toFloat() * denomSq)
+        } else {
+            0f
+        }
     }
 
     /**
@@ -38,7 +43,11 @@ internal object BRDFCalculator {
         val k = r * r / 8f
         val num = nDotV
         val denom = nDotV * (1f - k) + k
-        return num / denom
+        return if (abs(denom) > 0.000001f) {
+            num / denom
+        } else {
+            0f
+        }
     }
 
     /**
@@ -63,7 +72,12 @@ internal object BRDFCalculator {
 
             if (nDotL > 0f) {
                 val g = geometrySmith(normal, view, lightDirection, roughness)
-                val gVis = g * vDotH / ((nDotH * nDotV))
+                val denominator = nDotH * nDotV
+                val gVis = if (abs(denominator) > 0.000001f) {
+                    g * vDotH / denominator
+                } else {
+                    0f
+                }
                 val fc = (1f - vDotH).pow(5f)
 
                 scale += (1f - fc) * gVis
@@ -71,6 +85,10 @@ internal object BRDFCalculator {
             }
         }
 
-        return Vector2(scale / sampleCount, bias / sampleCount)
+        return if (sampleCount > 0) {
+            Vector2(scale / sampleCount, bias / sampleCount)
+        } else {
+            Vector2(0f, 0f)
+        }
     }
 }

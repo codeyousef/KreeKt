@@ -7,6 +7,7 @@ import io.kreekt.core.math.Box3
 import io.kreekt.core.math.Vector2
 import io.kreekt.core.math.Vector3
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.tan
@@ -329,10 +330,22 @@ class MapControls(
         // Create ray from camera through screen point
         val rayOrigin = camera.position.clone()
         val rayDirection = Vector3(ndcX, ndcY, -1f).unproject(camera)
-        rayDirection.sub(rayOrigin).normalize()
+        rayDirection.sub(rayOrigin)
+
+        val rayLength = rayDirection.length()
+        if (rayLength > 0.001f) {
+            rayDirection.normalize()
+        } else {
+            // Default to downward ray if degenerate
+            rayDirection.set(0f, -1f, 0f)
+        }
 
         // Intersect with ground plane (y = 0)
-        val t = -rayOrigin.y / rayDirection.y
+        val t = if (abs(rayDirection.y) > 0.000001f) {
+            -rayOrigin.y / rayDirection.y
+        } else {
+            -1f // Ray parallel to ground
+        }
         if (t < 0) return null // Ray pointing away from ground
 
         return Vector3(

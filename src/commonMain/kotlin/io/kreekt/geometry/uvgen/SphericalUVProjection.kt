@@ -71,7 +71,13 @@ private fun projectToSphere(
     radius: Float,
     options: SphericalUVOptions
 ): Vector2 {
-    val normalized = position.clone().normalize()
+    val posLength = position.length()
+    val normalized = if (posLength > 0.001f) {
+        position.clone().normalize()
+    } else {
+        // Handle center point by defaulting to top pole
+        Vector3(0f, 1f, 0f)
+    }
 
     // Calculate spherical coordinates
     val phi = acos(normalized.y.coerceIn(-1f, 1f)) // Latitude (0 to π)

@@ -23,24 +23,27 @@ internal object CubemapSampler {
 
         val (faceIndex, u, v) = when {
             absX >= absY && absX >= absZ -> {
+                val invX = if (absX > 0.000001f) 1f / absX else 0f
                 if (direction.x > 0) {
-                    Triple(0, -direction.z / absX, -direction.y / absX)
+                    Triple(0, -direction.z * invX, -direction.y * invX)
                 } else {
-                    Triple(1, direction.z / absX, -direction.y / absX)
+                    Triple(1, direction.z * invX, -direction.y * invX)
                 }
             }
             absY >= absX && absY >= absZ -> {
+                val invY = if (absY > 0.000001f) 1f / absY else 0f
                 if (direction.y > 0) {
-                    Triple(2, direction.x / absY, direction.z / absY)
+                    Triple(2, direction.x * invY, direction.z * invY)
                 } else {
-                    Triple(3, direction.x / absY, -direction.z / absY)
+                    Triple(3, direction.x * invY, -direction.z * invY)
                 }
             }
             else -> {
+                val invZ = if (absZ > 0.000001f) 1f / absZ else 0f
                 if (direction.z > 0) {
-                    Triple(4, direction.x / absZ, -direction.y / absZ)
+                    Triple(4, direction.x * invZ, -direction.y * invZ)
                 } else {
-                    Triple(5, -direction.x / absZ, -direction.y / absZ)
+                    Triple(5, -direction.x * invZ, -direction.y * invZ)
                 }
             }
         }
@@ -81,7 +84,7 @@ internal object CubemapSampler {
      * Convert cube face UV to direction
      */
     fun cubeFaceUVToDirection(face: Int, u: Float, v: Float): Vector3 {
-        return when (face) {
+        val dir = when (face) {
             0 -> Vector3(1f, -v, -u)
             1 -> Vector3(-1f, -v, u)
             2 -> Vector3(u, 1f, v)
@@ -89,7 +92,15 @@ internal object CubemapSampler {
             4 -> Vector3(u, -v, 1f)
             5 -> Vector3(-u, -v, -1f)
             else -> Vector3(0f, 0f, 1f)
-        }.normalized
+        }
+
+        val dirLength = dir.length()
+        return if (dirLength > 0.001f) {
+            dir.normalize()
+        } else {
+            // Fallback to forward direction if degenerate
+            Vector3(0f, 0f, 1f)
+        }
     }
 
     /**
@@ -100,7 +111,7 @@ internal object CubemapSampler {
         val y = cos(theta)
         val z = sin(theta) * sin(phi)
 
-        return when (face) {
+        val dir = when (face) {
             0 -> Vector3(1f, -y, -x)
             1 -> Vector3(-1f, -y, x)
             2 -> Vector3(x, 1f, y)
@@ -108,6 +119,14 @@ internal object CubemapSampler {
             4 -> Vector3(x, -y, 1f)
             5 -> Vector3(-x, -y, -1f)
             else -> Vector3(0f, 0f, 1f)
-        }.normalized
+        }
+
+        val dirLength = dir.length()
+        return if (dirLength > 0.001f) {
+            dir.normalize()
+        } else {
+            // Fallback to forward direction if degenerate
+            Vector3(0f, 0f, 1f)
+        }
     }
 }

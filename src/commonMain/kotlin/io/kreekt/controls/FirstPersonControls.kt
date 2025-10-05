@@ -145,10 +145,17 @@ class FirstPersonControls(
 
     override fun lookAt(target: Vector3, duration: Float) {
         // Calculate look angles to target
-        val direction = target.clone().sub(camera.position).normalize()
+        val direction = target.clone().sub(camera.position)
+        val dirLength = direction.length()
+        if (dirLength > 0.001f) {
+            direction.normalize()
+        } else {
+            // Default to forward if target is too close
+            direction.set(0f, 0f, -1f)
+        }
 
         yaw = atan2(direction.x, direction.z)
-        pitch = asin(-direction.y).coerceIn(-PI.toFloat() / 2f + 0.01f, PI.toFloat() / 2f - 0.01f)
+        pitch = asin((-direction.y).coerceIn(-1f, 1f)).coerceIn(-PI.toFloat() / 2f + 0.01f, PI.toFloat() / 2f - 0.01f)
 
         updateLookDirection()
         dispatchEvent("change")
@@ -179,7 +186,10 @@ class FirstPersonControls(
 
         // Normalize input direction
         if (hasInput) {
-            inputDirection.normalize()
+            val inputLength = inputDirection.length()
+            if (inputLength > 0.001f) {
+                inputDirection.normalize()
+            }
         }
 
         // Calculate forward and right vectors

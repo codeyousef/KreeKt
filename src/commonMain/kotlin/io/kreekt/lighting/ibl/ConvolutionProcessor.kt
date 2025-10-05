@@ -54,8 +54,8 @@ internal object ConvolutionProcessor {
 
         for (y in 0 until size) {
             for (x in 0 until size) {
-                val u = (x + 0.5f) / size * 2f - 1f
-                val v = (y + 0.5f) / size * 2f - 1f
+                val u = if (size > 0) (x + 0.5f) / size * 2f - 1f else 0f
+                val v = if (size > 0) (y + 0.5f) / size * 2f - 1f else 0f
 
                 val direction = CubemapSampler.cubeFaceUVToDirection(face, u, v)
                 val prefiltered = computePrefilter(environment, direction, roughness)
@@ -100,7 +100,12 @@ internal object ConvolutionProcessor {
             }
         }
 
-        return Color.fromVector3(irradiance * (PI.toFloat() / sampleCount))
+        val normalizedIrradiance = if (sampleCount > 0) {
+            irradiance * (PI.toFloat() / sampleCount)
+        } else {
+            Vector3.ZERO
+        }
+        return Color.fromVector3(normalizedIrradiance)
     }
 
     /**
@@ -125,13 +130,30 @@ internal object ConvolutionProcessor {
                 val vDotH = max(0f, view.dot(halfVector))
 
                 val distribution = BRDFCalculator.distributionGGX(nDotH, roughness)
-                val pdf = distribution * nDotH / ((4f * vDotH)) + 0.0001f
+                val pdf = if (abs(vDotH) > 0.0001f) {
+                    distribution * nDotH / (4f * vDotH) + 0.0001f
+                } else {
+                    0.0001f
+                }
 
                 val resolution = environment.size.toFloat()
-                val saTexel = 4f * PI.toFloat() / (6f * (resolution * resolution))
-                val saSample = 1f / (sampleCount * pdf + 0.0001f)
+                val resolutionSquared = resolution * resolution
+                val saTexel = if (resolutionSquared > 0f) {
+                    4f * PI.toFloat() / (6f * resolutionSquared)
+                } else {
+                    1f
+                }
+                val saSample = if (pdf > 0.0001f) {
+                    1f / (sampleCount * pdf)
+                } else {
+                    1f
+                }
 
-                val mipLevel = if (roughness == 0f) 0f else 0.5f * SamplingUtils.log2(saSample / saTexel)
+                val mipLevel = if (roughness == 0f || saTexel == 0f) {
+                    0f
+                } else {
+                    0.5f * SamplingUtils.log2(saSample / saTexel)
+                }
 
                 val color = CubemapSampler.sampleCubemapLOD(environment, lightDirection, mipLevel)
                 prefilteredColor = prefilteredColor + color.toVector3() * nDotL
@@ -139,7 +161,12 @@ internal object ConvolutionProcessor {
             }
         }
 
-        return Color.fromVector3(prefilteredColor / totalWeight)
+        val normalizedColor = if (totalWeight > 0.0001f) {
+            prefilteredColor / totalWeight
+        } else {
+            Vector3.ZERO
+        }
+        return Color.fromVector3(normalizedColor)
     }
 }
 

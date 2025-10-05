@@ -161,9 +161,14 @@ class HandGestureDetector(
         val firstPos = recentPositions.firstOrNull() ?: return false
         val lastPos = recentPositions.lastOrNull() ?: return false
         val movement = lastPos.clone().sub(firstPos)
-        val speed = movement.length() / (10f / 60f)
+        val movementLength = movement.length()
+        val speed = movementLength / (10f / 60f)
 
-        return movement.normalize().dot(direction) > 0.7f && speed > 0.3f
+        if (movementLength > 0.001f) {
+            movement.normalize()
+            return movement.dot(direction) > 0.7f && speed > 0.3f
+        }
+        return false
     }
 
     private fun updateHistory(currentGestures: List<HandGesture>) {

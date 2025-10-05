@@ -101,7 +101,15 @@ class TubeGeometry(
                 normal.x = (cos * N.x + sin * B.x)
                 normal.y = (cos * N.y + sin * B.y)
                 normal.z = (cos * N.z + sin * B.z)
-                normal.normalize()
+
+                // Safe normalization with zero-length check
+                val normalLength = normal.length()
+                if (normalLength > 0.001f) {
+                    normal.normalize()
+                } else {
+                    // Default to radial direction if degenerate
+                    normal.set(cos, sin, 0f)
+                }
 
                 normals.addAll(listOf(normal.x, normal.y, normal.z))
 
@@ -175,7 +183,16 @@ class TubeGeometry(
             // Compute tangents
             for (i in 0..segments) {
                 val u = i.toFloat() / segments.toFloat()
-                tangents.add(path.getTangentAt(u).normalize())
+                val tangent = path.getTangentAt(u)
+                val tangentLength = tangent.length()
+
+                // Safe normalization with fallback to forward direction
+                if (tangentLength > 0.001f) {
+                    tangents.add(tangent.normalize())
+                } else {
+                    // Fallback to forward direction if tangent is degenerate
+                    tangents.add(Vector3(0f, 0f, 1f))
+                }
             }
 
             // Initial normal (perpendicular to first tangent)
@@ -201,7 +218,14 @@ class TubeGeometry(
                 normal.set(0f, 0f, 1f)
             }
 
-            vec.crossVectors(tangents[0], normal).normalize()
+            vec.crossVectors(tangents[0], normal)
+            val vecLength = vec.length()
+            if (vecLength > 0.001f) {
+                vec.normalize()
+            } else {
+                // Fallback to perpendicular vector
+                vec.set(0f, 1f, 0f)
+            }
 
             normals[0].crossVectors(tangents[0], vec)
             binormals[0].crossVectors(tangents[0], normals[0])
@@ -212,10 +236,12 @@ class TubeGeometry(
                 binormals.add(binormals[i - 1].clone())
 
                 vec.crossVectors(tangents[i - 1], tangents[i])
+                val crossLength = vec.length()
 
-                if (vec.length() > epsilon) {
+                if (crossLength > epsilon) {
                     vec.normalize()
-                    val theta = acos(tangents[i - 1].dot(tangents[i]).coerceIn(-1f, 1f))
+                    val dotProduct = tangents[i - 1].dot(tangents[i]).coerceIn(-1f, 1f)
+                    val theta = acos(dotProduct)
 
                     normals[i].applyAxisAngle(vec, theta)
                 }

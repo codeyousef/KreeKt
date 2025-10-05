@@ -69,7 +69,7 @@ class LatheGeometry(
 
         // Generate vertices, normals, and UVs
         for (i in 0..segs) {
-            val phi = params.phiStart + (i.toFloat() / segs.toFloat()) * params.phiLength
+            val phi = params.phiStart + (if (segs > 0) i.toFloat() / segs.toFloat() else 0f) * params.phiLength
 
             val sin = sin(phi)
             val cos = cos(phi)
@@ -97,12 +97,19 @@ class LatheGeometry(
                 }
 
                 // Normal is perpendicular to tangent in XZ plane
-                normal.set(tangent.y * sin, -tangent.x, tangent.y * cos).normalize()
+                normal.set(tangent.y * sin, -tangent.x, tangent.y * cos)
+                val normalLength = normal.length()
+                if (normalLength > 0.001f) {
+                    normal.normalize()
+                } else {
+                    // Fallback to radial direction if degenerate
+                    normal.set(sin, 0f, cos)
+                }
                 normals.addAll(listOf(normal.x, normal.y, normal.z))
 
-                // UV coordinates
-                val u = i.toFloat() / segs.toFloat()
-                val v = j.toFloat() / (params.points.size - 1).toFloat()
+                // UV coordinates with safe divisions
+                val u = if (segs > 0) i.toFloat() / segs.toFloat() else 0f
+                val v = if (params.points.size > 1) j.toFloat() / (params.points.size - 1).toFloat() else 0f
                 uvs.addAll(listOf(u, v))
             }
         }

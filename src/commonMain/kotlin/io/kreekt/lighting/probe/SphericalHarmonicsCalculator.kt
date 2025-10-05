@@ -18,7 +18,13 @@ class SphericalHarmonicsImpl(
      * Evaluate SH for a given direction (typically surface normal)
      */
     override fun evaluate(direction: Vector3): Vector3 {
-        val n = direction.clone().normalize()
+        val dirLength = direction.length()
+        val n = if (dirLength > 0.001f) {
+            direction.clone().normalize()
+        } else {
+            // Default to up direction if direction is degenerate
+            Vector3(0f, 1f, 0f)
+        }
         val result = Vector3()
 
         val sh = calculateSHBasis(n)
@@ -102,8 +108,12 @@ class SphericalHarmonicsGenerator {
             }
         }
 
-        // Normalize
-        val normalization = 4f * PI.toFloat() / directions.size
+        // Normalize with safe division
+        val normalization = if (directions.isNotEmpty()) {
+            4f * PI.toFloat() / directions.size
+        } else {
+            1f
+        }
         sh.scale(normalization)
 
         return sh
@@ -116,8 +126,12 @@ class SphericalHarmonicsGenerator {
         val phi = PI * (3.0 - sqrt(5.0))
 
         for (i in 0 until count) {
-            val y = 1 - (i / (count - 1.0)) * 2
-            val radius = sqrt(1 - y * y)
+            val y = if (count > 1) {
+                1 - (i / (count - 1.0)) * 2
+            } else {
+                0.0
+            }
+            val radius = sqrt(max(0.0, 1 - y * y))
 
             val theta = phi * i
 

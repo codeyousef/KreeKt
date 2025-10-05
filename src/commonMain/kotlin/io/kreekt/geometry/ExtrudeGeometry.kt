@@ -199,7 +199,7 @@ class ExtrudeGeometry(
         if (bevelEnabled) {
             // Bottom bevel
             for (i in 0..bevelSegments) {
-                val t = i.toFloat() / bevelSegments
+                val t = if (bevelSegments > 0) i.toFloat() / bevelSegments else 0f
                 val bevelZ = -bevelThickness + (1f - cos(t * PI.toFloat() / 2f)) * bevelThickness
                 layerPositions.add(bevelZ)
             }
@@ -207,13 +207,13 @@ class ExtrudeGeometry(
             // Middle straight section
             val straightSteps = steps - 2 * bevelSegments
             for (i in 1 until straightSteps) {
-                val t = i.toFloat() / straightSteps
+                val t = if (straightSteps > 0) i.toFloat() / straightSteps else 0f
                 layerPositions.add((t * depth))
             }
 
             // Top bevel
             for (i in 0..bevelSegments) {
-                val t = i.toFloat() / bevelSegments
+                val t = if (bevelSegments > 0) i.toFloat() / bevelSegments else 0f
                 val bevelZ = depth - bevelThickness + cos((1f - t) * PI.toFloat() / 2f) * bevelThickness
                 layerPositions.add(bevelZ)
             }
@@ -254,8 +254,23 @@ class ExtrudeGeometry(
 
             // Create coordinate frame at this point
             val normal = Vector3(0f, 0f, 1f)
-            val binormal = Vector3().crossVectors(tangent, normal).normalize()
-            normal.crossVectors(binormal, tangent).normalize()
+            val binormal = Vector3().crossVectors(tangent, normal)
+            val binormalLength = binormal.length()
+            if (binormalLength > 0.001f) {
+                binormal.normalize()
+            } else {
+                // Fallback to perpendicular vector
+                binormal.set(0f, 1f, 0f)
+            }
+
+            normal.crossVectors(binormal, tangent)
+            val normalLength = normal.length()
+            if (normalLength > 0.001f) {
+                normal.normalize()
+            } else {
+                // Fallback to perpendicular vector
+                normal.set(1f, 0f, 0f)
+            }
 
             // Transform shape points to curve coordinate frame
             val layerPoints = shapePoints.map { shapePoint ->
@@ -289,12 +304,12 @@ class ExtrudeGeometry(
         return when {
             index <= bevelSegments -> {
                 // Bottom bevel
-                val bevelT = index.toFloat() / bevelSegments
+                val bevelT = if (bevelSegments > 0) index.toFloat() / bevelSegments else 0f
                 1f - bevelSize * (1f - sin(bevelT * PI.toFloat() / 2f)) + bevelOffset
             }
             index >= maxIndex - bevelSegments -> {
                 // Top bevel
-                val bevelT = (maxIndex - index).toFloat() / bevelSegments
+                val bevelT = if (bevelSegments > 0) (maxIndex - index).toFloat() / bevelSegments else 0f
                 1f - bevelSize * (1f - sin(bevelT * PI.toFloat() / 2f)) + bevelOffset
             }
             else -> {
@@ -348,7 +363,14 @@ class ExtrudeGeometry(
                 // Generate normals for side faces
                 val v1 = vertices[b - vertexOffset].clone().sub(vertices[a - vertexOffset])
                 val v2 = vertices[d - vertexOffset].clone().sub(vertices[a - vertexOffset])
-                val normal = Vector3().crossVectors(v1, v2).normalize()
+                val normal = Vector3().crossVectors(v1, v2)
+                val faceNormalLength = normal.length()
+                if (faceNormalLength > 0.001f) {
+                    normal.normalize()
+                } else {
+                    // Fallback to up direction for degenerate faces
+                    normal.set(0f, 1f, 0f)
+                }
 
                 // Add normals for all four vertices of the quad
                 repeat(4) { normals.add(normal.clone()) }
@@ -500,7 +522,14 @@ class LinearCurve(val start: Vector3, val end: Vector3) : Curve {
     }
 
     override fun getTangent(t: Float): Vector3 {
-        return end.clone().sub(start).normalize()
+        val tangent = end.clone().sub(start)
+        val tangentLength = tangent.length()
+        return if (tangentLength > 0.001f) {
+            tangent.normalize()
+        } else {
+            // Fallback to forward direction if line is degenerate
+            Vector3(0f, 0f, 1f)
+        }
     }
 
     override fun getLength(): Float {

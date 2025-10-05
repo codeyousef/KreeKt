@@ -592,7 +592,14 @@ object CoordinateSystemManager {
         nearPoint.applyMatrix4(invView)
         farPoint.applyMatrix4(invView)
 
-        val direction = farPoint.sub(nearPoint).normalize()
+        val direction = farPoint.sub(nearPoint)
+        val dirLength = direction.length()
+        if (dirLength > 0.001f) {
+            direction.normalize()
+        } else {
+            // Default to forward ray if degenerate
+            direction.set(0f, 0f, -1f)
+        }
         return Ray(nearPoint, direction)
     }
 
