@@ -53,6 +53,11 @@ class Chunk(
         private set
 
     /**
+     * Flag indicating if this chunk has been modified by the player (for delta saves)
+     */
+    var isModifiedByPlayer: Boolean = false
+
+    /**
      * Get block type at local chunk coordinates
      *
      * @param x Local X coordinate (0-15)

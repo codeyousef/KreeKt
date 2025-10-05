@@ -32,9 +32,10 @@ data class WorldState(
          * @return WorldState with compressed chunk data
          */
         fun from(world: VoxelWorld): WorldState {
-            // Only save modified/non-empty chunks (optimization)
+            // Only save chunks modified by player (delta saves)
+            // Unmodified chunks can be regenerated from seed
             val serializedChunks = world.chunks.values
-                .filter { !it.isEmpty() } // Only save non-empty chunks
+                .filter { it.isModifiedByPlayer }
                 .map { SerializedChunk.from(it) }
 
             return WorldState(
@@ -51,8 +52,9 @@ data class WorldState(
      * Restore VoxelWorld from saved state
      *
      * Regenerates world from seed, then applies saved chunk modifications.
+     * NOTE: This is synchronous - terrain must be generated async before calling this
      *
-     * @return Restored VoxelWorld instance
+     * @return Restored VoxelWorld instance (terrain NOT generated - call generateTerrain())
      */
     fun restore(): VoxelWorld {
         val world = VoxelWorld(seed)
@@ -63,14 +65,25 @@ data class WorldState(
         world.player.rotation = Vector3(playerRotation.pitch.toFloat(), playerRotation.yaw.toFloat(), 0.0f)
         world.player.isFlying = isFlying
 
-        // Apply chunk modifications from chunks list
+        // NOTE: Player-modified chunks will be applied after terrain generation
+        // Store them temporarily for later application
+
+        return world
+    }
+
+    /**
+     * Apply saved chunk modifications after terrain generation
+     * This is called after generateTerrain() completes
+     *
+     * @param world VoxelWorld to apply modifications to
+     */
+    suspend fun applyModifications(world: VoxelWorld) {
         chunks.forEach { serializedChunk ->
             val chunkPos = ChunkPosition(serializedChunk.chunkX, serializedChunk.chunkZ)
             val chunk = world.getChunk(chunkPos) ?: return@forEach
             chunk.deserialize(serializedChunk.compressedBlocks)
+            chunk.isModifiedByPlayer = true  // Mark as player-modified
         }
-
-        return world
     }
 }
 

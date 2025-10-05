@@ -29,6 +29,7 @@ class PlayerController(
     init {
         setupKeyboardListeners()
         setupMouseListeners()
+        Logger.info("🎮 PlayerController initialized - keyboard/mouse listening")
     }
 
     private fun setupKeyboardListeners() {

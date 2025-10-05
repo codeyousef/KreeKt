@@ -5,12 +5,17 @@ plugins {
 
 kotlin {
     js(IR) {
+        binaries.executable()
         browser {
-            binaries.executable()
             testTask {
                 useKarma {
                     useChromeHeadless()
                 }
+            }
+
+            // Configure webpack for Web Worker support
+            webpackTask {
+                mainOutputFileName.set("voxelcraft.js")
             }
         }
     }

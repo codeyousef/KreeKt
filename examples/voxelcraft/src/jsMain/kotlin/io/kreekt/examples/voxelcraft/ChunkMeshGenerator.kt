@@ -342,7 +342,7 @@ object DirectionHelper {
 /**
  * Mask entry for greedy meshing
  */
-private data class MaskEntry(
+internal data class MaskEntry(
     val blockType: BlockType,
     val render: Boolean
 )

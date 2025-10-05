@@ -30,12 +30,11 @@ fun main() {
     window.addEventListener("load", {
         console.log("📦 Page loaded, waiting for user to click Start...")
 
-        // Expose startGameFromButton to JavaScript
-        js("window.startGameFromButton = this.startGameFromButton")
+        // Expose startGameFromButton to JavaScript using window.asDynamic()
+        window.asDynamic().startGameFromButton = ::startGameFromButton
     })
 }
 
-@JsExport
 @OptIn(DelicateCoroutinesApi::class)
 fun startGameFromButton() {
     console.log("🎮 Starting game from button click...")
@@ -73,43 +72,54 @@ suspend fun initGame() {
         Logger.info("📂 Restoring from save...")
 
         // Restore world state
-        window.setTimeout({
-            savedState.restore().let { restoredWorld ->
-                GlobalScope.launch {
-                    continueInitialization(restoredWorld, js("Date.now()") as Double - startTime, canvas)
-                }
-            }
-        }, 10)
+        val restoredWorld = savedState.restore()
+
+        // Generate terrain first (all chunks need to exist)
+        generateTerrainAsync(restoredWorld, startTime, canvas, savedState)
     } else {
-        generateTerrainAsync(world, startTime, canvas)
+        generateTerrainAsync(world, startTime, canvas, null)
     }
 }
 
 @OptIn(DelicateCoroutinesApi::class)
-fun generateTerrainAsync(world: VoxelWorld, startTime: Double, canvas: HTMLCanvasElement) {
+fun generateTerrainAsync(world: VoxelWorld, startTime: Double, canvas: HTMLCanvasElement, savedState: WorldState?) {
     Logger.info("🌍 Generating world...")
     updateLoadingProgress("Starting terrain generation...")
+
+    // Start game loop immediately in a coroutine, terrain generates in background
+    GlobalScope.launch {
+        continueInitialization(world, 0.0, canvas)
+    }
 
     // Launch coroutine for async terrain generation with progress updates
     GlobalScope.launch {
         try {
             Logger.info("📊 About to generate ${ChunkPosition.TOTAL_CHUNKS} chunks...")
 
+            // Hide loading screen and start game immediately
+            window.setTimeout({
+                hideLoadingScreen()
+                Logger.info("🚀 Game loop started (terrain generating in background)!")
+                Logger.info("🎮 Controls: WASD=Move, Mouse=Look, F=Flight, Space/Shift=Up/Down")
+            }, 100)
+
             world.generateTerrain { current, total ->
                 val percent = (current * 100) / total
-                val message = "Generating terrain... $percent% ($current/$total chunks)"
-                updateLoadingProgress(message)
+                // Only log every 10% to reduce spam
+                if (percent % 10 == 0) {
+                    Logger.info("⏳ Generating terrain... $percent% ($current/$total chunks)")
+                }
+            }
 
-                // Log every chunk for debugging
-                Logger.info("⏳ $message")
+            // Apply saved modifications if loading from save
+            if (savedState != null) {
+                savedState.applyModifications(world)
+                Logger.info("✅ Applied ${savedState.chunks.size} saved chunk modifications")
             }
 
             val generationTime = js("Date.now()") as Double - startTime
-            Logger.info("✅ World ready in ${generationTime.toInt()}ms")
+            Logger.info("✅ Terrain generation complete in ${generationTime.toInt()}ms")
             Logger.info("📊 Chunks: ${world.chunkCount}")
-            Logger.info("👤 Player: ${world.player.position}")
-
-            continueInitialization(world, generationTime, canvas)
         } catch (e: Throwable) {
             Logger.error("❌ Generation failed: ${e.message}")
             console.error(e)
@@ -217,13 +227,8 @@ suspend fun continueInitialization(world: VoxelWorld, generationTime: Double, ca
         window.requestAnimationFrame { gameLoop() }
     }
 
-    // Hide loading screen and start
-    window.setTimeout({
-        hideLoadingScreen()
-        Logger.info("🚀 Game loop started!")
-        Logger.info("🎮 Controls: WASD=Move, Mouse=Look, F=Flight, Space/Shift=Up/Down")
-        gameLoop()
-    }, 1000)
+    // Start game loop (loading screen hidden by generateTerrainAsync)
+    gameLoop()
 }
 
 fun updateLoadingProgress(message: String) {
