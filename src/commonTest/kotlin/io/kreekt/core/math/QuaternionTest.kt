@@ -110,16 +110,15 @@ class QuaternionTest {
         assertEquals(expected, dot)
     }
 
-    // TODO: Implement angleTo method in Quaternion
-    // @Test
-    // fun testQuaternionAngle() {
-    //     val q1 = Quaternion()
-    //     val q2 = Quaternion().setFromAxisAngle(Vector3(0f, 1f, 0f), PI.toFloat() / 2)
-    //
-    //     val angle = q1.angleTo(q2)
-    //
-    //     assertTrue(abs(angle - PI.toFloat() / 2) < 0.001f)
-    // }
+    @Test
+    fun testQuaternionAngle() {
+        val q1 = Quaternion()
+        val q2 = Quaternion().setFromAxisAngle(Vector3(0f, 1f, 0f), PI.toFloat() / 2)
+
+        val angle = q1.angleTo(q2)
+
+        assertTrue(abs(angle - PI.toFloat() / 2) < 0.001f)
+    }
 
     @Test
     fun testQuaternionRotateVector() {

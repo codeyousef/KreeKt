@@ -4,13 +4,21 @@
  */
 package io.kreekt.lighting.probe
 
-import io.kreekt.core.scene.Scene
 import io.kreekt.camera.PerspectiveCamera
-import io.kreekt.lighting.*
-import io.kreekt.renderer.*
-import kotlinx.coroutines.*
+import io.kreekt.core.scene.Scene
+import io.kreekt.lighting.BakeResult
+import io.kreekt.lighting.BakingFailed
+import io.kreekt.lighting.LightProbe
+import io.kreekt.lighting.ProbeResult
+import io.kreekt.renderer.HeadlessRenderer
+import io.kreekt.renderer.Renderer
+import io.kreekt.renderer.Texture2D
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 
 /**
  * Bakes light probe data from scenes
@@ -86,7 +94,7 @@ class ProbeBakingSystem(
 
     private fun createBakeRenderer(): Renderer {
         // Create a specialized renderer for baking
-        // This would use headless rendering in production
-        throw NotImplementedError("Bake renderer not yet implemented")
+        // Returns a headless renderer optimized for probe baking
+        return HeadlessRenderer()
     }
 }

@@ -1,12 +1,9 @@
 package io.kreekt.material
-import io.kreekt.renderer.Texture
 
-import kotlinx.coroutines.*
-import io.kreekt.core.platform.currentTimeMillis
-import kotlinx.coroutines.flow.*
-import kotlin.math.max
 import kotlinx.coroutines.Dispatchers
-import kotlin.math.PI
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.withContext
 
 // Stub definitions for missing shader types
@@ -150,8 +147,9 @@ class ShaderCompiler {
             // Preprocess source
             val preprocessed = preprocessShader(source, options)
             // Validate syntax
-            validator.validate(preprocessed, type)?.let { errors ->
-                return@withContext Result.failure(ShaderCompilationException(errors))
+            val validationErrors = validator.validate(preprocessed, type)
+            if (validationErrors != null) {
+                return@withContext Result.failure(ShaderCompilationException(validationErrors))
             }
             // Detect required features
             val requiredFeatures = featureDetector.detectRequiredFeatures(preprocessed)

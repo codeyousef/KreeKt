@@ -34,3 +34,4 @@ include(":kreekt-validation")
 
 // Example projects
 include(":examples:basic-scene")
+include(":examples:voxelcraft")

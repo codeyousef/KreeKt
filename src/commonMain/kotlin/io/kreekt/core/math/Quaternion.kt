@@ -555,6 +555,18 @@ data class Quaternion(
      */
     operator fun times(other: Quaternion): Quaternion = clone().multiply(other)
 
+    /**
+     * Calculates the angle between this quaternion and another quaternion
+     * @param quaternion The other quaternion
+     * @return The angle in radians
+     */
+    fun angleTo(quaternion: Quaternion): Float {
+        val dot = this.dot(quaternion)
+        // Clamp dot product to avoid numerical errors in acos
+        val clampedDot = dot.coerceIn(-1f, 1f)
+        return 2f * acos(abs(clampedDot))
+    }
+
     override fun toString(): String {
         return "Quaternion(x=$x, y=$y, z=$z, w=$w)"
     }

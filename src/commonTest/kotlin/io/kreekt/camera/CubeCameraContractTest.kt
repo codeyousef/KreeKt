@@ -11,16 +11,70 @@
  */
 package io.kreekt.camera
 
+import io.kreekt.core.math.Color
 import io.kreekt.core.math.Vector3
-import io.kreekt.core.scene.Scene
 import io.kreekt.core.scene.Mesh
+import io.kreekt.core.scene.Scene
 import io.kreekt.geometry.primitives.BoxGeometry
 import io.kreekt.material.MeshStandardMaterial
-import io.kreekt.texture.CubeTexture
+import io.kreekt.renderer.*
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+
+// Mock renderer for testing
+private fun createMockRenderer(): Renderer = object : Renderer {
+    override val capabilities: RendererCapabilities = RendererCapabilities(
+        maxTextureSize = 2048,
+        maxCubeMapSize = 2048,
+        maxVertexAttributes = 16,
+        maxFragmentUniforms = 1024,
+        maxVertexUniforms = 1024,
+        maxSamples = 4
+    )
+    override var renderTarget: RenderTarget? = null
+    override var autoClear: Boolean = true
+    override var autoClearColor: Boolean = true
+    override var autoClearDepth: Boolean = true
+    override var autoClearStencil: Boolean = true
+    override var clearColor: Color = Color(0x000000)
+    override var clearAlpha: Float = 1f
+    override var shadowMap: io.kreekt.renderer.ShadowMapSettings = io.kreekt.renderer.ShadowMapSettings()
+    override var toneMapping: io.kreekt.renderer.ToneMapping = io.kreekt.renderer.ToneMapping.NONE
+    override var toneMappingExposure: Float = 1f
+    override var outputColorSpace: io.kreekt.renderer.ColorSpace = io.kreekt.renderer.ColorSpace.sRGB
+    override var physicallyCorrectLights: Boolean = false
+
+    override suspend fun initialize(surface: io.kreekt.renderer.RenderSurface): RendererResult<Unit> =
+        RendererResult.Success(Unit)
+
+    override fun render(scene: Scene, camera: Camera): RendererResult<Unit> = RendererResult.Success(Unit)
+    override fun setSize(width: Int, height: Int, updateStyle: Boolean): RendererResult<Unit> =
+        RendererResult.Success(Unit)
+
+    override fun setPixelRatio(pixelRatio: Float): RendererResult<Unit> = RendererResult.Success(Unit)
+    override fun setViewport(x: Int, y: Int, width: Int, height: Int): RendererResult<Unit> =
+        RendererResult.Success(Unit)
+
+    override fun getViewport(): Viewport = Viewport(0, 0, 800, 600)
+    override fun setScissorTest(enable: Boolean): RendererResult<Unit> = RendererResult.Success(Unit)
+    override fun setScissor(x: Int, y: Int, width: Int, height: Int): RendererResult<Unit> =
+        RendererResult.Success(Unit)
+
+    override fun clear(color: Boolean, depth: Boolean, stencil: Boolean): RendererResult<Unit> =
+        RendererResult.Success(Unit)
+
+    override fun clearColorBuffer(): RendererResult<Unit> = RendererResult.Success(Unit)
+    override fun clearDepth(): RendererResult<Unit> = RendererResult.Success(Unit)
+    override fun clearStencil(): RendererResult<Unit> = RendererResult.Success(Unit)
+    override fun resetState(): RendererResult<Unit> = RendererResult.Success(Unit)
+    override fun compile(scene: Scene, camera: Camera): RendererResult<Unit> = RendererResult.Success(Unit)
+    override fun dispose(): RendererResult<Unit> = RendererResult.Success(Unit)
+    override fun forceContextLoss(): RendererResult<Unit> = RendererResult.Success(Unit)
+    override fun isContextLost(): Boolean = false
+    override fun getStats(): RenderStats = RenderStats()
+    override fun resetStats() {}
+}
 
 class CubeCameraContractTest {
 
@@ -88,7 +142,7 @@ class CubeCameraContractTest {
         val cubeCamera = CubeCamera(0.1f, 100f, 256)
 
         // When: Rendering scene
-        val renderer = WebGPURenderer() // Mock renderer for testing
+        val renderer = createMockRenderer() // Mock renderer for testing
         cubeCamera.update(renderer, scene)
 
         // Then: Should render without error

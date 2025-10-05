@@ -8,9 +8,6 @@ package io.kreekt.camera
 
 import io.kreekt.core.math.Vector4
 import io.kreekt.core.scene.Scene
-import io.kreekt.texture.CubeTexture
-
-// import io.kreekt.renderer.WebGPURenderer // TODO: Will be implemented
 
 /**
  * Camera system that manages multiple viewports
@@ -124,7 +121,7 @@ class ArrayCamera(
      * @param renderer The renderer to use
      * @param scene The scene to render
      */
-    fun render(renderer: WebGPURenderer, scene: Scene) {
+    fun render(renderer: io.kreekt.renderer.Renderer, scene: Scene) {
         for (i in _cameras.indices) {
             if (!_enabled[i]) continue
 
@@ -138,7 +135,7 @@ class ArrayCamera(
             val pixelHeight = viewport.w * screenHeight
 
             // Set viewport
-            renderer.setViewport(pixelX, pixelY, pixelWidth, pixelHeight)
+            renderer.setViewport(pixelX.toInt(), pixelY.toInt(), pixelWidth.toInt(), pixelHeight.toInt())
 
             // Update camera aspect if it's a perspective camera
             if (camera is PerspectiveCamera) {
@@ -151,7 +148,7 @@ class ArrayCamera(
         }
 
         // Reset viewport to full screen
-        renderer.setViewport(0f, 0f, screenWidth, screenHeight)
+        renderer.setViewport(0, 0, screenWidth.toInt(), screenHeight.toInt())
     }
 
     /**
@@ -301,50 +298,5 @@ class ArrayCamera(
                 pipViewport // PIP view
             )
         }
-    }
-}
-
-/**
- * Placeholder WebGPURenderer for testing
- * Will be replaced with actual renderer implementation
- */
-open class WebGPURenderer {
-    private var currentRenderTarget: WebGPUCubeRenderTarget? = null
-
-    open fun setViewport(x: Float, y: Float, width: Float, height: Float) {
-        // Placeholder implementation
-    }
-
-    open fun render(scene: Scene, camera: Camera) {
-        // Placeholder implementation
-    }
-
-    open fun getRenderTarget(): WebGPUCubeRenderTarget? {
-        return currentRenderTarget
-    }
-
-    open fun setRenderTarget(renderTarget: WebGPUCubeRenderTarget?, activeCubeFace: Int = 0) {
-        currentRenderTarget = renderTarget
-    }
-
-    open fun clear() {
-        // Placeholder implementation
-    }
-}
-
-/**
- * Placeholder for WebGPUCubeRenderTarget
- */
-class WebGPUCubeRenderTarget(
-    val width: Int,
-    val height: Int
-) {
-    val texture: CubeTexture = CubeTexture(
-        size = width
-    )
-
-    fun dispose() {
-        // Dispose of render target resources
-        texture.dispose()
     }
 }

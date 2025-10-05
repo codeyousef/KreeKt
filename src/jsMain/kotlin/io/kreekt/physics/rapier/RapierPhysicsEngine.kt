@@ -4,9 +4,15 @@
  */
 package io.kreekt.physics.rapier
 
-import io.kreekt.core.math.*
+import io.kreekt.core.math.Matrix4
+import io.kreekt.core.math.Quaternion
+import io.kreekt.core.math.Vector3
 import io.kreekt.physics.*
 import io.kreekt.physics.rapier.body.RapierRigidBody
+import io.kreekt.physics.rapier.character.RapierCharacterController
+import io.kreekt.physics.rapier.constraints.RapierHingeConstraint
+import io.kreekt.physics.rapier.constraints.RapierPointToPointConstraint
+import io.kreekt.physics.rapier.constraints.RapierSliderConstraint
 import io.kreekt.physics.rapier.shapes.*
 import io.kreekt.physics.rapier.world.RapierPhysicsWorld
 import kotlinx.coroutines.GlobalScope
@@ -120,8 +126,9 @@ class RapierPhysicsEngine : PhysicsEngine {
     }
 
     override fun createCharacterController(shape: CollisionShape, stepHeight: Float): CharacterController {
-        // Rapier doesn't have built-in character controller
-        TODO("Character controller implementation for Rapier")
+        // Rapier doesn't have built-in character controller, use kinematic body approach
+        ensureInitialized()
+        return RapierCharacterController(shape, stepHeight)
     }
 
     override fun createPointToPointConstraint(
@@ -130,7 +137,8 @@ class RapierPhysicsEngine : PhysicsEngine {
         pivotA: Vector3,
         pivotB: Vector3
     ): PointToPointConstraint {
-        TODO("Point-to-point constraint implementation for Rapier")
+        ensureInitialized()
+        return RapierPointToPointConstraint(bodyA, bodyB, pivotA, pivotB)
     }
 
     override fun createHingeConstraint(
@@ -141,7 +149,8 @@ class RapierPhysicsEngine : PhysicsEngine {
         axisA: Vector3,
         axisB: Vector3
     ): HingeConstraint {
-        TODO("Hinge constraint implementation for Rapier")
+        ensureInitialized()
+        return RapierHingeConstraint(bodyA, bodyB, pivotA, pivotB, axisA, axisB)
     }
 
     override fun createSliderConstraint(
@@ -150,7 +159,8 @@ class RapierPhysicsEngine : PhysicsEngine {
         frameA: Matrix4,
         frameB: Matrix4
     ): SliderConstraint {
-        TODO("Slider constraint implementation for Rapier")
+        ensureInitialized()
+        return RapierSliderConstraint(bodyA, bodyB, frameA, frameB)
     }
 
     private fun createColliderDesc(shape: CollisionShape): RAPIER.ColliderDesc {

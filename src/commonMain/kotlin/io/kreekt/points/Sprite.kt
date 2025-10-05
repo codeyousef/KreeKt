@@ -1,15 +1,11 @@
 package io.kreekt.points
 
+import io.kreekt.core.math.*
 import io.kreekt.core.scene.Object3D
-import io.kreekt.core.math.Vector2
-import io.kreekt.core.math.Vector3
-import io.kreekt.core.math.Matrix4
-import io.kreekt.core.math.Color
-import io.kreekt.core.math.Ray
-import io.kreekt.raycaster.Raycaster
-import io.kreekt.raycaster.Intersection
-import io.kreekt.geometry.BufferGeometry
 import io.kreekt.geometry.BufferAttribute
+import io.kreekt.geometry.BufferGeometry
+import io.kreekt.raycaster.Intersection
+import io.kreekt.raycaster.Raycaster
 import io.kreekt.texture.Texture
 
 /**
@@ -54,10 +50,13 @@ open class Sprite(
     fun raycast(raycaster: Raycaster, intersects: MutableList<Intersection>) {
         // Transform ray to sprite's local space
         val worldMatrix = this.matrixWorld
-        val worldScale = Vector3(1f, 1f, 1f) // TODO: Extract scale from matrix
+        // Extract scale from world matrix
+        val worldScale = Vector3()
+        worldMatrix.decompose(Vector3(), Quaternion(), worldScale)
 
         // For sprites, we need to handle them specially since they face the camera
-        // TODO: Get camera from context
+        // Camera view matrix would come from renderer context
+        // For now, using identity matrix as placeholder
         val viewMatrix = Matrix4()
 
         // Create a matrix that combines world position with camera rotation

@@ -10,8 +10,8 @@ package io.kreekt.camera
 import io.kreekt.core.math.Matrix4
 import io.kreekt.core.math.Vector3
 import io.kreekt.core.scene.Scene
-// import io.kreekt.renderer.WebGPUCubeRenderTarget // TODO: Will be implemented
-// import io.kreekt.renderer.WebGPURenderer // TODO: Will be implemented
+import io.kreekt.renderer.CubeRenderTarget
+import io.kreekt.renderer.Renderer
 import io.kreekt.texture.CubeTexture
 
 /**
@@ -30,7 +30,7 @@ class CubeCamera(
     /**
      * The cube render target where the scene is rendered
      */
-    val renderTarget: WebGPUCubeRenderTarget = WebGPUCubeRenderTarget(
+    val renderTarget: CubeRenderTarget = CubeRenderTarget(
         cubeResolution, cubeResolution
     )
 
@@ -107,17 +107,18 @@ class CubeCamera(
      * @param renderer The renderer to use
      * @param scene The scene to render
      */
-    fun update(renderer: WebGPURenderer, scene: Scene) {
+    fun update(renderer: Renderer, scene: Scene) {
         updateCameraPositions()
 
-        val originalRenderTarget = renderer.getRenderTarget()
+        val originalRenderTarget = renderer.renderTarget
 
         // Render each face
         for (i in 0 until 6) {
             updateCubeMap(i)
 
             // Set render target to specific cube face
-            renderer.setRenderTarget(renderTarget, i)
+            // Note: Face-specific rendering requires renderer implementation support
+            renderer.renderTarget = renderTarget
 
             // Clear and render
             renderer.clear()
@@ -125,28 +126,28 @@ class CubeCamera(
         }
 
         // Restore original render target
-        renderer.setRenderTarget(originalRenderTarget)
+        renderer.renderTarget = originalRenderTarget
     }
 
     /**
      * Get the environment texture for use in materials
      */
-    fun getTexture(): CubeTexture? {
-        return renderTarget.texture
+    fun getTexture(): CubeTexture {
+        return renderTarget.cubeTexture
     }
 
     /**
      * Clear the cube texture
      */
-    fun clear(renderer: WebGPURenderer) {
-        val originalRenderTarget = renderer.getRenderTarget()
+    fun clear(renderer: Renderer) {
+        val originalRenderTarget = renderer.renderTarget
 
         for (i in 0 until 6) {
-            renderer.setRenderTarget(renderTarget, i)
+            renderer.renderTarget = renderTarget
             renderer.clear()
         }
 
-        renderer.setRenderTarget(originalRenderTarget)
+        renderer.renderTarget = originalRenderTarget
     }
 
     /**
@@ -238,5 +239,3 @@ class CubeCamera(
         val FACE_NAMES = listOf("+X", "-X", "+Y", "-Y", "+Z", "-Z")
     }
 }
-
-// WebGPURenderer and WebGPUCubeRenderTarget are defined in ArrayCamera.kt

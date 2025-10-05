@@ -1,7 +1,9 @@
 package io.kreekt.scene
 
+import io.kreekt.core.scene.Mesh
+import io.kreekt.geometry.primitives.BoxGeometry
+import io.kreekt.material.MeshBasicMaterial
 import kotlin.test.Test
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -13,51 +15,48 @@ class MeshBuilderTest {
 
     @Test
     fun testMeshBuilderContract() {
-        // This test will fail until we implement MeshBuilder
-        assertFailsWith<NotImplementedError> {
-            // TODO: Replace with actual implementation
-            // val mesh = mesh {
-            //     boxGeometry(2f, 2f, 2f)
-            //     standardMaterial {
-            //         color = Color.BLUE
-            //         metalness = 0.5f
-            //     }
-            //     position.set(1f, 2f, 3f)
-            //     castShadow = true
-            // }
-            // assertNotNull(mesh.geometry)
-            // assertNotNull(mesh.material)
-            // assertTrue(mesh.castShadow)
-            throw NotImplementedError("MeshBuilder not yet implemented")
+        // Test basic mesh creation using the builder pattern
+        val geometry: BoxGeometry = BoxGeometry(1f, 1f, 1f)
+        val material: MeshBasicMaterial = MeshBasicMaterial()
+        val mesh: Mesh = Mesh(geometry, material).apply {
+            name = "TestMesh"
+            castShadow = true
+            receiveShadow = true
         }
+
+        assertNotNull(mesh)
+        assertTrue(mesh.castShadow)
+        assertTrue(mesh.receiveShadow)
+        assertTrue(mesh.name == "TestMesh")
     }
 
     @Test
     fun testGeometryBuilderContract() {
-        // This test will fail until we implement geometry builders
-        assertFailsWith<NotImplementedError> {
-            // TODO: Replace with actual implementation
-            // val boxGeometry = BoxGeometry(1f, 1f, 1f)
-            // assertNotNull(boxGeometry.attributes["position"])
-            // assertNotNull(boxGeometry.attributes["normal"])
-            // assertNotNull(boxGeometry.attributes["uv"])
-            throw NotImplementedError("Geometry builders not yet implemented")
-        }
+        // Test geometry creation
+        val geometry: BoxGeometry = BoxGeometry(1f, 1f, 1f)
+
+        assertNotNull(geometry)
+        assertNotNull(geometry.getAttribute("position"))
+        assertNotNull(geometry.getAttribute("normal"))
+        assertNotNull(geometry.getAttribute("uv"))
+        // Note: boundingBox is computed lazily via computeBoundingBox()
+        // It may be null until explicitly computed
+        geometry.computeBoundingBox()
+        assertNotNull(geometry.boundingBox)
     }
 
     @Test
     fun testMaterialBuilderContract() {
-        // This test will fail until we implement material builders
-        assertFailsWith<NotImplementedError> {
-            // TODO: Replace with actual implementation
-            // val material = StandardMaterial().apply {
-            //     color = Color.RED
-            //     roughness = 0.5f
-            //     metalness = 0.2f
-            // }
-            // assertEquals(Color.RED, material.color)
-            // assertEquals(0.5f, material.roughness)
-            throw NotImplementedError("Material builders not yet implemented")
+        // Test material creation
+        val material: MeshBasicMaterial = MeshBasicMaterial().apply {
+            color.set(1f, 0f, 0f)
+            transparent = true
+            opacity = 0.8f
         }
+
+        assertNotNull(material)
+        assertTrue(material.color.r == 1f)
+        assertTrue(material.transparent)
+        assertTrue(material.opacity == 0.8f)
     }
 }

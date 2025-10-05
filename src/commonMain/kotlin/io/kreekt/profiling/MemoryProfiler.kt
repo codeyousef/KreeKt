@@ -5,6 +5,7 @@
 package io.kreekt.profiling
 
 import io.kreekt.core.platform.currentTimeMillis
+import io.kreekt.util.KreektLogger
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -226,7 +227,7 @@ class MemoryProfiler(private val config: MemoryProfilerConfig = MemoryProfilerCo
                     suspiciousActivity = listOf("Long-lived allocation: ${age}ms")
                 )
                 // In a real implementation, you'd emit this to a leak reporting system
-                println("Potential memory leak detected: ${leak}")
+                KreektLogger.warn("MemoryProfiler", "Potential memory leak detected: $leak")
             }
         }
     }

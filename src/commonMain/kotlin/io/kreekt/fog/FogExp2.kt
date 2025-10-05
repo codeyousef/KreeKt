@@ -22,7 +22,11 @@ class FogExp2(
     val isFogExp2: Boolean = true
     override val name: String = "FogExp2"
 
-    // Placeholder geometry for compatibility
+    /**
+     * Empty geometry for Three.js API compatibility
+     * (Fog objects don't actually use geometry, but this property exists for compatibility)
+     */
+    @Deprecated("Fog objects don't use geometry. This exists for Three.js API compatibility only.", ReplaceWith(""))
     val geometry: BufferGeometry = BufferGeometry()
 
     /**
