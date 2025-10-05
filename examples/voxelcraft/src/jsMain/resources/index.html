@@ -392,8 +392,9 @@
     // Prevent context menu on right click
     document.addEventListener('contextmenu', (e) => e.preventDefault());
 
-    // Start game - show loading screen
+    // Start game - show loading screen and trigger Kotlin init
     function startGame() {
+        console.log('📱 Start button clicked');
         const overlay = document.getElementById('controls-overlay');
         const loading = document.getElementById('loading');
 
@@ -405,6 +406,14 @@
 
         // Mark game as started (prevents controls from showing on ESC)
         gameStarted = true;
+
+        // Trigger Kotlin game initialization
+        console.log('🚀 Calling Kotlin startGameFromButton...');
+        if (window.startGameFromButton) {
+            window.startGameFromButton();
+        } else {
+            console.error('❌ window.startGameFromButton not found! Kotlin code may not be loaded.');
+        }
     }
 
     // Pointer lock change event
@@ -471,5 +480,8 @@
 
     updateFPS();
 </script>
+
+<!-- Load Kotlin/JS compiled bundle -->
+<script src="voxelcraft.js"></script>
 </body>
 </html>

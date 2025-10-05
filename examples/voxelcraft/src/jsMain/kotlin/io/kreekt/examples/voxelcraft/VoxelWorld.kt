@@ -1,6 +1,7 @@
 package io.kreekt.examples.voxelcraft
 
 import io.kreekt.core.scene.Scene
+import kotlinx.coroutines.delay
 
 /**
  * VoxelWorld - Main world entity managing chunks and player
@@ -19,17 +20,24 @@ class VoxelWorld(val seed: Long) {
     var isGenerated = false
         private set
 
-    fun generateTerrain(onProgress: ((Int, Int) -> Unit)? = null) {
+    suspend fun generateTerrain(onProgress: ((Int, Int) -> Unit)? = null) {
         val positions = ChunkPosition.allChunks()
         val total = positions.size
+        val batchSize = 32  // Process 32 chunks at a time (~3% progress per update)
 
-        positions.forEachIndexed { index, pos ->
-            val chunk = Chunk(pos, this)
-            generator.generate(chunk)
-            chunks[pos] = chunk
+        positions.chunked(batchSize).forEachIndexed { batchIndex, batch ->
+            batch.forEachIndexed { indexInBatch, pos ->
+                val chunk = Chunk(pos, this)
+                generator.generate(chunk)
+                chunks[pos] = chunk
 
-            // Report progress
-            onProgress?.invoke(index + 1, total)
+                val currentIndex = batchIndex * batchSize + indexInBatch + 1
+                onProgress?.invoke(currentIndex, total)
+            }
+
+            // Yield to JavaScript event loop to allow DOM updates and rendering
+            // Using delay(0) ensures we yield to the event loop properly
+            delay(0)
         }
 
         // Spawn player above terrain

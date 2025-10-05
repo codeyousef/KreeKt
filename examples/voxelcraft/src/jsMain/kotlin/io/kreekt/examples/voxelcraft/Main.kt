@@ -23,14 +23,25 @@ import org.w3c.dom.HTMLCanvasElement
  * - Game loop with delta time
  */
 
+@OptIn(DelicateCoroutinesApi::class)
 fun main() {
-    Logger.info("🎮 VoxelCraft Starting...")
+    console.log("🎮 VoxelCraft Starting...")
 
     window.addEventListener("load", {
-        GlobalScope.launch {
-            initGame()
-        }
+        console.log("📦 Page loaded, waiting for user to click Start...")
+
+        // Expose startGameFromButton to JavaScript
+        js("window.startGameFromButton = this.startGameFromButton")
     })
+}
+
+@JsExport
+@OptIn(DelicateCoroutinesApi::class)
+fun startGameFromButton() {
+    console.log("🎮 Starting game from button click...")
+    GlobalScope.launch {
+        initGame()
+    }
 }
 
 suspend fun initGame() {
@@ -77,29 +88,33 @@ suspend fun initGame() {
 @OptIn(DelicateCoroutinesApi::class)
 fun generateTerrainAsync(world: VoxelWorld, startTime: Double, canvas: HTMLCanvasElement) {
     Logger.info("🌍 Generating world...")
-    updateLoadingProgress("Generating terrain... 0%")
+    updateLoadingProgress("Starting terrain generation...")
 
-    // Use setTimeout to make generation async and allow UI updates
-    window.setTimeout({
-        world.generateTerrain { current, total ->
-            val percent = (current * 100) / total
-            updateLoadingProgress("Generating terrain... $percent% ($current/$total chunks)")
+    // Launch coroutine for async terrain generation with progress updates
+    GlobalScope.launch {
+        try {
+            Logger.info("📊 About to generate ${ChunkPosition.TOTAL_CHUNKS} chunks...")
 
-            // Log progress every 10%
-            if (percent % 10 == 0 && current != total) {
-                Logger.debug("⏳ Generation progress: $percent%")
+            world.generateTerrain { current, total ->
+                val percent = (current * 100) / total
+                val message = "Generating terrain... $percent% ($current/$total chunks)"
+                updateLoadingProgress(message)
+
+                // Log every chunk for debugging
+                Logger.info("⏳ $message")
             }
-        }
 
-        val generationTime = js("Date.now()") as Double - startTime
-        Logger.info("✅ World ready in ${generationTime.toInt()}ms")
-        Logger.info("📊 Chunks: ${world.chunkCount}")
-        Logger.info("👤 Player: ${world.player.position}")
+            val generationTime = js("Date.now()") as Double - startTime
+            Logger.info("✅ World ready in ${generationTime.toInt()}ms")
+            Logger.info("📊 Chunks: ${world.chunkCount}")
+            Logger.info("👤 Player: ${world.player.position}")
 
-        GlobalScope.launch {
             continueInitialization(world, generationTime, canvas)
+        } catch (e: Throwable) {
+            Logger.error("❌ Generation failed: ${e.message}")
+            console.error(e)
         }
-    }, 10)
+    }
 }
 
 suspend fun continueInitialization(world: VoxelWorld, generationTime: Double, canvas: HTMLCanvasElement) {
