@@ -279,7 +279,9 @@ class ARKitXRSession(
             query?.let {
                 val raycastResults = arSession.raycast(it)
                 raycastResults.forEach { result ->
-                    results.add(ARKitHitTestResult(result as ARRaycastResult))
+                    (result as? ARRaycastResult)?.let { arResult ->
+                        results.add(ARKitHitTestResult(arResult))
+                    }
                 }
             }
         }

@@ -196,8 +196,8 @@ class Texture2D(
      * Get the size of the texture data in bytes
      */
     fun getDataSize(): Int = when {
-        _data != null -> _data!!.size
-        _floatData != null -> _floatData!!.size * 4 // 4 bytes per float
+        _data != null -> _data?.size ?: 0
+        _floatData != null -> (_floatData?.size ?: 0) * 4 // 4 bytes per float
         else -> 0
     }
 

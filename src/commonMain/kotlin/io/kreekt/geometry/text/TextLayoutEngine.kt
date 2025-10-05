@@ -142,7 +142,7 @@ object TextLayoutEngine {
      * Wrap text to fit within max width
      */
     fun wrapText(text: String, font: Font, options: TextOptions): List<String> {
-        val maxWidth = options.maxWidth!!
+        val maxWidth = options.maxWidth ?: return listOf(text)
         val words = text.split(' ')
         val lines = mutableListOf<String>()
         var currentLine = StringBuilder()

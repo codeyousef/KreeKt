@@ -8,7 +8,8 @@ import kotlinx.coroutines.*
  * Input source manager for unified input handling
  */
 class XRInputSourceManager(
-    private val session: XRSession
+    private val session: XRSession,
+    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 ) {
     private val inputSources = mutableMapOf<String, DefaultXRInputSource>()
     private val inputCallbacks = mutableListOf<XRInputCallback>()
@@ -35,11 +36,9 @@ class XRInputSourceManager(
         inputCallbacks.remove(callback)
     }
 
-    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
     private fun startInputMonitoring() {
-        // Note: Using GlobalScope here requires proper cleanup via dispose()
-        // TODO: Migrate to use a scoped CoroutineScope passed as constructor parameter
-        monitoringJob = GlobalScope.launch {
+        // Use the provided coroutine scope for proper lifecycle management
+        monitoringJob = coroutineScope.launch {
             while (session.isSessionActive()) {
                 updateInputSources()
                 updateHandTracking()
@@ -55,6 +54,7 @@ class XRInputSourceManager(
      */
     fun dispose() {
         monitoringJob?.cancel()
+        coroutineScope.cancel() // Cancel the scope to ensure all coroutines are stopped
         inputSources.clear()
         inputCallbacks.clear()
         primaryHand = null

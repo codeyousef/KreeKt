@@ -20,7 +20,8 @@ actual class ImageLoader {
         onError: ((ErrorEvent) -> Unit)?
     ): ImageElement {
         val fullUrl = if (basePath.isNotEmpty()) "$basePath/$url" else url
-        val img = js("new Image()") as HTMLImageElement
+        val img = js("new Image()") as? HTMLImageElement
+            ?: throw IllegalStateException("Failed to create HTMLImageElement")
         val element = ImageElement(img)
 
         if (crossOrigin.isNotEmpty()) {
@@ -59,7 +60,8 @@ actual class ImageLoader {
  * JS implementation of ImageElement using HTMLImageElement
  */
 actual class ImageElement internal constructor(internal val element: HTMLImageElement) {
-    constructor() : this(js("new Image()") as HTMLImageElement)
+    constructor() : this(js("new Image()") as? HTMLImageElement
+        ?: throw IllegalStateException("Failed to create HTMLImageElement"))
 
     actual var src: String
         get() = element.src
@@ -101,7 +103,8 @@ actual class ImageElement internal constructor(internal val element: HTMLImageEl
  * JS implementation of CanvasElement using HTMLCanvasElement
  */
 actual class CanvasElement internal constructor(internal val element: HTMLCanvasElement) {
-    constructor() : this(js("document.createElement('canvas')") as HTMLCanvasElement)
+    constructor() : this(js("document.createElement('canvas')") as? HTMLCanvasElement
+        ?: throw IllegalStateException("Failed to create HTMLCanvasElement"))
 
     actual var width: Int
         get() = element.width
@@ -128,7 +131,8 @@ actual class CanvasElement internal constructor(internal val element: HTMLCanvas
  * JS implementation of VideoElement using HTMLVideoElement
  */
 actual class VideoElement internal constructor(internal val element: HTMLVideoElement) {
-    constructor() : this(js("document.createElement('video')") as HTMLVideoElement)
+    constructor() : this(js("document.createElement('video')") as? HTMLVideoElement
+        ?: throw IllegalStateException("Failed to create HTMLVideoElement"))
 
     actual var src: String
         get() = element.src

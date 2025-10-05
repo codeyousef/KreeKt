@@ -233,7 +233,8 @@ data class AnimationTrack @OptIn(ExperimentalUuidApi::class) constructor(
                 }
             }
             AnimatableProperty.COLOR -> {
-                require(keyframe.value is List<*> && (keyframe.value as List<*>).size in 3..4) {
+                val list = keyframe.value as? List<*>
+                require(list != null && list.size in 3..4) {
                     "Keyframe value for COLOR property must be a list of 3 or 4 numbers"
                 }
             }
@@ -321,12 +322,22 @@ data class AnimationTrack @OptIn(ExperimentalUuidApi::class) constructor(
 
     private fun interpolateLinear(a: Any, b: Any, t: Float): Any {
         return when (a) {
-            is Float -> a + (b as Float - a) * t
-            is Double -> a + (b as Double - a) * t
-            is Int -> (a + (b as Int - a) * t).toInt()
+            is Float -> {
+                val bFloat = b as? Float ?: return a
+                a + (bFloat - a) * t
+            }
+            is Double -> {
+                val bDouble = b as? Double ?: return a
+                a + (bDouble - a) * t
+            }
+            is Int -> {
+                val bInt = b as? Int ?: return a
+                (a + (bInt - a) * t).toInt()
+            }
             is List<*> -> {
-                val listA = a as List<Number>
-                val listB = b as List<Number>
+                val listA = a as? List<Number> ?: return a
+                val listB = b as? List<Number> ?: return a
+                if (listA.size != listB.size) return a
                 listA.zip(listB) { numA, numB ->
                     numA.toFloat() + (numB.toFloat() - numA.toFloat()) * t
                 }

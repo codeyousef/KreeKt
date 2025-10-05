@@ -100,8 +100,12 @@ internal class DefaultVertexBuffer(
                 this.data = ByteArray(this.size.toInt())
             }
 
+            val destData = this.data ?: return RendererResult.Error(
+                RendererException.InvalidState("Failed to allocate destination buffer")
+            )
+
             sourceData.copyInto(
-                destination = this.data!!,
+                destination = destData,
                 destinationOffset = dstOffset.toInt(),
                 startIndex = srcOffset.toInt(),
                 endIndex = (srcOffset + actualSize).toInt()

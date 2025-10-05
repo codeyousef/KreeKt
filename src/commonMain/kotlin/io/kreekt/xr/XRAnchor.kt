@@ -71,9 +71,16 @@ class DefaultXRAnchor(
         try {
             // Clean up persistent storage if applicable
             persistentHandle?.let { handle ->
-                // Note: Platform-specific cleanup would happen here
-                // Cannot call suspend function from non-suspend delete()
-                // TODO: Consider making delete() a suspend function or launching cleanup asynchronously
+                // Launch async cleanup in the anchor's coroutine scope
+                // This will be cancelled when we cancel the scope below
+                coroutineScope.launch {
+                    try {
+                        removePersistentAnchor(handle)
+                    } catch (e: Exception) {
+                        // Log error but continue with deletion
+                        // In production, this would log to the platform's logging system
+                    }
+                }
             }
 
             // Stop tracking
@@ -354,7 +361,7 @@ class SpatialTrackingManager(
     }
 
     private fun resumeAnchorUpdates() {
-        if (trackingJob == null || !trackingJob!!.isActive) {
+        if (trackingJob?.isActive != true) {
             startTrackingUpdates()
         }
     }

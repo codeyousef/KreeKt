@@ -52,7 +52,8 @@ actual object FileSystem {
 
     actual suspend fun getLastModified(filePath: String): Long {
         // Return current time as placeholder - using JS Date for simplicity
-        return js("Date.now()") as Long
+        val dateNow = js("Date.now()") as? Number
+        return dateNow?.toLong() ?: kotlin.js.Date.now().toLong()
     }
 
     actual fun shouldExclude(filePath: String, excludePatterns: List<String>): Boolean {

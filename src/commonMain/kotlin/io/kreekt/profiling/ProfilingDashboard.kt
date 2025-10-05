@@ -333,8 +333,11 @@ class ProfilingSession(val name: String) {
         endTime = io.kreekt.core.platform.Platform.currentTimeNanos()
         endFrame = PerformanceProfiler.getFrameStats().frameCount
 
-        val duration = (endTime!! - startTime) / 1_000_000_000.0 // seconds
-        val frameCount = endFrame!! - startFrame
+        val finalEndTime = endTime ?: io.kreekt.core.platform.Platform.currentTimeNanos()
+        val finalEndFrame = endFrame ?: PerformanceProfiler.getFrameStats().frameCount
+
+        val duration = (finalEndTime - startTime) / 1_000_000_000.0 // seconds
+        val frameCount = finalEndFrame - startFrame
         val averageFps = frameCount / duration
 
         val report = ProfilingReport.generateReport()

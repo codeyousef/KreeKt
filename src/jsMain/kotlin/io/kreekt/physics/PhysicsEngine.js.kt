@@ -389,7 +389,7 @@ class JsBasicRigidBody(
     override var mass: Float,
     override var transform: Matrix4
 ) : RigidBody {
-    override val id: String = js("Math.random().toString(36).substr(2, 9)") as String
+    override val id: String = (js("Math.random().toString(36).substr(2, 9)") as? String) ?: "id_${kotlin.random.Random.nextInt()}"
     override var collisionGroups: Int = -1
     override var collisionMask: Int = -1
     override var userData: Any? = null
@@ -484,7 +484,7 @@ class JsBasicCharacterController(
     override var collisionShape: CollisionShape,
     override var stepHeight: Float
 ) : CharacterController {
-    override val id: String = js("Math.random().toString(36).substr(2, 9)") as String
+    override val id: String = (js("Math.random().toString(36).substr(2, 9)") as? String) ?: "id_${kotlin.random.Random.nextInt()}"
     override var transform: Matrix4 = Matrix4.IDENTITY
     override var collisionGroups: Int = -1
     override var collisionMask: Int = -1
@@ -531,7 +531,7 @@ class JsBasicPointToPointConstraint(
     override val pivotA: Vector3,
     override val pivotB: Vector3
 ) : PointToPointConstraint {
-    override val id: String = js("Math.random().toString(36).substr(2, 9)") as String
+    override val id: String = (js("Math.random().toString(36).substr(2, 9)") as? String) ?: "id_${kotlin.random.Random.nextInt()}"
     override var enabled: Boolean = true
     override var breakingThreshold: Float = Float.MAX_VALUE
 
@@ -553,7 +553,7 @@ class JsBasicHingeConstraint(
     override val axisA: Vector3,
     override val axisB: Vector3
 ) : HingeConstraint {
-    override val id: String = js("Math.random().toString(36).substr(2, 9)") as String
+    override val id: String = (js("Math.random().toString(36).substr(2, 9)") as? String) ?: "id_${kotlin.random.Random.nextInt()}"
     override var enabled: Boolean = true
     override var breakingThreshold: Float = Float.MAX_VALUE
     override var lowerLimit: Float = -kotlin.math.PI.toFloat()
@@ -582,7 +582,7 @@ class JsBasicSliderConstraint(
     override val frameA: Matrix4,
     override val frameB: Matrix4
 ) : SliderConstraint {
-    override val id: String = js("Math.random().toString(36).substr(2, 9)") as String
+    override val id: String = (js("Math.random().toString(36).substr(2, 9)") as? String) ?: "id_${kotlin.random.Random.nextInt()}"
     override var enabled: Boolean = true
     override var breakingThreshold: Float = Float.MAX_VALUE
     override var lowerLinearLimit: Float = -1f

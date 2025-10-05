@@ -83,10 +83,12 @@ fun optimizeUVLayout(
         optimizations.add("Snapped to pixel grid")
     }
 
-    val newQuality = analyzeUVQuality(
-        resultGeometry.getAttribute("position")!!,
-        resultGeometry.getAttribute("uv")!!
-    )
+    val positionAttr = resultGeometry.getAttribute("position")
+        ?: return UVOptimizationResult(resultGeometry, false, listOf("No position attribute after optimization"))
+    val uvAttr = resultGeometry.getAttribute("uv")
+        ?: return UVOptimizationResult(resultGeometry, false, listOf("No UV attribute after optimization"))
+
+    val newQuality = analyzeUVQuality(positionAttr, uvAttr)
 
     return UVOptimizationResult(
         geometry = resultGeometry,

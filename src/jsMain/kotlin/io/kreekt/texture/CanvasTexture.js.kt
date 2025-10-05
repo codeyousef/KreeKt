@@ -13,12 +13,14 @@ actual class CanvasTexture private actual constructor(
     actual override val height: Int
 ) : Texture() {
 
-    private val canvas: HTMLCanvasElement = (document.createElement("canvas") as HTMLCanvasElement).apply {
+    private val canvas: HTMLCanvasElement = (document.createElement("canvas") as? HTMLCanvasElement
+        ?: throw IllegalStateException("Failed to create canvas element")).apply {
         this.width = width
         this.height = height
     }
 
-    private val context: CanvasRenderingContext2D = canvas.getContext("2d") as CanvasRenderingContext2D
+    private val context: CanvasRenderingContext2D = canvas.getContext("2d") as? CanvasRenderingContext2D
+        ?: throw IllegalStateException("Failed to get 2D rendering context")
 
     // Override parent properties to work around Kotlin compiler bug with expect/actual inheritance
     override var name: String

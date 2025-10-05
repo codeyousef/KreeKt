@@ -411,6 +411,7 @@ class DefaultClipAction(
                 if (index != null && value.isNotEmpty()) {
                     // This would apply to morph target influences if the object supports them
                     // For now, store in userData for potential use by mesh renderers
+                    @Suppress("UNCHECKED_CAST")
                     val morphTargets = root.userData["morphTargetInfluences"] as? MutableList<Float>
                         ?: mutableListOf<Float>().also { root.userData["morphTargetInfluences"] = it }
 
@@ -430,6 +431,7 @@ class DefaultClipAction(
             // Support for material properties
             propertyName == "opacity" || trackName.contains("material.opacity") -> {
                 if (value.isNotEmpty()) {
+                    @Suppress("UNCHECKED_CAST")
                     val materials = root.userData["materials"] as? MutableMap<String, Any>
                         ?: mutableMapOf<String, Any>().also { root.userData["materials"] = it }
 
@@ -453,6 +455,7 @@ class DefaultClipAction(
             // Support for custom properties via userData
             else -> {
                 // Store in userData for custom property animation
+                @Suppress("UNCHECKED_CAST")
                 val animatedProps = root.userData["animatedProperties"] as? MutableMap<String, FloatArray>
                     ?: mutableMapOf<String, FloatArray>().also { root.userData["animatedProperties"] = it }
 

@@ -150,12 +150,12 @@ class DefaultProductionReadinessChecker : ProductionReadinessChecker {
                 val rendererResult = rendererFactory.createRenderer(platform)
 
                 val component = if (rendererResult.isSuccess) {
-                    val renderer = rendererResult.getOrNull()!!
+                    val renderer = rendererResult.getOrNull() ?: throw IllegalStateException("Renderer result success but null value")
                     val validationSuite = RendererValidationSuite.constitutional()
                     val rendererComponent = rendererFactory.validateRenderer(renderer, validationSuite)
 
                     // Check for specific issues (especially JavaScript black screen)
-                    if (platform == Platform.JS && !rendererComponent.isProductionReady!!) {
+                    if (platform == Platform.JS && rendererComponent.isProductionReady != true) {
                         performanceIssues.add("JavaScript renderer black screen issue needs resolution")
                     }
 
@@ -187,7 +187,7 @@ class DefaultProductionReadinessChecker : ProductionReadinessChecker {
 
         // Identify missing platforms
         val missingPlatforms = supportedPlatforms.filter { platform ->
-            !rendererComponents[platform]?.isProductionReady!!
+            rendererComponents[platform]?.isProductionReady != true
         }
 
         return RendererAuditResult(
@@ -380,7 +380,7 @@ class DefaultProductionReadinessChecker : ProductionReadinessChecker {
 
         // TDD Compliance (Test-Driven Development)
         val testPassRate = validationResult.testResults.passedTests.toFloat() / validationResult.testResults.totalTests
-        val tddCompliant = testPassRate >= constitutionalThresholds["tdd_compliance"]!!
+        val tddCompliant = testPassRate >= (constitutionalThresholds["tdd_compliance"] ?: 0.9f)
         constitutionalRequirements["tdd_compliance"] = tddCompliant
         constitutionalRequirements["test_coverage"] = (validationResult.testResults.codeCoverage >= 0.8f)
         constitutionalRequirements["test_success_rate"] = (testPassRate >= 0.95f)
@@ -403,7 +403,7 @@ class DefaultProductionReadinessChecker : ProductionReadinessChecker {
             component.isProductionReady == true
         }
         val crossPlatformCompliant =
-            workingPlatformCount.toFloat() / platformCount >= constitutionalThresholds["cross_platform_consistency"]!!
+            workingPlatformCount.toFloat() / platformCount >= (constitutionalThresholds["cross_platform_consistency"] ?: 0.8f)
         constitutionalRequirements["cross_platform_support"] = crossPlatformCompliant
         if (!crossPlatformCompliant) {
             nonCompliantAreas.add("Cross-Platform Support - Only $workingPlatformCount of $platformCount platforms working")
@@ -421,7 +421,7 @@ class DefaultProductionReadinessChecker : ProductionReadinessChecker {
         // Type Safety (Implementation gaps)
         val implementationGapRate = validationResult.implementationGaps.gaps.size.toFloat() /
                 maxOf(1, validationResult.implementationGaps.totalExpectDeclarations)
-        val typeSafetyCompliant = implementationGapRate <= constitutionalThresholds["implementation_gap_tolerance"]!!
+        val typeSafetyCompliant = implementationGapRate <= (constitutionalThresholds["implementation_gap_tolerance"] ?: 0.1f)
         constitutionalRequirements["type_safety"] = typeSafetyCompliant
         if (!typeSafetyCompliant) {
             nonCompliantAreas.add("Type Safety - Too many implementation gaps across platforms")
@@ -666,7 +666,7 @@ class DefaultProductionReadinessChecker : ProductionReadinessChecker {
 
     private fun calculatePerformanceScore(performanceValidation: PerformanceValidationResult): Float {
         val fpsScore =
-            minOf(1.0f, performanceValidation.averageFrameRate / constitutionalThresholds["performance_60fps"]!!)
+            minOf(1.0f, performanceValidation.averageFrameRate / (constitutionalThresholds["performance_60fps"] ?: 60f))
         val sizeScore = if (performanceValidation.meetsSizeRequirement == true) 1.0f else 0.5f
 
         return (fpsScore * 0.7f) + (sizeScore * 0.3f)

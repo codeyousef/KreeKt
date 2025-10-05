@@ -83,7 +83,8 @@ class InstantPlacementManager {
 
             if (hitResults.isNotEmpty()) {
                 val hitResult = hitResults[0]
-                val instantPlacementPoint = hitResult.trackable as InstantPlacementPoint
+                val instantPlacementPoint = hitResult.trackable as? InstantPlacementPoint
+                    ?: return null
                 val id = "placement_${++placementIdCounter}"
                 pointsMap[id] = instantPlacementPoint
 

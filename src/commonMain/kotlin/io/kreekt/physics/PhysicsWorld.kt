@@ -407,7 +407,8 @@ class DefaultPhysicsWorld(
     private fun spherecastBody(from: Vector3, direction: Vector3, maxDistance: Float, radius: Float, body: RigidBody): RaycastHit? {
         val result = raycastBody(from, direction, maxDistance, body)
         return if (result?.hasHit == true && result.hitObject != null) {
-            RaycastHit(result.hitObject as RigidBody, result.hitPoint, result.hitNormal, result.distance)
+            val rigidBody = result.hitObject as? RigidBody ?: return null
+            RaycastHit(rigidBody, result.hitPoint, result.hitNormal, result.distance)
         } else null
     }
 

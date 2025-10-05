@@ -320,6 +320,7 @@ class WebGLRenderer(
         val buffer = gl.createBuffer() ?: throw Exception("Failed to create buffer")
         buffers[nextBufferId++] = buffer
         gl.bindBuffer(target, buffer)
+        @Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")
         val arrayBufferView = data as? ArrayBufferView
             ?: throw IllegalArgumentException("Data must be ArrayBufferView")
         gl.bufferData(target, arrayBufferView, WebGLRenderingContext.STATIC_DRAW)

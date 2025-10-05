@@ -21,8 +21,10 @@ class DisplayRotationHelper(private val context: Context) : DisplayListener {
     private val displayManager: DisplayManager
 
     init {
-        displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
+            ?: throw IllegalStateException("DisplayManager service not available")
+        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+            ?: throw IllegalStateException("WindowManager service not available")
         display = windowManager.defaultDisplay
     }
 

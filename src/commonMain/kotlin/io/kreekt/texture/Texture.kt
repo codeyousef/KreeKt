@@ -188,7 +188,7 @@ abstract class Texture : io.kreekt.renderer.Texture {
      */
     open fun getMipLevelCount(): Int {
         return if (generateMipmaps && mipmaps != null) {
-            mipmaps!!.size
+            mipmaps?.size ?: 1
         } else {
             1
         }

@@ -63,7 +63,7 @@ class TriangleMeshShapeImpl(
         if (_bvh == null) {
             _bvh = buildBVHRecursive(0, triangleCount)
         }
-        return _bvh!!
+        return _bvh ?: buildBVHRecursive(0, triangleCount)
     }
 
     private fun buildBVHRecursive(startTriangle: Int, triangleCount: Int): MeshBVH {

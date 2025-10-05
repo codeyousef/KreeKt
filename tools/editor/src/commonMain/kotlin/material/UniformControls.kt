@@ -337,32 +337,35 @@ class UniformControls(
     private fun calculateAnimatedValue(uniform: UniformValue, time: Float): Any {
         return when (uniform.type) {
             UniformType.FLOAT -> {
-                val base = (uniform.value as Number).toFloat()
+                val base = (uniform.value as? Number)?.toFloat() ?: 0f
                 val amplitude = (uniform.max ?: 1f) - (uniform.min ?: 0f)
                 base + sin(time) * amplitude * 0.1f
             }
             UniformType.VEC2 -> {
-                val list = uniform.value as List<*>
+                val list = uniform.value as? List<*> ?: return uniform.value
+                if (list.size < 2) return uniform.value
                 listOf(
-                    (list[0] as Number).toFloat() + sin(time) * 0.1f,
-                    (list[1] as Number).toFloat() + cos(time) * 0.1f
+                    (list[0] as? Number)?.toFloat()?.let { it + sin(time) * 0.1f } ?: 0f,
+                    (list[1] as? Number)?.toFloat()?.let { it + cos(time) * 0.1f } ?: 0f
                 )
             }
             UniformType.VEC3 -> {
-                val list = uniform.value as List<*>
+                val list = uniform.value as? List<*> ?: return uniform.value
+                if (list.size < 3) return uniform.value
                 listOf(
-                    (list[0] as Number).toFloat() + sin(time) * 0.1f,
-                    (list[1] as Number).toFloat() + cos(time) * 0.1f,
-                    (list[2] as Number).toFloat() + sin(time * 0.7f) * 0.1f
+                    (list[0] as? Number)?.toFloat()?.let { it + sin(time) * 0.1f } ?: 0f,
+                    (list[1] as? Number)?.toFloat()?.let { it + cos(time) * 0.1f } ?: 0f,
+                    (list[2] as? Number)?.toFloat()?.let { it + sin(time * 0.7f) * 0.1f } ?: 0f
                 )
             }
             UniformType.VEC4 -> {
-                val list = uniform.value as List<*>
+                val list = uniform.value as? List<*> ?: return uniform.value
+                if (list.size < 4) return uniform.value
                 listOf(
-                    (list[0] as Number).toFloat() + sin(time) * 0.1f,
-                    (list[1] as Number).toFloat() + cos(time) * 0.1f,
-                    (list[2] as Number).toFloat() + sin(time * 0.7f) * 0.1f,
-                    (list[3] as Number).toFloat()
+                    (list[0] as? Number)?.toFloat()?.let { it + sin(time) * 0.1f } ?: 0f,
+                    (list[1] as? Number)?.toFloat()?.let { it + cos(time) * 0.1f } ?: 0f,
+                    (list[2] as? Number)?.toFloat()?.let { it + sin(time * 0.7f) * 0.1f } ?: 0f,
+                    (list[3] as? Number)?.toFloat() ?: 1f
                 )
             }
             else -> uniform.value
@@ -519,7 +522,8 @@ class UniformControls(
     private fun validateUniform(name: String, uniform: UniformValue) {
         when (uniform.type) {
             UniformType.FLOAT -> {
-                val value = (uniform.value as Number).toFloat()
+                val value = (uniform.value as? Number)?.toFloat()
+                    ?: throw IllegalArgumentException("FLOAT value must be a number")
                 uniform.min?.let { min ->
                     if (value < min) throw IllegalArgumentException("Value $value below minimum $min")
                 }

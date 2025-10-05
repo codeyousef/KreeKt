@@ -16,14 +16,15 @@ actual fun currentTimeMillis(): Long {
  * JS implementation - uses performance.now() or Date.now()
  */
 actual fun nanoTime(): Long {
-    return (js("performance.now()") as Double * 1_000_000).toLong()
+    val perfNow = js("performance.now()") as? Double ?: Date.now()
+    return (perfNow * 1_000_000).toLong()
 }
 
 /**
  * JS implementation - uses performance.now()
  */
 actual fun performanceNow(): Double {
-    return js("performance.now()") as Double
+    return js("performance.now()") as? Double ?: Date.now()
 }
 
 /**
