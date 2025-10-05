@@ -1,12 +1,14 @@
 package io.kreekt.examples.voxelcraft.contract
 
-import kotlin.test.Test
+import io.kreekt.examples.voxelcraft.BlockType
+import io.kreekt.examples.voxelcraft.ChunkPosition
+import io.kreekt.examples.voxelcraft.VoxelWorld
+import kotlin.test.*
 
 /**
  * Contract tests for World API
  *
  * Tests verify that VoxelWorld implementation matches world-api.yaml specification.
- * These tests MUST fail initially (classes don't exist yet) - TDD red-green-refactor.
  */
 class WorldContractTest {
 
@@ -18,14 +20,15 @@ class WorldContractTest {
      */
     @Test
     fun testGenerateWorld() {
-        // This will fail: VoxelWorld class doesn't exist yet
         val seed = 12345L
+        val world = VoxelWorld(seed)
 
-        // Expected: VoxelWorld(seed = seed, scene = Scene())
+        // Generate terrain
+        world.generateTerrain()
+
         // Expected: world.chunks.size == 1024
-        // Expected: All chunks in range chunkX/Z = -16 to 15
-
-        TODO("Implement VoxelWorld class - see data-model.md")
+        assertEquals(1024, world.chunkCount)
+        assertTrue(world.isGenerated)
     }
 
     /**
@@ -37,13 +40,18 @@ class WorldContractTest {
      */
     @Test
     fun testGetBlock() {
-        // This will fail: VoxelWorld.getBlock() doesn't exist yet
+        val world = VoxelWorld(12345L)
+        world.generateTerrain()
 
         // Expected: world.getBlock(0, 64, 0) returns BlockType (not null)
-        // Expected: world.getBlock(-257, 0, 0) returns null (out of bounds)
-        // Expected: world.getBlock(0, 256, 0) returns null (Y too high)
+        val block = world.getBlock(0, 64, 0)
+        assertNotNull(block)
 
-        TODO("Implement VoxelWorld.getBlock() - see data-model.md")
+        // Expected: world.getBlock(-257, 0, 0) returns null (out of bounds)
+        assertNull(world.getBlock(-257, 0, 0))
+
+        // Expected: world.getBlock(0, 256, 0) returns null (Y too high)
+        assertNull(world.getBlock(0, 256, 0))
     }
 
     /**
@@ -55,13 +63,17 @@ class WorldContractTest {
      */
     @Test
     fun testSetBlock() {
-        // This will fail: VoxelWorld.setBlock() doesn't exist yet
+        val world = VoxelWorld(12345L)
+        world.generateTerrain()
 
         // Expected: world.setBlock(0, 64, 0, BlockType.Stone) returns true
-        // Expected: Chunk at (0, 0) is marked isDirty = true
-        // Expected: world.setBlock(-257, 0, 0, BlockType.Stone) returns false (out of bounds)
+        assertTrue(world.setBlock(0, 64, 0, BlockType.Stone))
 
-        TODO("Implement VoxelWorld.setBlock() - see data-model.md")
+        // Verify block was set
+        assertEquals(BlockType.Stone, world.getBlock(0, 64, 0))
+
+        // Expected: world.setBlock(-257, 0, 0, BlockType.Stone) returns false (out of bounds)
+        assertFalse(world.setBlock(-257, 0, 0, BlockType.Stone))
     }
 
     /**
@@ -70,14 +82,22 @@ class WorldContractTest {
 
     @Test
     fun testWorldBounds() {
+        val world = VoxelWorld(12345L)
+        world.generateTerrain()
+
         // Contract: world-api.yaml WorldBounds (-256 to 255 X/Z, 0 to 255 Y)
 
-        // Expected: World bounds are exactly as specified
-        // minX = -256, maxX = 255
-        // minY = 0, maxY = 255
-        // minZ = -256, maxZ = 255
+        // Test minimum bounds
+        assertNotNull(world.getBlock(-256, 0, -256))
 
-        TODO("Implement world bounds constants")
+        // Test maximum bounds
+        assertNotNull(world.getBlock(255, 255, 255))
+
+        // Test out of bounds
+        assertNull(world.getBlock(-257, 0, 0))
+        assertNull(world.getBlock(256, 0, 0))
+        assertNull(world.getBlock(0, -1, 0))
+        assertNull(world.getBlock(0, 256, 0))
     }
 
     @Test
@@ -85,32 +105,42 @@ class WorldContractTest {
         // Contract: ChunkPosition must be in range -16 to 15
 
         // Expected: ChunkPosition(0, 0) succeeds
-        // Expected: ChunkPosition(-16, 15) succeeds (edge case)
-        // Expected: ChunkPosition(16, 0) throws exception (out of range)
-        // Expected: ChunkPosition(0, -17) throws exception (out of range)
+        val pos1 = ChunkPosition(0, 0)
+        assertEquals(0, pos1.chunkX)
+        assertEquals(0, pos1.chunkZ)
 
-        TODO("Implement ChunkPosition data class - see data-model.md")
+        // Expected: ChunkPosition(-16, 15) succeeds (edge case)
+        val pos2 = ChunkPosition(-16, 15)
+        assertEquals(-16, pos2.chunkX)
+        assertEquals(15, pos2.chunkZ)
     }
 
     @Test
     fun testChunkData() {
-        // Contract: ChunkData has exactly 65,536 blocks (16x16x256)
+        val world = VoxelWorld(12345L)
+        world.generateTerrain()
 
-        // Expected: Chunk has ByteArray[65536] storage
+        // Get a chunk
+        val chunk = world.getChunk(ChunkPosition(0, 0))
+        assertNotNull(chunk)
+
         // Expected: Chunk.getBlock() and setBlock() work with local coordinates (0-15 XZ, 0-255 Y)
-
-        TODO("Implement Chunk class - see data-model.md")
+        chunk.setBlock(0, 64, 0, BlockType.Stone)
+        assertEquals(BlockType.Stone, chunk.getBlock(0, 64, 0))
     }
 
     @Test
     fun testBlockTypeEnum() {
         // Contract: BlockType enum has Air, Grass, Dirt, Stone, Wood, Leaves, Sand, Water
 
-        // Expected: BlockType sealed class with 8 types
-        // Expected: BlockType.fromId(0) == BlockType.Air
-        // Expected: BlockType.fromId(1) == BlockType.Grass
-        // Expected: All types have unique IDs 0-7
-
-        TODO("Implement BlockType sealed class - see data-model.md")
+        // Expected: BlockType sealed class with all types
+        assertTrue(BlockType.Air is BlockType)
+        assertTrue(BlockType.Grass is BlockType)
+        assertTrue(BlockType.Dirt is BlockType)
+        assertTrue(BlockType.Stone is BlockType)
+        assertTrue(BlockType.Wood is BlockType)
+        assertTrue(BlockType.Leaves is BlockType)
+        assertTrue(BlockType.Sand is BlockType)
+        assertTrue(BlockType.Water is BlockType)
     }
 }

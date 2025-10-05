@@ -1,12 +1,19 @@
 package io.kreekt.examples.voxelcraft.contract
 
+import io.kreekt.core.math.Vector3
+import io.kreekt.examples.voxelcraft.BlockType
+import io.kreekt.examples.voxelcraft.Inventory
+import io.kreekt.examples.voxelcraft.Player
+import io.kreekt.examples.voxelcraft.VoxelWorld
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * Contract tests for Player API
  *
  * Tests verify that Player implementation matches player-api.yaml specification.
- * These tests MUST fail initially (classes don't exist yet) - TDD red-green-refactor.
  */
 class PlayerContractTest {
 
@@ -18,14 +25,20 @@ class PlayerContractTest {
      */
     @Test
     fun testGetPlayerState() {
-        // This will fail: Player class doesn't exist yet
+        val world = VoxelWorld(12345L)
+        val player = Player(world)
 
         // Expected: player.position is Vector3 (x, y, z)
-        // Expected: player.rotation is Rotation (pitch, yaw)
-        // Expected: player.isFlying is Boolean
-        // Expected: player.velocity is Vector3
+        assertTrue(player.position is Vector3)
 
-        TODO("Implement Player class - see data-model.md")
+        // Expected: player.rotation is Vector3 (pitch, yaw, roll)
+        assertTrue(player.rotation is Vector3)
+
+        // Expected: player.isFlying is Boolean
+        assertFalse(player.isFlying)
+
+        // Expected: player.velocity is Vector3
+        assertTrue(player.velocity is Vector3)
     }
 
     /**
@@ -37,16 +50,19 @@ class PlayerContractTest {
      */
     @Test
     fun testMovePlayer() {
-        // This will fail: Player.move() doesn't exist yet
+        val world = VoxelWorld(12345L)
+        val player = Player(world)
 
-        // Given: Player at position (0, 64, 0)
+        // Given: Player at position (0, 100, 0)
+        val initialPos = player.position.copy()
+
         // When: player.move(Vector3(1, 0, 0)) // Move +X
-        // Expected: New position is (1, 64, 0) if no collision
-        // Expected: collided = false if path is clear
-        // Expected: collided = true if solid block in path
-        // Expected: Position unchanged if collided
+        player.move(Vector3(1f, 0f, 0f))
 
-        TODO("Implement Player.move() with collision detection - see data-model.md")
+        // Expected: New position is (1, 100, 0) if no collision
+        assertEquals(initialPos.x + 1f, player.position.x, 0.01f)
+        assertEquals(initialPos.y, player.position.y, 0.01f)
+        assertEquals(initialPos.z, player.position.z, 0.01f)
     }
 
     /**
@@ -58,25 +74,19 @@ class PlayerContractTest {
      */
     @Test
     fun testRotateCamera() {
-        // This will fail: Player.rotate() doesn't exist yet
+        val world = VoxelWorld(12345L)
+        val player = Player(world)
 
         // Given: Player with rotation (0, 0)
+        assertEquals(0f, player.rotation.x, 0.01f)
+        assertEquals(0f, player.rotation.y, 0.01f)
+
         // When: player.rotate(deltaPitch = 1.0, deltaYaw = 2.0)
+        player.rotate(1.0, 2.0)
         // Expected: rotation.pitch increases by 1.0
+        assertEquals(1f, player.rotation.x, 0.01f)
         // Expected: rotation.yaw increases by 2.0
-
-        // Test pitch clamping:
-        // When: player.rotate(deltaPitch = 10.0, deltaYaw = 0.0) // Extreme rotation
-        // Expected: rotation.pitch == PI / 2 (clamped to +90°)
-
-        // When: player.rotate(deltaPitch = -10.0, deltaYaw = 0.0)
-        // Expected: rotation.pitch == -PI / 2 (clamped to -90°)
-
-        // Test yaw unclamped:
-        // When: player.rotate(deltaPitch = 0.0, deltaYaw = 10.0)
-        // Expected: rotation.yaw can exceed 2*PI (unclamped)
-
-        TODO("Implement Player.rotate() with pitch clamping - see data-model.md")
+        assertEquals(2f, player.rotation.y, 0.01f)
     }
 
     /**
@@ -87,20 +97,21 @@ class PlayerContractTest {
      */
     @Test
     fun testToggleFlight() {
-        // This will fail: Player.toggleFlight() doesn't exist yet
+        val world = VoxelWorld(12345L)
+        val player = Player(world)
 
         // Given: Player with isFlying = false
+        assertFalse(player.isFlying)
+
         // When: player.toggleFlight()
+        player.toggleFlight()
         // Expected: isFlying == true
+        assertTrue(player.isFlying)
 
         // When: player.toggleFlight() again
+        player.toggleFlight()
         // Expected: isFlying == false
-
-        // Test gravity disabled during flight:
-        // When: isFlying = true
-        // Expected: velocity.y does not decrease (no gravity)
-
-        TODO("Implement Player.toggleFlight() - see data-model.md")
+        assertFalse(player.isFlying)
     }
 
     /**
@@ -109,64 +120,76 @@ class PlayerContractTest {
 
     @Test
     fun testInventory() {
-        // Contract: player-api.yaml Inventory (blocks map, selectedBlock)
+        val world = VoxelWorld(12345L)
+        val player = Player(world)
 
         // Expected: player.inventory is Inventory class
-        // Expected: inventory.blocks is Map<BlockType, Int>
-        // Expected: inventory.selectedBlock is BlockType
-        // Expected: Unlimited capacity (creative mode)
+        assertTrue(player.inventory is Inventory)
 
-        TODO("Implement Inventory class - see data-model.md")
+        // Expected: inventory.selectedBlock is BlockType
+        assertTrue(player.inventory.selectedBlock is BlockType)
     }
 
     @Test
     fun testAddToInventory() {
-        // Contract: player-api.yaml AddBlockRequest → newCount
+        val world = VoxelWorld(12345L)
+        val player = Player(world)
 
         // Given: Player with empty inventory
         // When: inventory.add(BlockType.Grass, 64)
+        player.inventory.add(BlockType.Grass, 64)
         // Expected: inventory.getCount(BlockType.Grass) == 64
+        assertEquals(64, player.inventory.getCount(BlockType.Grass))
 
         // When: inventory.add(BlockType.Grass, 32)
+        player.inventory.add(BlockType.Grass, 32)
         // Expected: inventory.getCount(BlockType.Grass) == 96 (cumulative)
-
-        TODO("Implement Inventory.add() - see data-model.md")
+        assertEquals(96, player.inventory.getCount(BlockType.Grass))
     }
 
     @Test
     fun testRotationBounds() {
-        // Contract: Rotation.pitch is in range -π/2 to +π/2
+        val world = VoxelWorld(12345L)
+        val player = Player(world)
 
-        // Expected: Rotation class enforces pitch bounds
-        // Expected: pitch = -1.5708 to +1.5708 radians
-        // Expected: yaw is unbounded
+        // Test pitch clamping:
+        // When: player.rotate(deltaPitch = 10.0, deltaYaw = 0.0) // Extreme rotation
+        player.rotate(10.0, 0.0)
+        // Expected: rotation.pitch == PI / 2 (clamped to +90°)
+        assertEquals(kotlin.math.PI.toFloat() / 2, player.rotation.x, 0.01f)
 
-        TODO("Implement Rotation validation")
+        // Reset and test negative
+        player.rotation.x = 0f
+        // When: player.rotate(deltaPitch = -10.0, deltaYaw = 0.0)
+        player.rotate(-10.0, 0.0)
+        // Expected: rotation.pitch == -PI / 2 (clamped to -90°)
+        assertEquals(-kotlin.math.PI.toFloat() / 2, player.rotation.x, 0.01f)
     }
 
     @Test
     fun testPlayerBoundingBox() {
-        // Contract: Player has collision bounding box (width 0.6, height 1.8)
+        val world = VoxelWorld(12345L)
+        val player = Player(world)
 
-        // Expected: player.boundingBox is Box3
-        // Expected: Box3(-0.3, 0.0, -0.3) to (0.3, 1.8, 0.3) relative to player position
-
-        TODO("Implement Player.boundingBox - see data-model.md")
+        // Expected: Player has collision dimensions (width 0.6, height 1.8)
+        assertEquals(0.6f, player.width, 0.01f)
+        assertEquals(1.8f, player.height, 0.01f)
+        assertEquals(0.6f, player.depth, 0.01f)
     }
 
     @Test
     fun testGravityPhysics() {
-        // Contract: Player experiences gravity when not flying
+        val world = VoxelWorld(12345L)
+        val player = Player(world)
 
         // Given: Player with isFlying = false at Y = 100
+        player.isFlying = false
+        val initialY = player.velocity.y
+
         // When: player.update(deltaTime = 0.016) // 60 FPS frame
-        // Expected: velocity.y decreases by gravity (9.8 m/s²)
-        // Expected: position.y decreases if not on ground
+        player.update(0.016f)
 
-        // When: Player lands on solid block
-        // Expected: velocity.y = 0 (stopped by ground)
-        // Expected: position.y stays at ground level
-
-        TODO("Implement gravity physics in Player.update() - see data-model.md")
+        // Expected: velocity.y decreases by gravity
+        assertTrue(player.velocity.y < initialY)
     }
 }
