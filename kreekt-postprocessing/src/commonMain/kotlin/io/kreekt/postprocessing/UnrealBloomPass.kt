@@ -123,19 +123,25 @@ class UnrealBloomPass(
         deltaTime: Float,
         maskActive: Boolean
     ) {
+        // Ensure render targets are initialized
+        val brightTarget = renderTargetBright ?: run {
+            println("Warning: UnrealBloomPass not initialized, call setSize() first")
+            return
+        }
+
         // 1. Extract bright pixels
         brightnessPass.uniforms["threshold"] = threshold
         brightnessPass.uniforms["tDiffuse"] = readBuffer.texture
         brightnessPass.render(
             renderer,
-            renderTargetBright!!,
+            brightTarget,
             readBuffer,
             deltaTime,
             maskActive
         )
 
         // 2. Progressive downsampling and blurring
-        var inputTexture = renderTargetBright!!.texture
+        var inputTexture = brightTarget.texture
 
         for (i in renderTargetsHorizontal.indices) {
             // Horizontal blur

@@ -21,9 +21,9 @@ internal class ResultAggregator(
         val categories = mutableListOf<io.kreekt.validation.models.ValidationCategory>()
         val remediationActions = mutableListOf<io.kreekt.validation.models.RemediationAction>()
 
-        // Get git information (stub)
-        val branchName = "main" // TODO: Get from git
-        val commitHash = "unknown" // TODO: Get from git
+        // Get git information from context or use defaults
+        val branchName = context.configuration["branchName"] as? String ?: "unknown"
+        val commitHash = context.configuration["commitHash"] as? String ?: "unknown"
 
         // Process each validation result
         executionResult.results.forEach { validatorResult ->

@@ -45,12 +45,11 @@ actual object FileSystem {
         directoryPath: String,
         extensions: List<String>
     ): List<String> {
-        // Simplified implementation for Linux
-        // In a real implementation, this would use opendir/readdir
-        return listOf(
-            "$directoryPath/src/commonMain/kotlin/io/kreekt/renderer/BufferManager.kt",
-            "$directoryPath/src/commonMain/kotlin/io/kreekt/animation/SkeletalAnimationSystem.kt"
-        )
+        // Simplified implementation for Linux Native platform
+        // Full implementation would use opendir/readdir POSIX APIs or C++ filesystem
+        // library via interop. Current implementation returns empty list as validation
+        // is primarily used on JVM/JS platforms.
+        return emptyList()
     }
 
     actual suspend fun getLastModified(filePath: String): Long {

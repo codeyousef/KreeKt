@@ -277,7 +277,10 @@ class InstanceManager(
         val baseBatchKey = meshToBatch[mesh] ?: return null
         var overflowIndex = 1
 
-        while (true) {
+        // Use a reasonable maximum to prevent infinite loops
+        val maxOverflowBatches = 1000
+
+        while (overflowIndex <= maxOverflowBatches) {
             val overflowKey = "${baseBatchKey}_overflow_$overflowIndex"
             if (!batches.containsKey(overflowKey)) {
                 val batch = InstancedBatch(
@@ -290,13 +293,12 @@ class InstanceManager(
                 return batch
             }
 
-            val existingBatch = batches[overflowKey]!!
-            if (existingBatch.hasCapacity()) {
+            val existingBatch = batches[overflowKey]
+            if (existingBatch?.hasCapacity() == true) {
                 return existingBatch
             }
 
             overflowIndex++
-            if (overflowIndex > 10) break // Limit overflow batches
         }
 
         return null
@@ -328,7 +330,7 @@ class InstanceManager(
      * Stream instance data for dynamic updates
      */
     fun streamInstanceData(): Flow<List<InstanceData>> = flow {
-        while (true) {
+        while (currentCoroutineContext().isActive) {
             val allInstances = batches.values.flatMap { batch ->
                 // Get instances from batch (would need to expose this)
                 emptyList<InstanceData>()

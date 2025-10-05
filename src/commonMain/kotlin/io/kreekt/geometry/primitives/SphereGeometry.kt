@@ -3,6 +3,7 @@
  */
 package io.kreekt.geometry.primitives
 
+import io.kreekt.core.math.floatEquals
 import io.kreekt.geometry.BufferAttribute
 import io.kreekt.geometry.PrimitiveGeometry
 import io.kreekt.geometry.PrimitiveParameters
@@ -88,7 +89,7 @@ class SphereGeometry(
             var uOffset = 0f
             if (iy == 0 && params.thetaStart == 0f) {
                 uOffset = 0.5f / widthSegs.toFloat()
-            } else if (iy == heightSegs && thetaEnd == PI.toFloat()) {
+            } else if (iy == heightSegs && floatEquals(thetaEnd, PI.toFloat())) {
                 uOffset = -0.5f / widthSegs.toFloat()
             }
 
@@ -128,7 +129,7 @@ class SphereGeometry(
                 if (iy != 0 || params.thetaStart > 0f) {
                     indices.addAll(listOf(a, b, d))
                 }
-                if (iy != heightSegs - 1 || thetaEnd < PI.toFloat()) {
+                if (iy != heightSegs - 1 || !floatEquals(thetaEnd, PI.toFloat())) {
                     indices.addAll(listOf(b, c, d))
                 }
             }

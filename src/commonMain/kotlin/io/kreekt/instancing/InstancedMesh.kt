@@ -72,10 +72,11 @@ class InstancedMesh(
         }
 
         val offset = index * 3
-        instanceColor!!.array[offset] = color.r
-        instanceColor!!.array[offset + 1] = color.g
-        instanceColor!!.array[offset + 2] = color.b
-        instanceColor!!.needsUpdate = true
+        val ic = instanceColor ?: return
+        ic.array[offset] = color.r
+        ic.array[offset + 1] = color.g
+        ic.array[offset + 2] = color.b
+        ic.needsUpdate = true
     }
 
     /**
@@ -92,9 +93,10 @@ class InstancedMesh(
         }
 
         val offset = index * 3
-        color.r = instanceColor!!.array[offset]
-        color.g = instanceColor!!.array[offset + 1]
-        color.b = instanceColor!!.array[offset + 2]
+        val ic = instanceColor ?: return
+        color.r = ic.array[offset]
+        color.g = ic.array[offset + 1]
+        color.b = ic.array[offset + 2]
     }
 
     /**

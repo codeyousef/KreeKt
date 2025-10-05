@@ -44,24 +44,24 @@ class CameraHelper(val camera: Camera) : Object3D() {
         val positions = mutableListOf<Float>()
 
         // Near plane
-        addLine(positions, pointMap["n1"]!!, pointMap["n2"]!!)
-        addLine(positions, pointMap["n2"]!!, pointMap["n3"]!!)
-        addLine(positions, pointMap["n3"]!!, pointMap["n4"]!!)
-        addLine(positions, pointMap["n4"]!!, pointMap["n1"]!!)
+        pointMap["n1"]?.let { n1 -> pointMap["n2"]?.let { n2 -> addLine(positions, n1, n2) } }
+        pointMap["n2"]?.let { n2 -> pointMap["n3"]?.let { n3 -> addLine(positions, n2, n3) } }
+        pointMap["n3"]?.let { n3 -> pointMap["n4"]?.let { n4 -> addLine(positions, n3, n4) } }
+        pointMap["n4"]?.let { n4 -> pointMap["n1"]?.let { n1 -> addLine(positions, n4, n1) } }
 
         // Far plane
-        addLine(positions, pointMap["f1"]!!, pointMap["f2"]!!)
-        addLine(positions, pointMap["f2"]!!, pointMap["f3"]!!)
-        addLine(positions, pointMap["f3"]!!, pointMap["f4"]!!)
-        addLine(positions, pointMap["f4"]!!, pointMap["f1"]!!)
+        pointMap["f1"]?.let { f1 -> pointMap["f2"]?.let { f2 -> addLine(positions, f1, f2) } }
+        pointMap["f2"]?.let { f2 -> pointMap["f3"]?.let { f3 -> addLine(positions, f2, f3) } }
+        pointMap["f3"]?.let { f3 -> pointMap["f4"]?.let { f4 -> addLine(positions, f3, f4) } }
+        pointMap["f4"]?.let { f4 -> pointMap["f1"]?.let { f1 -> addLine(positions, f4, f1) } }
 
         // Connecting lines
-        addLine(positions, pointMap["n1"]!!, pointMap["f1"]!!)
-        addLine(positions, pointMap["n2"]!!, pointMap["f2"]!!)
-        addLine(positions, pointMap["n3"]!!, pointMap["f3"]!!)
-        addLine(positions, pointMap["n4"]!!, pointMap["f4"]!!)
+        pointMap["n1"]?.let { n1 -> pointMap["f1"]?.let { f1 -> addLine(positions, n1, f1) } }
+        pointMap["n2"]?.let { n2 -> pointMap["f2"]?.let { f2 -> addLine(positions, n2, f2) } }
+        pointMap["n3"]?.let { n3 -> pointMap["f3"]?.let { f3 -> addLine(positions, n3, f3) } }
+        pointMap["n4"]?.let { n4 -> pointMap["f4"]?.let { f4 -> addLine(positions, n4, f4) } }
 
-        geometry!!.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
+        geometry?.setAttribute("position", BufferAttribute(positions.toFloatArray(), 3))
 
         name = "CameraHelper"
     }

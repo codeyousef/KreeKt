@@ -9,10 +9,7 @@ import io.kreekt.core.math.Quaternion
 import io.kreekt.core.math.Vector2
 import io.kreekt.core.math.Vector3
 import io.kreekt.core.platform.currentTimeMillis
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 
 /**
  * Default implementation of XRAnchor interface
@@ -31,10 +28,11 @@ class DefaultXRAnchor(
     private var currentPose: XRPose = initialPose
     private var deleted = false
     private var persistentHandle: String? = null
+    private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val mutex = kotlinx.coroutines.sync.Mutex()
 
-    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
-    private val trackingUpdateJob: Job = GlobalScope.launch {
-        while (!deleted) {
+    private val trackingUpdateJob: Job = coroutineScope.launch {
+        while (isActive && !deleted) {
             updateTrackingState()
             delay(100) // Update at 10Hz
         }
@@ -79,6 +77,7 @@ class DefaultXRAnchor(
 
             // Stop tracking
             trackingUpdateJob.cancel()
+            coroutineScope.cancel() // Cancel all coroutines in this anchor's scope
             deleted = true
             _trackingState = XRTrackingState.STOPPED
         } catch (e: Exception) {
@@ -142,6 +141,7 @@ class SpatialTrackingManager(
     private var worldTrackingState = XRTrackingState.TRACKING
     private var trackingQuality = TrackingQuality.GOOD
     private var trackingJob: Job? = null
+    private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     init {
         startTrackingUpdates()
@@ -300,10 +300,9 @@ class SpatialTrackingManager(
         trackingListeners.forEach { it.onTrackingOriginReset() }
     }
 
-    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
     private fun startTrackingUpdates() {
-        trackingJob = GlobalScope.launch {
-            while (true) {
+        trackingJob = coroutineScope.launch {
+            while (isActive) {
                 if (isTrackingActive()) {
                     updateAnchorPoses()
                     checkTrackingQuality()
@@ -374,6 +373,7 @@ class SpatialTrackingManager(
 
     fun dispose() {
         trackingJob?.cancel()
+        coroutineScope.cancel() // Cancel all coroutines
         anchors.values.forEach { anchor ->
             anchor.delete()
         }
@@ -544,7 +544,13 @@ object CoordinateSystemManager {
             .applyMatrix4(viewMatrix)
             .applyMatrix4(projectionMatrix)
 
-        // Perform perspective divide
+        // Perform perspective divide with zero check
+        val epsilon = 0.00001f
+        if (kotlin.math.abs(clipSpace.z) < epsilon) {
+            // Return center of viewport when z is near zero (at camera plane)
+            return Vector2(viewport.x + viewport.width * 0.5f, viewport.y + viewport.height * 0.5f)
+        }
+
         val ndcX = clipSpace.x / clipSpace.z
         val ndcY = clipSpace.y / clipSpace.z
 
@@ -564,6 +570,13 @@ object CoordinateSystemManager {
         projectionMatrix: Matrix4,
         viewport: XRViewport
     ): Ray {
+        // Check for valid viewport dimensions
+        val epsilon = 0.00001f
+        if (viewport.width < epsilon || viewport.height < epsilon) {
+            // Return default ray pointing forward when viewport is invalid
+            return Ray(Vector3(0f, 0f, 0f), Vector3(0f, 0f, -1f))
+        }
+
         // Convert screen to NDC
         val ndcX = ((screenPosition.x - viewport.x) / viewport.width) * 2 - 1
         val ndcY = 1 - ((screenPosition.y - viewport.y) / viewport.height) * 2

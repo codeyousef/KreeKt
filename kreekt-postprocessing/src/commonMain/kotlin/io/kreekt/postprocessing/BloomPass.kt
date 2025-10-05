@@ -115,40 +115,48 @@ class BloomPass(
         deltaTime: Float,
         maskActive: Boolean
     ) {
+        // Ensure render targets are initialized
+        val brightTarget = renderTargetBright ?: run {
+            println("Warning: BloomPass not initialized, call setSize() first")
+            return
+        }
+        val horizontalTarget = renderTargetHorizontal ?: return
+        val verticalTarget = renderTargetVertical ?: return
+
         // 1. Extract bright pixels
         brightnessPass.uniforms["threshold"] = threshold
         brightnessPass.uniforms["tDiffuse"] = readBuffer.texture
         brightnessPass.render(
             renderer,
-            renderTargetBright!!,
+            brightTarget,
             readBuffer,
             deltaTime,
             maskActive
         )
 
         // 2. Apply horizontal blur
-        horizontalBlurPass.uniforms["tDiffuse"] = renderTargetBright!!.texture
+        horizontalBlurPass.uniforms["tDiffuse"] = brightTarget.texture
         horizontalBlurPass.render(
             renderer,
-            renderTargetHorizontal!!,
-            renderTargetBright!!,
+            horizontalTarget,
+            brightTarget,
             deltaTime,
             maskActive
         )
 
         // 3. Apply vertical blur
-        verticalBlurPass.uniforms["tDiffuse"] = renderTargetHorizontal!!.texture
+        verticalBlurPass.uniforms["tDiffuse"] = horizontalTarget.texture
         verticalBlurPass.render(
             renderer,
-            renderTargetVertical!!,
-            renderTargetHorizontal!!,
+            verticalTarget,
+            horizontalTarget,
             deltaTime,
             maskActive
         )
 
         // 4. Composite bloom with original image
         compositePass.uniforms["tDiffuse"] = readBuffer.texture
-        compositePass.uniforms["tBloom"] = renderTargetVertical!!.texture
+        compositePass.uniforms["tBloom"] = verticalTarget.texture
         compositePass.uniforms["strength"] = strength
         compositePass.renderToScreen = renderToScreen
         compositePass.render(

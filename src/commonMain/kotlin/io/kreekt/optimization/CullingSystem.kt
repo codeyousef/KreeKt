@@ -149,9 +149,10 @@ class OctreeNode(
             return false
         }
 
-        if (children != null) {
+        val childNodes = children
+        if (childNodes != null) {
             // Insert into children
-            children!!.forEach { child ->
+            childNodes.forEach { child ->
                 if (child.insert(mesh)) {
                     return true
                 }
@@ -200,7 +201,8 @@ class OctreeNode(
 
         objectsToRedistribute.forEach { mesh ->
             var inserted = false
-            children!!.forEach { child ->
+            val childNodes = children ?: return
+            childNodes.forEach { child ->
                 if (child.insert(mesh)) {
                     inserted = true
                     return@forEach

@@ -5,6 +5,8 @@ import io.kreekt.core.math.Vector2
 import io.kreekt.renderer.TextureFilter
 import io.kreekt.renderer.TextureFormat
 import io.kreekt.renderer.TextureWrap
+import kotlinx.atomicfu.AtomicInt
+import kotlinx.atomicfu.atomic
 
 /**
  * Base texture class following Three.js Texture API
@@ -79,8 +81,8 @@ abstract class Texture : io.kreekt.renderer.Texture {
     var onUpdate: (() -> Unit)? = null
 
     companion object {
-        private var nextId = 1
-        private fun generateId(): Int = nextId++
+        private val nextId: AtomicInt = atomic(1)
+        private fun generateId(): Int = nextId.getAndIncrement()
 
         // Texture constants matching Three.js
         const val DEFAULT_IMAGE = 1

@@ -82,12 +82,20 @@ class IKSolver {
 
             while (iteration < maxIterations) {
                 // Forward reaching - start from end effector
+                if (currentPositions.isEmpty()) {
+                    return IKResult(false, 0, Float.MAX_VALUE, false)
+                }
                 currentPositions[currentPositions.size - 1] = target.clone()
 
                 for (i in currentPositions.size - 2 downTo 0) {
-                    val direction = currentPositions[i].clone()
+                    val directionVector = currentPositions[i].clone()
                         .subtract(currentPositions[i + 1])
-                        .normalize()
+                    val length = directionVector.length()
+                    if (length < 0.00001f) {
+                        // Handle zero-length vector
+                        continue
+                    }
+                    val direction = directionVector.normalize()
                     currentPositions[i] = currentPositions[i + 1].clone()
                         .add(direction.multiplyScalar(boneLengths[i]))
 
@@ -162,8 +170,10 @@ class IKSolver {
                 val newLowerPos = upperPos.clone().add(direction.clone().multiplyScalar(upperLength))
                 val newEffectorPos = newLowerPos.clone().add(direction.multiplyScalar(lowerLength))
 
-                // Apply positions
-                lowerBone.position.copy(lowerBone.parent!!.worldToLocal(newLowerPos))
+                // Apply positions (safe null handling)
+                lowerBone.parent?.let { parent ->
+                    lowerBone.position.copy(parent.worldToLocal(newLowerPos))
+                }
                 effector.position.copy(lowerBone.worldToLocal(newEffectorPos))
 
                 return IKResult(false, 1, targetDistance - totalLength, false)
@@ -450,13 +460,11 @@ class IKSolver {
                 val bone = bones[i]
                 val worldPos = positions[i]
 
-                // Convert world position to local position
-                if (bone.parent != null) {
-                    val localPos = bone.parent!!.worldToLocal(worldPos)
+                // Convert world position to local position (safe null handling)
+                bone.parent?.let { parent ->
+                    val localPos = parent.worldToLocal(worldPos)
                     bone.position.copy(localPos)
-                } else {
-                    bone.position.copy(worldPos)
-                }
+                } ?: bone.position.copy(worldPos)
 
                 // Update rotation to look towards next bone
                 if (i < positions.size - 1) {

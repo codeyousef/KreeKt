@@ -5,6 +5,8 @@ import io.kreekt.core.math.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.reflect.KClass
 import kotlin.time.measureTime
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +57,7 @@ open class ObjectPool<T : Any>(
     private val available = mutableListOf<T>()
     private val inUse = mutableSetOf<T>()
     private val statistics = PoolStatistics()
+    private val poolMutex = kotlinx.coroutines.sync.Mutex()
 
     init {
         // Pre-allocate objects
@@ -67,7 +70,7 @@ open class ObjectPool<T : Any>(
     /**
      * Acquire object from pool
      */
-    fun acquire(): T {
+    suspend fun acquire(): T = poolMutex.withLock {
         statistics.acquireCount++
         val obj = if (available.isNotEmpty()) {
             statistics.poolHits++
@@ -80,15 +83,15 @@ open class ObjectPool<T : Any>(
         inUse.add(obj)
         statistics.currentInUse = inUse.size
         statistics.peakInUse = maxOf(statistics.peakInUse, inUse.size)
-        return obj
+        obj
     }
 
     /**
      * Release object back to pool
      */
-    fun release(obj: T) {
+    suspend fun release(obj: T) = poolMutex.withLock {
         if (!inUse.remove(obj)) {
-            return // Object not from this pool
+            return@withLock // Object not from this pool
         }
         statistics.releaseCount++
         reset(obj)
@@ -104,21 +107,48 @@ open class ObjectPool<T : Any>(
     /**
      * Batch acquire multiple objects
      */
-    fun acquireBatch(count: Int): List<T> {
-        return List(count) { acquire() }
+    suspend fun acquireBatch(count: Int): List<T> = poolMutex.withLock {
+        List(count) {
+            statistics.acquireCount++
+            val obj = if (available.isNotEmpty()) {
+                statistics.poolHits++
+                available.removeAt(available.size - 1)
+            } else {
+                statistics.poolMisses++
+                statistics.totalCreated++
+                factory()
+            }
+            inUse.add(obj)
+            statistics.currentInUse = inUse.size
+            statistics.peakInUse = maxOf(statistics.peakInUse, inUse.size)
+            obj
+        }
     }
 
     /**
      * Batch release multiple objects
      */
-    fun releaseBatch(objects: List<T>) {
-        objects.forEach { release(it) }
+    suspend fun releaseBatch(objects: List<T>) = poolMutex.withLock {
+        objects.forEach { obj ->
+            if (!inUse.remove(obj)) {
+                return@forEach // Object not from this pool
+            }
+            statistics.releaseCount++
+            reset(obj)
+            if (available.size < maxSize) {
+                available.add(obj)
+            } else {
+                statistics.totalDestroyed++
+                // Let GC handle it
+            }
+            statistics.currentInUse = inUse.size
+        }
     }
 
     /**
      * Use object temporarily with automatic release
      */
-    inline fun <R> use(block: (T) -> R): R {
+    suspend inline fun <R> use(block: suspend (T) -> R): R {
         val obj = acquire()
         return try {
             block(obj)
@@ -130,7 +160,7 @@ open class ObjectPool<T : Any>(
     /**
      * Clear the pool
      */
-    fun clear() {
+    suspend fun clear() = poolMutex.withLock {
         available.clear()
         inUse.clear()
         statistics.reset()
@@ -139,7 +169,7 @@ open class ObjectPool<T : Any>(
     /**
      * Trim pool to specified size
      */
-    fun trim(targetSize: Int = maxSize / 2) {
+    suspend fun trim(targetSize: Int = maxSize / 2) = poolMutex.withLock {
         while (available.size > targetSize && available.isNotEmpty()) {
             available.removeAt(available.size - 1)
             statistics.totalDestroyed++
@@ -172,14 +202,14 @@ class Vector3Pool(
     /**
      * Acquire with initialization
      */
-    fun acquire(x: Float, y: Float, z: Float): Vector3 {
+    suspend fun acquire(x: Float, y: Float, z: Float): Vector3 {
         return acquire().apply { set(x, y, z) }
     }
 
     /**
      * Acquire copy of existing vector
      */
-    fun acquire(source: Vector3): Vector3 {
+    suspend fun acquire(source: Vector3): Vector3 {
         return acquire().apply { copy(source) }
     }
 }
@@ -199,14 +229,14 @@ class Matrix4Pool(
     /**
      * Acquire identity matrix
      */
-    fun acquireIdentity(): Matrix4 {
+    suspend fun acquireIdentity(): Matrix4 {
         return acquire().apply { identity() }
     }
 
     /**
      * Acquire with transformation
      */
-    fun acquire(position: Vector3, rotation: Quaternion, scale: Vector3): Matrix4 {
+    suspend fun acquire(position: Vector3, rotation: Quaternion, scale: Vector3): Matrix4 {
         return acquire().apply {
             // Compose transformation: rotation * scale + translation
             makeRotationFromQuaternion(rotation)
@@ -235,14 +265,14 @@ class QuaternionPool(
     /**
      * Acquire identity quaternion
      */
-    fun acquireIdentity(): Quaternion {
+    suspend fun acquireIdentity(): Quaternion {
         return acquire().apply { identity() }
     }
 
     /**
      * Acquire from axis-angle
      */
-    fun acquire(axis: Vector3, angle: Float): Quaternion {
+    suspend fun acquire(axis: Vector3, angle: Float): Quaternion {
         return acquire().apply { setFromAxisAngle(axis, angle) }
     }
 }
@@ -348,7 +378,7 @@ object PoolManager {
     /**
      * Clear all pools
      */
-    fun clearAll() {
+    suspend fun clearAll() {
         pools.values.forEach { it.clear() }
         mathPools.vector3.clear()
         mathPools.matrix4.clear()
@@ -365,7 +395,7 @@ object PoolManager {
         // Pool size adjustment logic would go here
     }
 
-    private fun performMaintenance() {
+    private suspend fun performMaintenance() {
         // Trim pools based on usage patterns
         val stats = getAllStatistics()
         stats.forEach { (name, stat) ->

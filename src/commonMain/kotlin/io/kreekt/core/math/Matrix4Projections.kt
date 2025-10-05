@@ -15,6 +15,13 @@ internal fun Matrix4.makePerspectiveProjection(
     near: Float,
     far: Float
 ): Matrix4 {
+    // Validate parameters to prevent degenerate frustums
+    require(right != left) { "Degenerate frustum: right must not equal left" }
+    require(top != bottom) { "Degenerate frustum: top must not equal bottom" }
+    require(far != near) { "Degenerate frustum: far must not equal near" }
+    require(near > 0f) { "Invalid perspective: near must be positive" }
+    require(far > near) { "Invalid perspective: far must be greater than near" }
+
     val x = 2f * near / (right - left)
     val y = 2f * near / (top - bottom)
     val a = (right + left) / (right - left)
@@ -41,6 +48,11 @@ internal fun Matrix4.makeOrthographicProjection(
     near: Float,
     far: Float
 ): Matrix4 {
+    // Validate parameters to prevent degenerate frustums
+    require(right != left) { "Degenerate frustum: right must not equal left" }
+    require(top != bottom) { "Degenerate frustum: top must not equal bottom" }
+    require(far != near) { "Degenerate frustum: far must not equal near" }
+
     val w = 1f / (right - left)
     val h = 1f / (top - bottom)
     val p = 1f / (far - near)

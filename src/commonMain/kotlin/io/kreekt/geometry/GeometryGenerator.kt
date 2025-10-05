@@ -2,6 +2,7 @@ package io.kreekt.geometry
 
 import io.kreekt.core.math.Vector3
 import io.kreekt.core.math.Vector2
+import io.kreekt.core.math.floatEquals
 import kotlin.math.*
 
 /**
@@ -172,7 +173,7 @@ class DefaultGeometryGenerator : GeometryGenerator {
         for (iy in 0..heightSegments) {
             val v = iy.toFloat() / heightSegments
             val uOffset = if (iy == 0 && thetaStart == 0f) 0.5f / widthSegments else 0f
-            val uOffsetEnd = if (iy == heightSegments && thetaEnd == PI.toFloat()) -0.5f / widthSegments else 0f
+            val uOffsetEnd = if (iy == heightSegments && floatEquals(thetaEnd, PI.toFloat())) -0.5f / widthSegments else 0f
 
             for (ix in 0..widthSegments) {
                 val u = ix.toFloat() / widthSegments

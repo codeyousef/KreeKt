@@ -320,7 +320,9 @@ class WebGLRenderer(
         val buffer = gl.createBuffer() ?: throw Exception("Failed to create buffer")
         buffers[nextBufferId++] = buffer
         gl.bindBuffer(target, buffer)
-        gl.bufferData(target, data as ArrayBufferView, WebGLRenderingContext.STATIC_DRAW)
+        val arrayBufferView = data as? ArrayBufferView
+            ?: throw IllegalArgumentException("Data must be ArrayBufferView")
+        gl.bufferData(target, arrayBufferView, WebGLRenderingContext.STATIC_DRAW)
         return buffer
     }
 
@@ -536,12 +538,12 @@ class WebGLRenderer(
         val gl = this.gl
         return if (gl != null) {
             RendererCapabilities(
-                maxTextureSize = gl.getParameter(WebGLRenderingContext.MAX_TEXTURE_SIZE) as Int,
-                maxCubeMapSize = gl.getParameter(WebGLRenderingContext.MAX_CUBE_MAP_TEXTURE_SIZE) as Int,
-                maxVertexAttributes = gl.getParameter(WebGLRenderingContext.MAX_VERTEX_ATTRIBS) as Int,
-                maxVertexUniforms = gl.getParameter(WebGLRenderingContext.MAX_VERTEX_UNIFORM_VECTORS) as Int,
-                maxFragmentUniforms = gl.getParameter(WebGLRenderingContext.MAX_FRAGMENT_UNIFORM_VECTORS) as Int,
-                maxFragmentTextures = gl.getParameter(WebGLRenderingContext.MAX_TEXTURE_IMAGE_UNITS) as Int,
+                maxTextureSize = (gl.getParameter(WebGLRenderingContext.MAX_TEXTURE_SIZE) as? Int) ?: 2048,
+                maxCubeMapSize = (gl.getParameter(WebGLRenderingContext.MAX_CUBE_MAP_TEXTURE_SIZE) as? Int) ?: 2048,
+                maxVertexAttributes = (gl.getParameter(WebGLRenderingContext.MAX_VERTEX_ATTRIBS) as? Int) ?: 16,
+                maxVertexUniforms = (gl.getParameter(WebGLRenderingContext.MAX_VERTEX_UNIFORM_VECTORS) as? Int) ?: 256,
+                maxFragmentUniforms = (gl.getParameter(WebGLRenderingContext.MAX_FRAGMENT_UNIFORM_VECTORS) as? Int) ?: 256,
+                maxFragmentTextures = (gl.getParameter(WebGLRenderingContext.MAX_TEXTURE_IMAGE_UNITS) as? Int) ?: 16,
                 maxSamples = 4,
                 maxAnisotropy = 16f,
                 vendor = "WebGL",

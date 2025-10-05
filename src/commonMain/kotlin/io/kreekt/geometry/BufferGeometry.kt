@@ -214,7 +214,7 @@ open class BufferGeometry : MorphTargetGeometry {
                 _boundingBox = Box3()
             }
         }
-        return _boundingBox!!
+        return _boundingBox ?: Box3() // Safe fallback
     }
 
     fun computeBoundingSphere(): Sphere {
@@ -227,7 +227,7 @@ open class BufferGeometry : MorphTargetGeometry {
                 _boundingSphere = Sphere()
             }
         }
-        return _boundingSphere!!
+        return _boundingSphere ?: Sphere() // Safe fallback
     }
 
     val boundingBox: Box3? get() = if (_boundingBoxNeedsUpdate) null else _boundingBox

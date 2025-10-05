@@ -314,14 +314,16 @@ class DefaultClipAction(
 
         val result = FloatArray(valuesPerKey)
         for (i in 0 until valuesPerKey) {
-            val v1 = values[startIdx1 + i]
-            val v2 = values[startIdx2 + i]
-            result[i] = when (track.interpolation) {
-                InterpolationType.LINEAR -> v1 + (v2 - v1) * alpha
-                InterpolationType.STEP -> v1
-                InterpolationType.CUBIC_SPLINE -> {
-                    // Simplified cubic interpolation
-                    v1 + (v2 - v1) * alpha * alpha * (3f - 2f * alpha)
+            if (startIdx1 + i < values.size && startIdx2 + i < values.size) {
+                val v1 = values[startIdx1 + i]
+                val v2 = values[startIdx2 + i]
+                result[i] = when (track.interpolation) {
+                    InterpolationType.LINEAR -> v1 + (v2 - v1) * alpha
+                    InterpolationType.STEP -> v1
+                    InterpolationType.CUBIC_SPLINE -> {
+                        // Simplified cubic interpolation
+                        v1 + (v2 - v1) * alpha * alpha * (3f - 2f * alpha)
+                    }
                 }
             }
         }

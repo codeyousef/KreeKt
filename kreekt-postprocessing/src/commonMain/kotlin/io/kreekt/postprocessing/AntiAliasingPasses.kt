@@ -52,19 +52,25 @@ class TAAPass : Pass() {
         deltaTime: Float,
         maskActive: Boolean
     ) {
+        // Ensure render target is initialized
+        val prevTarget = previousRenderTarget ?: run {
+            println("Warning: TemporalAAPass not initialized, call setSize() first")
+            return
+        }
+
         // Apply jitter to camera
         val jitter = jitterOffsets[sampleLevel % jitterOffsets.size]
 
         // Blend current frame with history
         blendPass.uniforms["tDiffuse"] = readBuffer.texture
-        blendPass.uniforms["tPrevious"] = previousRenderTarget?.texture
+        blendPass.uniforms["tPrevious"] = prevTarget.texture
         blendPass.uniforms["mixRatio"] = 0.9f
         blendPass.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)
 
         // Save current frame as history
         val copyPass = ShaderPass(CopyShader())
         copyPass.uniforms["tDiffuse"] = writeBuffer.texture
-        copyPass.render(renderer, previousRenderTarget!!, writeBuffer, deltaTime, maskActive)
+        copyPass.render(renderer, prevTarget, writeBuffer, deltaTime, maskActive)
 
         sampleLevel++
     }

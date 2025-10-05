@@ -2,9 +2,7 @@ package io.kreekt.xr.input
 
 import io.kreekt.core.math.Vector3
 import io.kreekt.xr.*
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 
 /**
  * Input source manager for unified input handling
@@ -18,6 +16,8 @@ class XRInputSourceManager(
     private var primaryHand: DefaultXRHand? = null
     private var secondaryHand: DefaultXRHand? = null
     private var eyeGaze: DefaultXRGaze? = null
+
+    private var monitoringJob: Job? = null
 
     init {
         startInputMonitoring()
@@ -37,7 +37,9 @@ class XRInputSourceManager(
 
     @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
     private fun startInputMonitoring() {
-        GlobalScope.launch {
+        // Note: Using GlobalScope here requires proper cleanup via dispose()
+        // TODO: Migrate to use a scoped CoroutineScope passed as constructor parameter
+        monitoringJob = GlobalScope.launch {
             while (session.isSessionActive()) {
                 updateInputSources()
                 updateHandTracking()
@@ -45,6 +47,19 @@ class XRInputSourceManager(
                 delay(16)
             }
         }
+    }
+
+    /**
+     * Dispose of resources and cancel background monitoring.
+     * Must be called when the manager is no longer needed to prevent memory leaks.
+     */
+    fun dispose() {
+        monitoringJob?.cancel()
+        inputSources.clear()
+        inputCallbacks.clear()
+        primaryHand = null
+        secondaryHand = null
+        eyeGaze = null
     }
 
     private suspend fun updateInputSources() {

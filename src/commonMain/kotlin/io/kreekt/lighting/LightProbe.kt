@@ -126,15 +126,18 @@ class LightProbeImpl(
         val influence = getInfluence(surfacePosition)
         if (influence <= 0f) return Vector3.ZERO
 
+        val sphericalHarmonics = sh
+        val irrMap = irradianceMap
+
         return when {
-            sh != null -> {
+            sphericalHarmonics != null -> {
                 // Use spherical harmonics for fast approximation
-                val shResult = sh!!.evaluate(surfaceNormal)
+                val shResult = sphericalHarmonics.evaluate(surfaceNormal)
                 shResult * (influence * intensity)
             }
-            irradianceMap != null -> {
+            irrMap != null -> {
                 // Sample irradiance map directly
-                val irradianceColor = sampleIrradianceMap(irradianceMap!!, surfaceNormal)
+                val irradianceColor = sampleIrradianceMap(irrMap, surfaceNormal)
                 irradianceColor * influence * intensity
             }
             else -> Vector3.ZERO

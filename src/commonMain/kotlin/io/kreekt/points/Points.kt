@@ -43,9 +43,10 @@ open class Points(
                 morphTargetInfluences = MutableList(morphTargets.size) { 0f }
             }
             if (morphTargetDictionary == null) {
-                morphTargetDictionary = mutableMapOf()
+                val dictionary = mutableMapOf<String, Int>()
+                morphTargetDictionary = dictionary
                 morphTargets.forEachIndexed { index, _ ->
-                    morphTargetDictionary!![index.toString()] = index
+                    dictionary[index.toString()] = index
                 }
             }
         } else {

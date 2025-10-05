@@ -40,11 +40,9 @@ data class Bone(
     fun updateMatrixWorld(force: Boolean = false) {
         updateMatrix()
 
-        if (parent == null) {
-            matrixWorld.copy(matrix)
-        } else {
-            matrixWorld.multiplyMatrices(parent!!.matrixWorld, matrix)
-        }
+        parent?.let { p ->
+            matrixWorld.multiplyMatrices(p.matrixWorld, matrix)
+        } ?: matrixWorld.copy(matrix)
 
         if (force) {
             children.forEach { it.updateMatrixWorld(true) }
@@ -52,9 +50,7 @@ data class Bone(
     }
 
     fun add(child: Bone) {
-        if (child.parent != null) {
-            child.parent!!.remove(child)
-        }
+        child.parent?.remove(child)
         child.parent = this
         children.add(child)
     }

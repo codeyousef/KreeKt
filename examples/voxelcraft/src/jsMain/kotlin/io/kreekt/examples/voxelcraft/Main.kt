@@ -259,7 +259,7 @@ class VoxelCraft(val seed: Long) {
     }
 
     fun dispose() {
-        // TODO: Cleanup resources
+        world.dispose()
     }
 
     companion object {

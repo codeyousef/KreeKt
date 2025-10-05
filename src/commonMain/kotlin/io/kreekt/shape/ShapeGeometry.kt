@@ -53,9 +53,11 @@ class ShapeGeometry(
                 normals.add(0f)
                 normals.add(1f)
 
-                // Generate UVs based on bounding box
-                val u = (point.x - boundingBox.min.x) / (boundingBox.max.x - boundingBox.min.x)
-                val v = (point.y - boundingBox.min.y) / (boundingBox.max.y - boundingBox.min.y)
+                // Generate UVs based on bounding box (with division-by-zero guards)
+                val width = boundingBox.max.x - boundingBox.min.x
+                val height = boundingBox.max.y - boundingBox.min.y
+                val u = if (width > 0f) (point.x - boundingBox.min.x) / width else 0.5f
+                val v = if (height > 0f) (point.y - boundingBox.min.y) / height else 0.5f
                 uvs.add(u)
                 uvs.add(v)
             }
@@ -71,8 +73,11 @@ class ShapeGeometry(
                     normals.add(0f)
                     normals.add(1f)
 
-                    val u = (point.x - boundingBox.min.x) / (boundingBox.max.x - boundingBox.min.x)
-                    val v = (point.y - boundingBox.min.y) / (boundingBox.max.y - boundingBox.min.y)
+                    // Generate UVs with division-by-zero guards
+                    val width = boundingBox.max.x - boundingBox.min.x
+                    val height = boundingBox.max.y - boundingBox.min.y
+                    val u = if (width > 0f) (point.x - boundingBox.min.x) / width else 0.5f
+                    val v = if (height > 0f) (point.y - boundingBox.min.y) / height else 0.5f
                     uvs.add(u)
                     uvs.add(v)
                 }

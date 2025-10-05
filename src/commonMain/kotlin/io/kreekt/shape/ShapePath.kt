@@ -20,9 +20,10 @@ class ShapePath {
      * Move to a new starting point without drawing
      */
     fun moveTo(x: Float, y: Float): ShapePath {
-        currentPath = Path()
-        currentPath!!.moveTo(x, y)
-        subPaths.add(currentPath!!)
+        val path = Path()
+        currentPath = path
+        path.moveTo(x, y)
+        subPaths.add(path)
         return this
     }
 
@@ -31,7 +32,7 @@ class ShapePath {
      */
     fun lineTo(x: Float, y: Float): ShapePath {
         ensureCurrentPath()
-        currentPath!!.lineTo(x, y)
+        currentPath?.lineTo(x, y)
         return this
     }
 
@@ -40,7 +41,7 @@ class ShapePath {
      */
     fun quadraticCurveTo(cpX: Float, cpY: Float, x: Float, y: Float): ShapePath {
         ensureCurrentPath()
-        currentPath!!.quadraticCurveTo(cpX, cpY, x, y)
+        currentPath?.quadraticCurveTo(cpX, cpY, x, y)
         return this
     }
 
@@ -49,7 +50,7 @@ class ShapePath {
      */
     fun bezierCurveTo(cp1X: Float, cp1Y: Float, cp2X: Float, cp2Y: Float, x: Float, y: Float): ShapePath {
         ensureCurrentPath()
-        currentPath!!.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, x, y)
+        currentPath?.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, x, y)
         return this
     }
 
@@ -65,7 +66,7 @@ class ShapePath {
         clockwise: Boolean = false
     ): ShapePath {
         ensureCurrentPath()
-        currentPath!!.arc(x, y, radius, startAngle, endAngle, clockwise)
+        currentPath?.arc(x, y, radius, startAngle, endAngle, clockwise)
         return this
     }
 
@@ -83,7 +84,7 @@ class ShapePath {
         rotation: Float = 0f
     ): ShapePath {
         ensureCurrentPath()
-        currentPath!!.ellipse(x, y, xRadius, yRadius, startAngle, endAngle, clockwise, rotation)
+        currentPath?.ellipse(x, y, xRadius, yRadius, startAngle, endAngle, clockwise, rotation)
         return this
     }
 
@@ -101,7 +102,7 @@ class ShapePath {
         rotation: Float = 0f
     ): ShapePath {
         ensureCurrentPath()
-        currentPath!!.absellipse(x, y, xRadius, yRadius, startAngle, endAngle, clockwise, rotation)
+        currentPath?.absellipse(x, y, xRadius, yRadius, startAngle, endAngle, clockwise, rotation)
         return this
     }
 
@@ -110,7 +111,7 @@ class ShapePath {
      */
     fun splineThru(points: List<Vector2>): ShapePath {
         ensureCurrentPath()
-        currentPath!!.splineThru(points)
+        currentPath?.splineThru(points)
         return this
     }
 
@@ -141,8 +142,9 @@ class ShapePath {
      */
     private fun ensureCurrentPath() {
         if (currentPath == null) {
-            currentPath = Path()
-            subPaths.add(currentPath!!)
+            val path = Path()
+            currentPath = path
+            subPaths.add(path)
         }
     }
 
@@ -204,6 +206,9 @@ class ShapePath {
             val yi = shapePoints[i].y
             val xj = shapePoints[j].x
             val yj = shapePoints[j].y
+
+            // Check for division by zero before calculating intersection
+            if (kotlin.math.abs(yj - yi) < io.kreekt.core.math.EPSILON) continue
 
             val intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)
             if (intersect) inside = !inside

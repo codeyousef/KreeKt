@@ -2,6 +2,8 @@ package io.kreekt.material
 
 import io.kreekt.core.math.Color
 import io.kreekt.core.scene.Material
+import kotlinx.atomicfu.AtomicInt
+import kotlinx.atomicfu.atomic
 
 /**
  * Simple material implementation for basic examples
@@ -20,8 +22,8 @@ class SimpleMaterial(
     override var visible: Boolean = true
 
     private companion object {
-        private var nextId = 0
-        private fun generateId(): Int = ++nextId
+        private val nextId: AtomicInt = atomic(0)
+        private fun generateId(): Int = nextId.incrementAndGet()
     }
 
     fun clone(): SimpleMaterial = SimpleMaterial(

@@ -1,5 +1,8 @@
 package io.kreekt.texture
 
+import kotlinx.atomicfu.AtomicInt
+import kotlinx.atomicfu.atomic
+
 /**
  * Texture data source abstraction
  * Represents the actual image/data source for textures
@@ -33,19 +36,19 @@ class Source(
      * Get data URL if available
      */
     private fun getDataURL(): String? {
-        return when (data) {
-            is ImageElement -> (data as ImageElement).src
-            is CanvasElement -> (data as CanvasElement).toDataURL()
-            is VideoElement -> (data as VideoElement).src
+        return when (val d = data) {
+            is ImageElement -> d.src
+            is CanvasElement -> d.toDataURL()
+            is VideoElement -> d.src
             else -> null
         }
     }
 
     companion object {
-        private var sourceId = 0
+        private val sourceId: AtomicInt = atomic(0)
 
         fun generateUUID(): String {
-            return "source-${sourceId++}"
+            return "source-${sourceId.getAndIncrement()}"
         }
     }
 }

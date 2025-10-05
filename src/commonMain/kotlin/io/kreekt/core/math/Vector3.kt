@@ -236,16 +236,19 @@ data class Vector3(
     }
 
     fun divide(other: Vector3): Vector3 {
-        x /= other.x
-        y /= other.y
-        z /= other.z
+        val epsilon = 0.00001f
+        x /= if (kotlin.math.abs(other.x) < epsilon) 1f else other.x
+        y /= if (kotlin.math.abs(other.y) < epsilon) 1f else other.y
+        z /= if (kotlin.math.abs(other.z) < epsilon) 1f else other.z
         return this
     }
 
     fun divide(scalar: Float): Vector3 {
-        x /= scalar
-        y /= scalar
-        z /= scalar
+        val epsilon = 0.00001f
+        val safeDivisor = if (kotlin.math.abs(scalar) < epsilon) 1f else scalar
+        x /= safeDivisor
+        y /= safeDivisor
+        z /= safeDivisor
         return this
     }
 

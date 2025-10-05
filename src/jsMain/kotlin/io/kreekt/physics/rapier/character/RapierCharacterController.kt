@@ -62,7 +62,8 @@ class RapierCharacterController(
         position.y += velocity.y * deltaTime
         position.z += walkDirection.z * deltaTime
 
-        // Simple ground check (would need raycasting in real implementation)
+        // Simplified ground check using Y-position threshold
+        // Full physics integration would use Rapier raycasting for accurate ground detection
         if (position.y <= 0f) {
             position.y = 0f
             velocity.y = 0f

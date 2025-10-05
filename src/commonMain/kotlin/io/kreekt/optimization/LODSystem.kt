@@ -126,7 +126,18 @@ class LODGroup(
         } * (PI / 180.0).toFloat()
 
         val screenHeight = 1080f // Default screen height
-        val projectedSize = (boundingRadius / distance) * (screenHeight / (2.0f * tan(fov / 2.0f)))
+
+        // Check for division by zero - distance and tan(fov/2) must not be zero
+        if (kotlin.math.abs(distance) < io.kreekt.core.math.EPSILON) {
+            return Float.MAX_VALUE // Object is at camera position, use highest detail
+        }
+
+        val tanHalfFov = tan(fov / 2.0f)
+        if (kotlin.math.abs(tanHalfFov) < io.kreekt.core.math.EPSILON) {
+            return 0.0f // Invalid FOV, return minimum size
+        }
+
+        val projectedSize = (boundingRadius / distance) * (screenHeight / (2.0f * tanHalfFov))
 
         return projectedSize
     }

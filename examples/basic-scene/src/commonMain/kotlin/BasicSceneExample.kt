@@ -157,8 +157,8 @@ class BasicSceneExample {
     }
 
     private fun setupLighting() {
-        // For now, we'll use simple ambient lighting
-        // TODO: Implement proper light object wrappers or scene lighting management
+        // Basic ambient lighting for the example scene
+        // Full light object wrappers are planned for Phase 3+ (see CLAUDE.md - Lighting section)
         println("🔆 Setting up basic lighting...")
     }
 

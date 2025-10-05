@@ -91,28 +91,34 @@ class TangentGenerator {
             val deltaUV2 = uv2.clone().sub(uv0)
 
             // Calculate tangent and bitangent
-            val f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y + 0.00001f)
+            // Check determinant to avoid division by zero
+            val determinant = deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y
 
-            val tangent = Vector3(
-                f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x),
-                f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y),
-                f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z)
-            )
+            // If determinant is too small, skip this triangle to avoid numerical instability
+            if (kotlin.math.abs(determinant) >= io.kreekt.core.math.EPSILON) {
+                val f = 1.0f / determinant
 
-            val bitangent = Vector3(
-                f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x),
-                f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y),
-                f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z)
-            )
+                val tangent = Vector3(
+                    f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x),
+                    f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y),
+                    f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z)
+                )
 
-            // Accumulate
-            tangents[i0].add(tangent)
-            tangents[i1].add(tangent)
-            tangents[i2].add(tangent)
+                val bitangent = Vector3(
+                    f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x),
+                    f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y),
+                    f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z)
+                )
 
-            bitangents[i0].add(bitangent)
-            bitangents[i1].add(bitangent)
-            bitangents[i2].add(bitangent)
+                // Accumulate
+                tangents[i0].add(tangent)
+                tangents[i1].add(tangent)
+                tangents[i2].add(tangent)
+
+                bitangents[i0].add(bitangent)
+                bitangents[i1].add(bitangent)
+                bitangents[i2].add(bitangent)
+            }
         }
 
         // Process triangles

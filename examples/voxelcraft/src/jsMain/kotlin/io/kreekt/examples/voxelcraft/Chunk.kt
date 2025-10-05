@@ -214,6 +214,15 @@ class Chunk(
         return x + z * 16 + y * 256
     }
 
+    /**
+     * Clean up chunk resources
+     * Note: Mesh geometry and materials are managed by Scene
+     */
+    fun dispose() {
+        mesh = null
+        isDirty = false
+    }
+
     companion object {
         /**
          * Total blocks per chunk (16 × 16 × 256)

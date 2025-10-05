@@ -127,6 +127,9 @@ object TextLayoutEngine {
             }
         } else {
             // No spaces, distribute width between all characters
+            // Check for division by zero - need at least 2 glyphs to distribute space
+            if (glyphs.size <= 1) return
+
             val extraCharWidth = widthDiff / (glyphs.size - 1)
             for (i in glyphs.indices) {
                 val glyph = glyphs[i]

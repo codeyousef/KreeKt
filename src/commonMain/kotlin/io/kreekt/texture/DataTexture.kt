@@ -282,11 +282,14 @@ class DataTexture(
         val index = (y * width + x) * 4
 
         return when {
-            _floatData != null && index + 3 < _floatData!!.size -> Color(
-                _floatData!![index],
-                _floatData!![index + 1],
-                _floatData!![index + 2]
-            )
+            _floatData != null -> {
+                val fd = _floatData
+                if (fd != null && index + 3 < fd.size) {
+                    Color(fd[index], fd[index + 1], fd[index + 2])
+                } else {
+                    Color.BLACK
+                }
+            }
 
             _data.isNotEmpty() && index + 3 < _data.size -> Color(
                 _data[index].toUByte().toFloat() / 255f,
@@ -309,11 +312,14 @@ class DataTexture(
         val index = (y * width + x) * 4
 
         when {
-            _floatData != null && index + 3 < _floatData!!.size -> {
-                _floatData!![index] = color.r
-                _floatData!![index + 1] = color.g
-                _floatData!![index + 2] = color.b
-                _floatData!![index + 3] = 1.0f // Full alpha
+            _floatData != null -> {
+                val fd = _floatData
+                if (fd != null && index + 3 < fd.size) {
+                    fd[index] = color.r
+                    fd[index + 1] = color.g
+                    fd[index + 2] = color.b
+                    fd[index + 3] = 1.0f // Full alpha
+                }
             }
 
             _data.isNotEmpty() && index + 3 < _data.size -> {
@@ -334,11 +340,15 @@ class DataTexture(
     fun clear(color: Color = Color.BLACK) {
         when {
             _floatData != null -> {
-                for (i in _floatData!!.indices step 4) {
-                    _floatData!![i] = color.r
-                    _floatData!![i + 1] = color.g
-                    _floatData!![i + 2] = color.b
-                    _floatData!![i + 3] = 1.0f // Full alpha
+                _floatData?.let { fd ->
+                    for (i in fd.indices step 4) {
+                        if (i + 3 < fd.size) {
+                            fd[i] = color.r
+                            fd[i + 1] = color.g
+                            fd[i + 2] = color.b
+                            fd[i + 3] = 1.0f // Full alpha
+                        }
+                    }
                 }
             }
 
@@ -408,8 +418,8 @@ class DataTexture(
      * Get the size of the texture data in bytes
      */
     fun getDataSize(): Int = when {
-        _floatData != null -> _floatData!!.size * 4
-        _intData != null -> _intData!!.size * 4
+        _floatData != null -> (_floatData?.size ?: 0) * 4
+        _intData != null -> (_intData?.size ?: 0) * 4
         else -> _data.size
     }
 }

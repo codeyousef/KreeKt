@@ -78,4 +78,14 @@ class VoxelWorld(val seed: Long) {
         // Update player
         player.update(deltaTime)
     }
+
+    fun dispose() {
+        // Remove all chunks from scene and cleanup
+        chunks.values.forEach { chunk ->
+            chunk.mesh?.let { scene.remove(it) }
+            chunk.dispose()
+        }
+        chunks.clear()
+        scene.clear()
+    }
 }

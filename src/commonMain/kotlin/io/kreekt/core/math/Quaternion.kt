@@ -180,6 +180,7 @@ data class Quaternion(
         val m31 = te[2]; val m32 = te[6]; val m33 = te[10]
 
         val trace = m11 + m22 + m33
+        val epsilon = 0.00001f
 
         if (trace > 0f) {
             val s = 0.5f / sqrt(trace + 1f)
@@ -188,19 +189,37 @@ data class Quaternion(
             y = (m13 - m31) * s
             z = (m21 - m12) * s
         } else if (m11 > m22 && m11 > m33) {
-            val s = 2f * sqrt(1f + m11 - m22 - m33)
+            val discriminant = 1f + m11 - m22 - m33
+            if (discriminant < epsilon) {
+                // Handle degenerate case
+                identity()
+                return this
+            }
+            val s = 2f * sqrt(discriminant)
             w = (m32 - m23) / s
             x = 0.25f * s
             y = (m12 + m21) / s
             z = (m13 + m31) / s
         } else if (m22 > m33) {
-            val s = 2f * sqrt(1f + m22 - m11 - m33)
+            val discriminant = 1f + m22 - m11 - m33
+            if (discriminant < epsilon) {
+                // Handle degenerate case
+                identity()
+                return this
+            }
+            val s = 2f * sqrt(discriminant)
             w = (m13 - m31) / s
             x = (m12 + m21) / s
             y = 0.25f * s
             z = (m23 + m32) / s
         } else {
-            val s = 2f * sqrt(1f + m33 - m11 - m22)
+            val discriminant = 1f + m33 - m11 - m22
+            if (discriminant < epsilon) {
+                // Handle degenerate case
+                identity()
+                return this
+            }
+            val s = 2f * sqrt(discriminant)
             w = (m21 - m12) / s
             x = (m13 + m31) / s
             y = (m23 + m32) / s
@@ -285,7 +304,8 @@ data class Quaternion(
      */
     fun normalize(): Quaternion {
         var l = length()
-        if (l == 0f) {
+        val epsilon = 0.00001f
+        if (kotlin.math.abs(l) < epsilon) {
             x = 0f
             y = 0f
             z = 0f

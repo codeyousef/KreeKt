@@ -48,6 +48,12 @@ interface ExtrudeUVGenerator {
  */
 class DefaultExtrudeUVGenerator : ExtrudeUVGenerator {
     override fun generateSideUV(geometry: ExtrudeGeometry, vertices: List<Vector3>, indexA: Int, indexB: Int, indexC: Int, indexD: Int): List<Vector2> {
+        // Validate indices are within bounds
+        require(indexA in vertices.indices && indexB in vertices.indices &&
+                indexC in vertices.indices && indexD in vertices.indices) {
+            "Invalid vertex indices for UV generation"
+        }
+
         val a = vertices[indexA]
         val b = vertices[indexB]
         val c = vertices[indexC]
@@ -71,6 +77,11 @@ class DefaultExtrudeUVGenerator : ExtrudeUVGenerator {
     }
 
     override fun generateTopUV(geometry: ExtrudeGeometry, vertices: List<Vector3>, indexA: Int, indexB: Int, indexC: Int): List<Vector2> {
+        // Validate indices are within bounds
+        require(indexA in vertices.indices && indexB in vertices.indices && indexC in vertices.indices) {
+            "Invalid vertex indices for top UV generation"
+        }
+
         val a = vertices[indexA]
         val b = vertices[indexB]
         val c = vertices[indexC]
@@ -233,7 +244,7 @@ class ExtrudeGeometry(
     }
 
     private fun generateCurveLayers(shapePoints: List<Vector2>, holes: List<List<Vector2>>, layers: MutableList<ExtrusionLayer>) {
-        val extrudePath = options.extrudePath!!
+        val extrudePath = options.extrudePath ?: return
         val steps = options.steps
 
         for (i in 0..steps) {
@@ -409,8 +420,11 @@ class ExtrudeGeometry(
 
         // Simple triangulation for convex polygons (simplified)
         val indices = (0 until vertices.size).toMutableList()
+        val maxIterations = vertices.size * 2 // Safety limit
+        var iterations = 0
 
-        while (indices.size > 2) {
+        while (indices.size > 2 && iterations < maxIterations) {
+            iterations++
             var earFound = false
 
             for (i in indices.indices) {

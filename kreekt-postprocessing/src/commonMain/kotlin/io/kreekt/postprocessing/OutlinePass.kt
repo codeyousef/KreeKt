@@ -119,6 +119,15 @@ class OutlinePass(
             return
         }
 
+        // Ensure render targets are initialized
+        val maskTarget = maskRenderTarget ?: run {
+            println("Warning: OutlinePass not initialized, call setSize() first")
+            return
+        }
+        val edgesTarget = renderTargetEdges ?: return
+        val blur1Target = renderTargetBlur1 ?: return
+        val blur2Target = renderTargetBlur2 ?: return
+
         // 1. Render selected objects to mask
         val oldBackground = scene.background
         val oldOverrideMaterial = scene.overrideMaterial
@@ -133,7 +142,7 @@ class OutlinePass(
             }
         }
 
-        prepareMaskPass.render(renderer, maskRenderTarget!!, readBuffer, deltaTime, maskActive)
+        prepareMaskPass.render(renderer, maskTarget, readBuffer, deltaTime, maskActive)
 
         // Restore visibility
         scene.traverse { obj ->
@@ -144,20 +153,20 @@ class OutlinePass(
         scene.overrideMaterial = oldOverrideMaterial
 
         // 2. Edge detection
-        edgeDetectionPass.uniforms["tDiffuse"] = maskRenderTarget!!.texture
-        edgeDetectionPass.render(renderer, renderTargetEdges!!, maskRenderTarget!!, deltaTime, maskActive)
+        edgeDetectionPass.uniforms["tDiffuse"] = maskTarget.texture
+        edgeDetectionPass.render(renderer, edgesTarget, maskTarget, deltaTime, maskActive)
 
         // 3. Blur edges horizontally
-        separableBlurPass1.uniforms["tDiffuse"] = renderTargetEdges!!.texture
-        separableBlurPass1.render(renderer, renderTargetBlur1!!, renderTargetEdges!!, deltaTime, maskActive)
+        separableBlurPass1.uniforms["tDiffuse"] = edgesTarget.texture
+        separableBlurPass1.render(renderer, blur1Target, edgesTarget, deltaTime, maskActive)
 
         // 4. Blur edges vertically
-        separableBlurPass2.uniforms["tDiffuse"] = renderTargetBlur1!!.texture
-        separableBlurPass2.render(renderer, renderTargetBlur2!!, renderTargetBlur1!!, deltaTime, maskActive)
+        separableBlurPass2.uniforms["tDiffuse"] = blur1Target.texture
+        separableBlurPass2.render(renderer, blur2Target, blur1Target, deltaTime, maskActive)
 
         // 5. Overlay edges on original image
         overlayPass.uniforms["tDiffuse"] = readBuffer.texture
-        overlayPass.uniforms["tEdges"] = renderTargetBlur2!!.texture
+        overlayPass.uniforms["tEdges"] = blur2Target.texture
         overlayPass.uniforms["time"] = performance.now()
         updateUniforms()
 

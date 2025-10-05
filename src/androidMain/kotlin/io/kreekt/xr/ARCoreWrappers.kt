@@ -79,7 +79,7 @@ class ARCorePlane(private val arPlane: com.google.ar.core.Plane) : XRPlane {
             val buffer = arPlane.getPolygon()
             val points = mutableListOf<Vector3>()
             var i = 0
-            while (i < buffer.remaining()) {
+            while (i + 1 < buffer.remaining()) {  // Guard against buffer overflow
                 val x = buffer.get(i)
                 val z = buffer.get(i + 1)
                 points.add(Vector3(x, 0f, z))

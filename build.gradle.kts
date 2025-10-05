@@ -115,14 +115,10 @@ kotlin {
                 implementation(libs.lwjgl.core)
                 implementation(libs.lwjgl.vulkan)
 
-                // Physics: Will be implemented with expect/actual pattern
-                // implementation("org.lwjgl:lwjgl-bullet:3.3.3") // TODO: Add when available
-
-                // Asset loading: Will use platform-specific implementations
-                // implementation("org.lwjgl:lwjgl-draco:3.3.3") // TODO: Add when available
-
-                // Font loading: Will use platform-specific implementations
-                // implementation("org.lwjgl:lwjgl-freetype:3.3.3") // TODO: Add when available
+                // Future Phase 3+ dependencies (see CLAUDE.md - Advanced Features):
+                // Physics: Bullet physics integration (Phase 2-13, Physics section)
+                // Asset loading: DRACO mesh compression support
+                // Font loading: FreeType for text rendering geometry
             }
         }
 
@@ -131,17 +127,11 @@ kotlin {
             dependencies {
                 implementation(npm("@webgpu/types", "0.1.40"))
 
-                // Physics: Will be implemented with expect/actual pattern
-                // implementation(npm("@dimforge/rapier3d-compat", "0.12.0")) // TODO: Add when needed
-
-                // Asset loading: Will use platform-specific implementations
-                // implementation(npm("draco3dgltf", "1.5.6")) // TODO: Add when needed
-
-                // Font loading: Will use platform-specific implementations
-                // implementation(npm("opentype.js", "1.3.4")) // TODO: Add when needed
-
-                // XR: Will be implemented with expect/actual pattern
-                // implementation(npm("webxr-polyfill", "2.0.3")) // TODO: Add when needed
+                // Future Phase 3+ dependencies (see CLAUDE.md - Advanced Features):
+                // Physics: Rapier physics engine integration (Phase 2-13, Physics section)
+                // Asset loading: DRACO mesh compression support
+                // Font loading: OpenType.js for text rendering
+                // XR: WebXR polyfill for broad browser support
             }
         }
 

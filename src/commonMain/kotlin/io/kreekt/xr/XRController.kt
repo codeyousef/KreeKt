@@ -6,10 +6,9 @@ package io.kreekt.xr
 
 import io.kreekt.core.math.Quaternion
 import io.kreekt.core.math.Vector3
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.math.abs
 
 // XRController interface is defined in XRTypes.kt
@@ -73,7 +72,11 @@ class DefaultXRController(
 
     private var lastButtonStates = mutableMapOf<XRControllerButton, Boolean>()
     private var lastAxisValues = mutableMapOf<XRControllerAxis, Float>()
+
     private var connectionMonitorJob: Job? = null
+    private val jobMutex = kotlinx.coroutines.sync.Mutex()
+    private val callbackMutex = kotlinx.coroutines.sync.Mutex()
+    private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     init {
         startConnectionMonitoring()
@@ -106,36 +109,52 @@ class DefaultXRController(
     }
 
     override fun onButtonDown(button: XRControllerButton, callback: () -> Unit) {
-        buttonDownCallbacks.getOrPut(button) { mutableListOf() }.add(callback)
+        coroutineScope.launch {
+            callbackMutex.withLock {
+                buttonDownCallbacks.getOrPut(button) { mutableListOf() }.add(callback)
+            }
+        }
     }
 
     override fun onButtonUp(button: XRControllerButton, callback: () -> Unit) {
-        buttonUpCallbacks.getOrPut(button) { mutableListOf() }.add(callback)
+        coroutineScope.launch {
+            callbackMutex.withLock {
+                buttonUpCallbacks.getOrPut(button) { mutableListOf() }.add(callback)
+            }
+        }
     }
 
     override fun onAxisChange(axis: XRControllerAxis, callback: (Float) -> Unit) {
-        axisChangeCallbacks.getOrPut(axis) { mutableListOf() }.add(callback)
+        coroutineScope.launch {
+            callbackMutex.withLock {
+                axisChangeCallbacks.getOrPut(axis) { mutableListOf() }.add(callback)
+            }
+        }
     }
 
-    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
     private fun startConnectionMonitoring() {
-        connectionMonitorJob = GlobalScope.launch {
-            while (true) {
-                val wasConnected = isConnected
-                isConnected = checkControllerConnection()
+        coroutineScope.launch {
+            jobMutex.withLock {
+                connectionMonitorJob?.cancel()
+                connectionMonitorJob = launch {
+                    while (isActive) {
+                        val wasConnected = isConnected
+                        isConnected = checkControllerConnection()
 
-                if (!wasConnected && isConnected) {
-                    handleConnection()
-                } else if (wasConnected && !isConnected) {
-                    handleDisconnection()
+                        if (!wasConnected && isConnected) {
+                            handleConnection()
+                        } else if (wasConnected && !isConnected) {
+                            handleDisconnection()
+                        }
+
+                        if (isConnected) {
+                            updatePose()
+                            checkInputChanges()
+                        }
+
+                        delay(16) // ~60Hz polling rate
+                    }
                 }
-
-                if (isConnected) {
-                    updatePose()
-                    checkInputChanges()
-                }
-
-                delay(16) // ~60Hz polling rate
             }
         }
     }
@@ -172,7 +191,7 @@ class DefaultXRController(
             val time = kotlin.time.TimeSource.Monotonic.markNow().elapsedNow().inWholeMilliseconds / 1000f
             val wobble = kotlin.math.sin(time) * 0.01f
 
-            val currentControllerPose = currentPose as XRControllerPose
+            val currentControllerPose = currentPose as? XRControllerPose ?: return
             pose = XRControllerPose(
                 position = currentControllerPose.position + Vector3(wobble, wobble * 0.5f, 0f),
                 orientation = currentControllerPose.orientation,
@@ -219,6 +238,7 @@ class DefaultXRController(
 
     fun dispose() {
         connectionMonitorJob?.cancel()
+        coroutineScope.cancel() // Cancel all coroutines in the scope
         buttonDownCallbacks.clear()
         buttonUpCallbacks.clear()
         axisChangeCallbacks.clear()

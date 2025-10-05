@@ -414,11 +414,10 @@ class ARKitXRFrame(
     }
 
     override fun getDepthInformation(view: XRView): XRDepthInformation? {
-        // Return depth information if available
-        if (arFrame.sceneDepth != null) {
-            return ARKitDepthInformation(arFrame.sceneDepth!!)
+        // Return depth information if available (safe null handling)
+        return arFrame.sceneDepth?.let { sceneDepth ->
+            ARKitDepthInformation(sceneDepth)
         }
-        return null
     }
 }
 

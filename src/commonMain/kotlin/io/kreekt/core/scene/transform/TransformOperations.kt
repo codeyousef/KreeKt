@@ -175,8 +175,8 @@ fun Transform.lookAt(target: Vector3, up: Vector3 = Vector3(0f, 1f, 0f)): Transf
     val worldPosition = getWorldPosition()
     val matrix = Matrix4().lookAt(worldPosition, target, up)
 
-    if (parent != null) {
-        val parentWorldMatrix = parent!!.updateWorldMatrix()
+    parent?.let { p ->
+        val parentWorldMatrix = p.updateWorldMatrix()
         val parentRotation = Matrix4().extractRotation(parentWorldMatrix)
         val parentQuaternion = Quaternion().setFromRotationMatrix(parentRotation)
         matrix.premultiply(Matrix4().makeRotationFromQuaternion(parentQuaternion.invert()))

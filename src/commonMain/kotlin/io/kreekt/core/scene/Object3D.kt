@@ -269,11 +269,9 @@ abstract class Object3D {
         if (matrixWorldNeedsUpdate || force) {
             val parentVersion = parent?.worldMatrixVersion ?: 0
 
-            if (parent == null) {
-                matrixWorld.copy(matrix)
-            } else {
-                matrixWorld.multiplyMatrices(parent!!.matrixWorld, matrix)
-            }
+            parent?.let { p ->
+                matrixWorld.multiplyMatrices(p.matrixWorld, matrix)
+            } ?: matrixWorld.copy(matrix)
 
             matrixWorldNeedsUpdate = false
             worldMatrixVersion++

@@ -2,6 +2,8 @@ package io.kreekt.material
 
 import io.kreekt.core.math.Plane
 import kotlin.random.Random
+import kotlinx.atomicfu.AtomicInt
+import kotlinx.atomicfu.atomic
 
 /**
  * Base material class implementing the core Material interface
@@ -9,7 +11,7 @@ import kotlin.random.Random
  */
 abstract class Material : io.kreekt.core.scene.Material {
 
-    override val id: Int = nextId++
+    override val id: Int = nextId.getAndIncrement()
     val uuid: String = generateUUID()
     override var name: String = ""
     override var needsUpdate: Boolean = true
@@ -78,20 +80,20 @@ abstract class Material : io.kreekt.core.scene.Material {
     open fun setValues(values: Map<String, Any>) {
         values.forEach { (key, value) ->
             when (key) {
-                "name" -> name = value as String
-                "opacity" -> opacity = value as Float
-                "transparent" -> transparent = value as Boolean
-                "visible" -> visible = value as Boolean
-                "side" -> side = value as Side
-                "blending" -> blending = value as Blending
-                "depthTest" -> depthTest = value as Boolean
-                "depthWrite" -> depthWrite = value as Boolean
-                "alphaTest" -> alphaTest = value as Float
-                "polygonOffset" -> polygonOffset = value as Boolean
-                "polygonOffsetFactor" -> polygonOffsetFactor = value as Float
-                "polygonOffsetUnits" -> polygonOffsetUnits = value as Float
-                "dithering" -> dithering = value as Boolean
-                "toneMapped" -> toneMapped = value as Boolean
+                "name" -> (value as? String)?.let { name = it }
+                "opacity" -> (value as? Float)?.let { opacity = it }
+                "transparent" -> (value as? Boolean)?.let { transparent = it }
+                "visible" -> (value as? Boolean)?.let { visible = it }
+                "side" -> (value as? Side)?.let { side = it }
+                "blending" -> (value as? Blending)?.let { blending = it }
+                "depthTest" -> (value as? Boolean)?.let { depthTest = it }
+                "depthWrite" -> (value as? Boolean)?.let { depthWrite = it }
+                "alphaTest" -> (value as? Float)?.let { alphaTest = it }
+                "polygonOffset" -> (value as? Boolean)?.let { polygonOffset = it }
+                "polygonOffsetFactor" -> (value as? Float)?.let { polygonOffsetFactor = it }
+                "polygonOffsetUnits" -> (value as? Float)?.let { polygonOffsetUnits = it }
+                "dithering" -> (value as? Boolean)?.let { dithering = it }
+                "toneMapped" -> (value as? Boolean)?.let { toneMapped = it }
                 // Additional properties can be handled by subclasses
             }
         }
@@ -155,7 +157,7 @@ abstract class Material : io.kreekt.core.scene.Material {
     }
 
     companion object {
-        private var nextId = 1
+        private val nextId: AtomicInt = atomic(1)
 
         // Legacy side constants for backward compatibility
         @Deprecated("Use Side.FrontSide instead", ReplaceWith("Side.FrontSide"))

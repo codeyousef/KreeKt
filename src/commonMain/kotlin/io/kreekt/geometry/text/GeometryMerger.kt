@@ -19,11 +19,15 @@ object GeometryMerger {
         targetUVs: MutableList<Vector2>,
         targetIndices: MutableList<Int>
     ) {
-        // Extract vertices from source geometry
-        val positionAttribute = sourceGeometry.getAttribute("position")!!
-        val normalAttribute = sourceGeometry.getAttribute("normal")!!
-        val uvAttribute = sourceGeometry.getAttribute("uv")!!
-        val indexAttribute = sourceGeometry.index!!
+        // Extract vertices from source geometry with null checking
+        val positionAttribute = sourceGeometry.getAttribute("position")
+            ?: throw IllegalArgumentException("Source geometry missing 'position' attribute")
+        val normalAttribute = sourceGeometry.getAttribute("normal")
+            ?: throw IllegalArgumentException("Source geometry missing 'normal' attribute")
+        val uvAttribute = sourceGeometry.getAttribute("uv")
+            ?: throw IllegalArgumentException("Source geometry missing 'uv' attribute")
+        val indexAttribute = sourceGeometry.index
+            ?: throw IllegalArgumentException("Source geometry missing index attribute")
 
         val startVertexIndex = targetVertices.size
 

@@ -59,12 +59,18 @@ class BokehPass(
         deltaTime: Float,
         maskActive: Boolean
     ) {
+        // Ensure render target is initialized
+        val depthTarget = depthRenderTarget ?: run {
+            println("Warning: BokehPass not initialized, call setSize() first")
+            return
+        }
+
         // 1. Render depth
-        depthPass.render(renderer, depthRenderTarget!!, readBuffer, deltaTime, maskActive)
+        depthPass.render(renderer, depthTarget, readBuffer, deltaTime, maskActive)
 
         // 2. Apply bokeh blur based on depth
         bokehShaderPass.uniforms["tDiffuse"] = readBuffer.texture
-        bokehShaderPass.uniforms["tDepth"] = depthRenderTarget!!.texture
+        bokehShaderPass.uniforms["tDepth"] = depthTarget.texture
         updateUniforms()
 
         bokehShaderPass.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)

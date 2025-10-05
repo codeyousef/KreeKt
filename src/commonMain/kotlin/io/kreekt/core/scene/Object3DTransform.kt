@@ -72,8 +72,8 @@ internal fun Object3D.setLookAt(x: Float, y: Float, z: Float) {
                 m1.lookAt(position, target, Vector3.UP)
                 quaternion.setFromRotationMatrix(m1)
 
-                if (parent != null) {
-                    m1.extractRotation(parent!!.matrixWorld)
+                parent?.let { p ->
+                    m1.extractRotation(p.matrixWorld)
                     MathObjectPools.withQuaternion { q1 ->
                         q1.setFromRotationMatrix(m1)
                         quaternion.premultiply(q1.invert())
@@ -216,11 +216,9 @@ internal fun Object3D.updateWorldMatrixWithOptions(updateParents: Boolean = fals
 
     if (matrixAutoUpdate) updateMatrix()
 
-    if (this.parent == null) {
-        matrixWorld.copy(matrix)
-    } else {
-        matrixWorld.multiplyMatrices(this.parent!!.matrixWorld, matrix)
-    }
+    this.parent?.let { p ->
+        matrixWorld.multiplyMatrices(p.matrixWorld, matrix)
+    } ?: matrixWorld.copy(matrix)
 
     if (updateChildren) {
         for (child in children) {

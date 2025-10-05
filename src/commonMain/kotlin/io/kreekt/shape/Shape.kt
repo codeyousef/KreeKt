@@ -2,6 +2,8 @@ package io.kreekt.shape
 
 import io.kreekt.core.math.Vector2
 import io.kreekt.curve.Path
+import kotlinx.atomicfu.AtomicInt
+import kotlinx.atomicfu.atomic
 
 /**
  * 2D shape that can be extruded or filled.
@@ -47,9 +49,9 @@ class Shape : Path {
     }
 
     companion object {
-        private var idCounter = 0
+        private val idCounter: AtomicInt = atomic(0)
         private fun generateUuid(): String {
-            return "shape-${idCounter++}"
+            return "shape-${idCounter.getAndIncrement()}"
         }
     }
 }

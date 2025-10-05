@@ -173,7 +173,9 @@ class TransformAnimator {
      * Updates animation
      */
     fun update(deltaTime: Float, target: Transform): Boolean {
-        if (!isPlaying || startTransform == null || endTransform == null) {
+        val start = startTransform
+        val end = endTransform
+        if (!isPlaying || start == null || end == null) {
             return false
         }
 
@@ -181,8 +183,8 @@ class TransformAnimator {
         val t = (elapsed / duration).coerceIn(0f, 1f)
 
         // Interpolate transforms
-        target.copy(startTransform!!)
-        target.lerp(endTransform!!, t)
+        target.copy(start)
+        target.lerp(end, t)
 
         if (t >= 1f) {
             isPlaying = false

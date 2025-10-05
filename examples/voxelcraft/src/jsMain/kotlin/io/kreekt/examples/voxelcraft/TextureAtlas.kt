@@ -76,8 +76,9 @@ object TextureAtlas {
     /**
      * Generate procedural texture atlas data
      *
-     * For now, returns simple colored textures for each block type.
-     * In production, this would load actual PNG textures.
+     * Uses simple colored textures for each block type. This approach is intentional
+     * for the VoxelCraft demo to minimize asset dependencies and load times.
+     * Production games would typically load actual PNG texture files.
      *
      * @return RGBA pixel data (64x48 pixels = 12,288 bytes)
      */

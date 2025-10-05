@@ -46,7 +46,7 @@ class CameraController(
     private fun setupMouseListeners() {
         document.addEventListener("mousemove", { event ->
             if (isPointerLocked) {
-                handleMouseMove(event as MouseEvent)
+                (event as? MouseEvent)?.let { handleMouseMove(it) }
             }
         })
     }
@@ -60,8 +60,8 @@ class CameraController(
      * @param event MouseEvent with movementX and movementY
      */
     private fun handleMouseMove(event: MouseEvent) {
-        val movementX = event.asDynamic().movementX as Double
-        val movementY = event.asDynamic().movementY as Double
+        val movementX = (event.asDynamic().movementX as? Double) ?: 0.0
+        val movementY = (event.asDynamic().movementY as? Double) ?: 0.0
 
         handleMouseMove(movementX, movementY)
     }

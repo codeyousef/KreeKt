@@ -20,11 +20,11 @@ class BoneHierarchyManager(private val bones: List<Bone>) {
             bonesByName[bone.name] = bone
         }
 
-        // Build parent-child relationships
+        // Build parent-child relationships (safe null handling)
         bones.forEach { bone ->
-            if (bone.parent != null) {
-                parentChildMap.getOrPut(bone.parent!!) { mutableListOf() }.add(bone)
-                childParentMap[bone] = bone.parent!!
+            bone.parent?.let { parent ->
+                parentChildMap.getOrPut(parent) { mutableListOf() }.add(bone)
+                childParentMap[bone] = parent
             }
         }
     }

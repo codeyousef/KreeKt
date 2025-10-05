@@ -65,12 +65,18 @@ class DefaultProductionReadinessChecker : ProductionReadinessChecker {
             )
 
             val results = validationJobs.awaitAll()
-            val placeholderScan = results[0] as ScanResult
-            val implementationGaps = results[1] as GapAnalysisResult
-            val rendererAudit = results[2] as RendererAuditResult
-            val testResults = results[3] as TestExecutionResult
-            val exampleValidation = results[4] as ExampleValidationResult
-            val performanceValidation = results[5] as PerformanceValidationResult
+            val placeholderScan = results.getOrNull(0) as? ScanResult
+                ?: throw IllegalStateException("Failed to get placeholder scan result")
+            val implementationGaps = results.getOrNull(1) as? GapAnalysisResult
+                ?: throw IllegalStateException("Failed to get implementation gaps result")
+            val rendererAudit = results.getOrNull(2) as? RendererAuditResult
+                ?: throw IllegalStateException("Failed to get renderer audit result")
+            val testResults = results.getOrNull(3) as? TestExecutionResult
+                ?: throw IllegalStateException("Failed to get test execution result")
+            val exampleValidation = results.getOrNull(4) as? ExampleValidationResult
+                ?: throw IllegalStateException("Failed to get example validation result")
+            val performanceValidation = results.getOrNull(5) as? PerformanceValidationResult
+                ?: throw IllegalStateException("Failed to get performance validation result")
 
             // Calculate component scores
             val componentScores = calculateComponentScores(
@@ -341,15 +347,18 @@ class DefaultProductionReadinessChecker : ProductionReadinessChecker {
         )
 
         val averageFrameRate = frameRateResults.values.average().toFloat()
-        val meetsFpsRequirement = averageFrameRate >= constitutionalThresholds["performance_60fps"]!!
-        val meetsSizeRequirement =
-            memorySizeResults["total_library"]!! <= (constitutionalThresholds["library_size_mb"]!! * 1_000_000)
+        val fps60Threshold = constitutionalThresholds["performance_60fps"] ?: 60.0f
+        val meetsFpsRequirement = averageFrameRate >= fps60Threshold
+        val librarySizeLimitMb = constitutionalThresholds["library_size_mb"] ?: 5.0f
+        val totalLibrarySize = memorySizeResults["total_library"] ?: 0L
+        val meetsSizeRequirement = totalLibrarySize <= (librarySizeLimitMb * 1_000_000)
 
         val performanceIssues = mutableListOf<String>()
         if (!meetsFpsRequirement) {
             performanceIssues.add("Average frame rate (${averageFrameRate}fps) below constitutional requirement (60fps)")
         }
-        if (frameRateResults[Platform.JS]!! < 60.0f) {
+        val jsFps = frameRateResults[Platform.JS] ?: 0f
+        if (jsFps < 60.0f) {
             performanceIssues.add("JavaScript platform significantly underperforming - likely related to black screen issue")
         }
 
@@ -359,7 +368,7 @@ class DefaultProductionReadinessChecker : ProductionReadinessChecker {
             meetsFrameRateRequirement = meetsFpsRequirement,
             meetsSizeRequirement = meetsSizeRequirement,
             averageFrameRate = averageFrameRate,
-            librarySize = memorySizeResults["total_library"]!!,
+            librarySize = totalLibrarySize,
             performanceIssues = performanceIssues
         )
     }

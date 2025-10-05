@@ -107,17 +107,23 @@ object ShapeUtils {
 
         if (clockwise == (signedArea(data, start, end, dim) > 0)) {
             for (i in start until end step dim) {
-                last = insertNode(i / dim, data[i], data[i + 1], last)
+                if (i + 1 < data.size) {
+                    last = insertNode(i / dim, data[i], data[i + 1], last)
+                }
             }
         } else {
             for (i in (end - dim) downTo start step dim) {
-                last = insertNode(i / dim, data[i], data[i + 1], last)
+                if (i + 1 < data.size) {
+                    last = insertNode(i / dim, data[i], data[i + 1], last)
+                }
             }
         }
 
-        if (last != null && equals(last, last.next!!)) {
-            removeNode(last)
-            last = last.next
+        last?.next?.let { next ->
+            if (equals(last, next)) {
+                removeNode(last)
+                last = next
+            }
         }
 
         return last
@@ -143,7 +149,7 @@ object ShapeUtils {
         var result = outerNode
         for (node in queue) {
             eliminateHole(node, result)
-            result = filterPoints(result, result.next!!)
+            result = filterPoints(result, result.next ?: result) ?: result
         }
 
         return result
@@ -157,11 +163,11 @@ object ShapeUtils {
         var leftmost = start
 
         do {
-            if (p!!.x < leftmost.x || (p.x == leftmost.x && p.y < leftmost.y)) {
+            if (p != null && (p.x < leftmost.x || (p.x == leftmost.x && p.y < leftmost.y))) {
                 leftmost = p
             }
-            p = p.next
-        } while (p != start)
+            p = p?.next
+        } while (p != null && p != start)
 
         return leftmost
     }
@@ -173,8 +179,8 @@ object ShapeUtils {
         var bridge = findHoleBridge(hole, outerNode) ?: return
         val bridgeReverse = splitPolygon(bridge, hole)
 
-        filterPoints(bridgeReverse, bridgeReverse.next!!)
-        filterPoints(bridge, bridge.next!!)
+        bridgeReverse.next?.let { filterPoints(bridgeReverse, it) }
+        bridge.next?.let { filterPoints(bridge, it) }
     }
 
     /**
@@ -188,19 +194,26 @@ object ShapeUtils {
         var m: Node? = null
 
         do {
-            if (hy <= p!!.y && hy >= p.next!!.y && p.next!!.y != p.y) {
-                val x = p.x + (hy - p.y) * (p.next!!.x - p.x) / (p.next!!.y - p.y)
+            val pNext = p?.next
+            if (p != null && pNext != null && hy <= p.y && hy >= pNext.y && pNext.y != p.y) {
+                // Guard against division by zero
+                val denominator = pNext.y - p.y
+                val x = if (denominator != 0f) {
+                    p.x + (hy - p.y) * (pNext.x - p.x) / denominator
+                } else {
+                    p.x // Degenerate case: vertical line segment
+                }
                 if (x <= hx && x > qx) {
                     qx = x
                     m = if (x == hx) {
-                        if (hy == p.y) p else if (hy == p.next!!.y) p.next!! else p
+                        if (hy == p.y) p else if (hy == pNext.y) pNext else p
                     } else {
                         p
                     }
                 }
             }
-            p = p.next
-        } while (p != outerNode)
+            p = p?.next
+        } while (p != null && p != outerNode)
 
         return m
     }
@@ -215,8 +228,11 @@ object ShapeUtils {
         var stop: Node? = ear
         var prev: Node
         var next: Node
+        val maxIterations = 5000 // Safety limit for ear-cutting
+        var iterations = 0
 
-        while (ear != null && ear.prev != ear.next) {
+        while (ear != null && ear.prev != ear.next && iterations < maxIterations) {
+            iterations++
             val prevNode = ear.prev ?: break
             val nextNode = ear.next ?: break
             prev = prevNode
@@ -237,10 +253,18 @@ object ShapeUtils {
 
             if (ear == stop) {
                 when (pass) {
-                    0 -> earcutLinked(filterPoints(ear, null), triangles, dim, 1)
+                    0 -> {
+                        val filtered = filterPoints(ear, null)
+                        if (filtered != null) {
+                            earcutLinked(filtered, triangles, dim, 1)
+                        }
+                    }
                     1 -> {
-                        ear = cureLocalIntersections(filterPoints(ear, null), triangles)
-                        earcutLinked(ear, triangles, dim, 2)
+                        val filtered = filterPoints(ear, null)
+                        if (filtered != null) {
+                            ear = cureLocalIntersections(filtered, triangles)
+                            earcutLinked(ear, triangles, dim, 2)
+                        }
                     }
                 }
                 break
@@ -252,16 +276,20 @@ object ShapeUtils {
      * Check if ear is valid
      */
     private fun isEar(ear: Node): Boolean {
-        val a = ear.prev!!
+        val a = ear.prev ?: return false
         val b = ear
-        val c = ear.next!!
+        val c = ear.next ?: return false
 
         if (area(a, b, c) >= 0) return false
 
-        var p = ear.next!!.next
+        var p = c.next
 
-        while (p != ear.prev) {
-            if (pointInTriangle(a.x, a.y, b.x, b.y, c.x, c.y, p!!.x, p.y) && area(p.prev!!, p, p.next!!) >= 0) {
+        while (p != null && p != ear.prev) {
+            val pPrev = p.prev
+            val pNext = p.next
+            if (pPrev != null && pNext != null &&
+                pointInTriangle(a.x, a.y, b.x, b.y, c.x, c.y, p.x, p.y) &&
+                area(pPrev, p, pNext) >= 0) {
                 return false
             }
             p = p.next
@@ -303,7 +331,9 @@ object ShapeUtils {
         var j = end - dim
 
         for (i in start until end step dim) {
-            sum += (data[j] - data[i]) * (data[i + 1] + data[j + 1])
+            if (i + 1 < data.size && j + 1 < data.size) {
+                sum += (data[j] - data[i]) * (data[i + 1] + data[j + 1])
+            }
             j = i
         }
 
@@ -313,7 +343,7 @@ object ShapeUtils {
     /**
      * Filter out collinear or duplicate points
      */
-    private fun filterPoints(start: Node, end: Node?): Node {
+    private fun filterPoints(start: Node, end: Node?): Node? {
         // start parameter is non-null Node type, so this check is unnecessary
         val e = end ?: start
 
@@ -323,13 +353,17 @@ object ShapeUtils {
         do {
             again = false
 
-            if (!p.steiner && (equals(p, p.next!!) || area(p.prev!!, p, p.next!!) == 0f)) {
+            val pNext = p.next
+            val pPrev = p.prev
+            if (pNext != null && pPrev != null &&
+                !p.steiner && (equals(p, pNext) || area(pPrev, p, pNext) == 0f)) {
                 removeNode(p)
-                p = e.also { p = it.prev!! }
+                val ePrev = e.prev ?: return null
+                p = ePrev
                 if (p == p.next) break
                 again = true
             } else {
-                p = p.next!!
+                p = pNext ?: break
             }
         } while (again || p != e)
 
@@ -339,27 +373,29 @@ object ShapeUtils {
     /**
      * Cure local self-intersections
      */
-    private fun cureLocalIntersections(start: Node, triangles: MutableList<Int>): Node {
+    private fun cureLocalIntersections(start: Node, triangles: MutableList<Int>): Node? {
         var p: Node? = start
 
         do {
-            val a = p!!
-            val b = p.next!!.next!!
+            val a = p ?: break
+            val aNext = a.next ?: break
+            val b = aNext.next ?: break
+            val bNext = b.next ?: break
 
-            if (!equals(a, b) && intersects(a, a.next!!, b, b.next!!) && locallyInside(a, b) && locallyInside(b, a)) {
+            if (!equals(a, b) && intersects(a, aNext, b, bNext) && locallyInside(a, b) && locallyInside(b, a)) {
                 triangles.add(a.i)
-                triangles.add(p.next!!.i)
+                triangles.add(aNext.i)
                 triangles.add(b.i)
 
-                removeNode(p.next!!)
-                removeNode(b.next!!)
+                removeNode(aNext)
+                removeNode(bNext)
 
-                p = start.also { p = b }
+                p = b
             }
-            p = p.next
-        } while (p != start)
+            p = p?.next
+        } while (p != null && p != start)
 
-        return filterPoints(p!!, null)
+        return p?.let { filterPoints(it, null) }
     }
 
     /**
@@ -397,18 +433,20 @@ object ShapeUtils {
     }
 
     private fun locallyInside(a: Node, b: Node): Boolean {
-        return if (area(a.prev!!, a, a.next!!) < 0) {
-            area(a, b, a.next!!) >= 0 && area(a, a.prev!!, b) >= 0
+        val aPrev = a.prev ?: return false
+        val aNext = a.next ?: return false
+        return if (area(aPrev, a, aNext) < 0) {
+            area(a, b, aNext) >= 0 && area(a, aPrev, b) >= 0
         } else {
-            area(a, b, a.prev!!) < 0 || area(a, a.next!!, b) < 0
+            area(a, b, aPrev) < 0 || area(a, aNext, b) < 0
         }
     }
 
     private fun splitPolygon(a: Node, b: Node): Node {
         val a2 = Node(a.i, a.x, a.y)
         val b2 = Node(b.i, b.x, b.y)
-        val an = a.next!!
-        val bp = b.prev!!
+        val an = a.next ?: return a2
+        val bp = b.prev ?: return a2
 
         a.next = b
         b.prev = a
@@ -434,7 +472,7 @@ object ShapeUtils {
         } else {
             p.next = last.next
             p.prev = last
-            last.next!!.prev = p
+            last.next?.prev = p
             last.next = p
         }
 
@@ -442,8 +480,8 @@ object ShapeUtils {
     }
 
     private fun removeNode(p: Node) {
-        p.next!!.prev = p.prev
-        p.prev!!.next = p.next
+        p.next?.prev = p.prev
+        p.prev?.next = p.next
         p.prevZ?.let { it.nextZ = p.nextZ }
         p.nextZ?.let { it.prevZ = p.prevZ }
     }

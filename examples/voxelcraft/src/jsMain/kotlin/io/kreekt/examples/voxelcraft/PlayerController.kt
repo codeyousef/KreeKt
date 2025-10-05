@@ -33,13 +33,17 @@ class PlayerController(
 
     private fun setupKeyboardListeners() {
         document.addEventListener("keydown", { event ->
-            val key = (event as KeyboardEvent).key.lowercase()
-            handleKeyDown(key)
+            (event as? KeyboardEvent)?.let { keyEvent ->
+                val key = keyEvent.key.lowercase()
+                handleKeyDown(key)
+            }
         })
 
         document.addEventListener("keyup", { event ->
-            val key = (event as KeyboardEvent).key.lowercase()
-            handleKeyUp(key)
+            (event as? KeyboardEvent)?.let { keyEvent ->
+                val key = keyEvent.key.lowercase()
+                handleKeyUp(key)
+            }
         })
     }
 
@@ -69,10 +73,11 @@ class PlayerController(
 
     private fun setupMouseListeners() {
         document.addEventListener("mousedown", { event ->
-            val mouseEvent = event as MouseEvent
-            when (mouseEvent.button.toInt()) {
-                0 -> blockInteraction?.handleLeftClick() // Left click
-                2 -> blockInteraction?.handleRightClick() // Right click
+            (event as? MouseEvent)?.let { mouseEvent ->
+                when (mouseEvent.button.toInt()) {
+                    0 -> blockInteraction?.handleLeftClick() // Left click
+                    2 -> blockInteraction?.handleRightClick() // Right click
+                }
             }
         })
     }

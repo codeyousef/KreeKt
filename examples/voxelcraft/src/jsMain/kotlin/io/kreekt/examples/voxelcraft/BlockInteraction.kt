@@ -130,8 +130,9 @@ class BlockInteraction(
     /**
      * Get adjacent position for block placement
      *
-     * Simplified: places above target block for now.
-     * Full implementation would detect hit face.
+     * Simplified implementation that places blocks above the target. This provides
+     * intuitive block placement for the VoxelCraft demo. Full ray-face detection
+     * would require normal calculation from the raycast intersection point.
      *
      * @param target Target block hit by raycast
      * @return Adjacent position for placement

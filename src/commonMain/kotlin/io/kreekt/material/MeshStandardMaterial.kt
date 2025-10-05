@@ -5,6 +5,8 @@ import io.kreekt.core.math.Vector2
 import io.kreekt.core.scene.Material
 import io.kreekt.texture.CubeTexture
 import io.kreekt.texture.Texture2D
+import kotlinx.atomicfu.AtomicInt
+import kotlinx.atomicfu.atomic
 
 /**
  * Standard physically-based material following Three.js MeshStandardMaterial API
@@ -77,8 +79,8 @@ class MeshStandardMaterial(
     val userData: MutableMap<String, Any> = mutableMapOf()
 
     companion object {
-        private var nextId = 1
-        private fun generateId(): Int = nextId++
+        private val nextId: AtomicInt = atomic(1)
+        private fun generateId(): Int = nextId.getAndIncrement()
 
         /**
          * Create a material with metallic workflow preset

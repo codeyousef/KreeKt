@@ -287,10 +287,12 @@ class PostProcessPass(
          * Get or create a reusable full-screen quad geometry
          */
         private fun getOrCreateFullScreenQuad(): io.kreekt.geometry.BufferGeometry {
-            if (_fullScreenQuad == null) {
-                _fullScreenQuad = createFullScreenQuadGeometry()
+            var quad = _fullScreenQuad
+            if (quad == null) {
+                quad = createFullScreenQuadGeometry()
+                _fullScreenQuad = quad
             }
-            return _fullScreenQuad!!
+            return quad
         }
 
         /**

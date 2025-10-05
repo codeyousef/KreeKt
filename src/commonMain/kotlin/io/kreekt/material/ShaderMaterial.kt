@@ -21,6 +21,8 @@ import io.kreekt.material.shader.*
 import io.kreekt.renderer.Texture
 import io.kreekt.material.shader.ShaderValidator
 import io.kreekt.material.shader.ShaderPreprocessor
+import kotlinx.atomicfu.AtomicInt
+import kotlinx.atomicfu.atomic
 
 /**
  * Custom shader material with WGSL support and cross-platform compilation
@@ -385,7 +387,7 @@ open class ShaderMaterial(
     }
 
     companion object {
-        private var nextId = 0
-        private fun generateId(): Int = ++nextId
+        private val nextId: AtomicInt = atomic(0)
+        private fun generateId(): Int = nextId.incrementAndGet()
     }
 }

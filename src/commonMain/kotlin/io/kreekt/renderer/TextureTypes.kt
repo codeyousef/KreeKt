@@ -7,6 +7,8 @@ import io.kreekt.core.math.*
 import io.kreekt.renderer.Texture as BaseTexture
 import io.kreekt.renderer.TextureFilter
 import io.kreekt.renderer.TextureFormat
+import kotlinx.atomicfu.AtomicInt
+import kotlinx.atomicfu.atomic
 
 /**
  * 2D Texture implementation
@@ -35,8 +37,8 @@ class Texture2D(
     }
 
     private companion object {
-        private var nextId = 0
-        private fun generateId(): Int = ++nextId
+        private val nextId: AtomicInt = atomic(0)
+        private fun generateId(): Int = nextId.incrementAndGet()
     }
 }
 
@@ -82,8 +84,8 @@ class CubeTextureImpl(
     }
 
     private companion object {
-        private var nextId = 0
-        private fun generateId(): Int = ++nextId
+        private val nextId: AtomicInt = atomic(0)
+        private fun generateId(): Int = nextId.incrementAndGet()
     }
 }
 

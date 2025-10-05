@@ -36,7 +36,8 @@ class Fog(
      * @return Fog factor in [0, 1] where 1.0 = no fog, 0.0 = full fog
      */
     fun getFogFactor(depth: Float): Float {
-        if (far <= near) {
+        // Check for division by zero using epsilon comparison
+        if (kotlin.math.abs(far - near) < io.kreekt.core.math.EPSILON) {
             return 1.0f // Invalid configuration, no fog
         }
 

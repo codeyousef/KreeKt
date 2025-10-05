@@ -6,6 +6,8 @@ import io.kreekt.core.math.Vector2
 import io.kreekt.core.math.Vector3
 import io.kreekt.core.platform.platformArrayCopy
 import io.kreekt.geometry.BufferGeometry
+import kotlinx.atomicfu.AtomicInt
+import kotlinx.atomicfu.atomic
 
 /**
  * A mesh object that combines geometry with material.
@@ -42,10 +44,11 @@ open class Mesh(
                 morphTargetInfluences = MutableList(morphTargets.size) { 0f }
             }
             if (morphTargetDictionary == null) {
-                morphTargetDictionary = mutableMapOf()
+                val dictionary = mutableMapOf<String, Int>()
+                morphTargetDictionary = dictionary
                 morphTargets.forEachIndexed { index, target ->
                     // BufferAttribute doesn't have name property, use index
-                    morphTargetDictionary!![index.toString()] = index
+                    dictionary[index.toString()] = index
                 }
             }
         } else {
@@ -240,8 +243,9 @@ class InstancedMesh(
 
         this.instanceMatrix.copy(source.instanceMatrix)
         source.instanceColor?.let {
-            this.instanceColor = InstancedBufferAttribute(FloatArray((count * 3)), 3)
-            this.instanceColor!!.copy(it)
+            val newInstanceColor = InstancedBufferAttribute(FloatArray((count * 3)), 3)
+            this.instanceColor = newInstanceColor
+            newInstanceColor.copy(it)
         }
 
         return this
@@ -386,12 +390,12 @@ class Sprite(
  * Sprite material for billboard rendering
  */
 class SpriteMaterial : Material {
-    override val id: Int = nextId++
+    override val id: Int = nextId.getAndIncrement()
     override val name: String = "SpriteMaterial"
     override var needsUpdate: Boolean = false
     override var visible: Boolean = true
 
     companion object {
-        private var nextId = 1
+        private val nextId: AtomicInt = atomic(1)
     }
 }
