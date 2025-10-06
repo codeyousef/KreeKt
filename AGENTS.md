@@ -1,47 +1,19 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-
-- Core multiplatform source lives in src/commonMain with platform-specific implementations in src/jvmMain, src/jsMain,
-  and src/nativeMain; keep shared APIs in common and gate platform code behind expect/actual.
-- Feature modules like kreekt-loader, kreekt-helpers, and kreekt-validation hold loaders, utilities, and the validation
-  CLI; runnable demos sit in examples/*, reference material in docs/, and audit specs under specs/.
-- System tests live in ests/ grouped into contract, integration, performance, and isual; mirror this layout when adding
-  suites.
+Core multiplatform code lives under `src/commonMain`, with platform-specific `actual` implementations in `src/jvmMain`, `src/jsMain`, and `src/nativeMain`. Feature modules such as `kreekt-loader`, `kreekt-helpers`, and `kreekt-validation` encapsulate loaders, utilities, and the validation CLI. Examples for demos reside in `examples/*`, reference docs in `docs/`, and audit specifications under `specs/`. System tests live in `ests/` split into contract, integration, performance, and visual suites; mirror that layout when adding coverage.
 
 ## Build, Test, and Development Commands
-
-- ./gradlew build compiles all targets and runs default checks; prefer this before pushing.
-- ./gradlew test executes multiplatform unit suites; scope to a module with ./gradlew :kreekt-validation:test.
-- ./gradlew koverVerify enforces the current 50% coverage gate, and ./gradlew koverHtmlReport produces
-  uild/reports/kover/html/index.html.
-- ./gradlew listExamples surfaces runnable demos; launch the primary scene via ./gradlew :examples:basic-scene:runJvm or
-  unJs.
-- ./gradlew validateProductionReadiness runs the validation CLI and emits reports in
-  kreekt-validation/build/validation-reports/; invoke ./gradlew dependencyCheckAnalyze during security reviews.
-- ./gradlew dokkaHtml builds API docs into uild/dokka/html.
+Run `./gradlew build` before pushes to compile all targets and execute default checks. Use `./gradlew test` for the multiplatform unit suites or scope with module selectors, e.g., `./gradlew :kreekt-validation:test`. Generate coverage with `./gradlew koverVerify`; inspect HTML reports via `./gradlew koverHtmlReport` and open `build/reports/kover/html/index.html`. List runnable demos using `./gradlew listExamples`, launch the baseline scene with `./gradlew :examples:basic-scene:runJvm`, and produce API docs via `./gradlew dokkaHtml`.
 
 ## Coding Style & Naming Conventions
-
-- Follow Kotlin official style: four-space indentation, trailing commas where they improve diffs, and explicit
-  visibility; avoid !! and unchecked casts as per core guidelines.
-- Public APIs use UpperCamelCase types and lowerCamelCase members; keep Gradle tasks in lowerCamelCase (
-  unSimpleDemo) and module directories hyphenated (kreekt-loader).
-- Run the formatter in your IDE; CI tooling under ools/cicd reads ktlint reports from uild/reports/ktlint/, so mirror
-  that output if you lint locally.
+Follow official Kotlin style with four-space indentation, trailing commas where they clarify diffs, and explicit visibility. Public types use UpperCamelCase, members lowerCamelCase, Gradle tasks lowerCamelCase, and module directories hyphenated. Avoid `!!` and unchecked casts. Run the IDE formatter or ktlint; CI expects reports under `build/reports/ktlint/`.
 
 ## Testing Guidelines
-
-- Write unit tests in src/*Test using kotlin.test; JVM-specific cases rely on JUnit 5 and MockK (see kreekt-validation).
-- Integration and performance scenarios belong in ests/integration with descriptive *Test.kt filenames (
-  BasicSceneTest.kt, PerformanceTest.kt).
-- Generate coverage via ./gradlew koverHtmlReport and keep overall coverage above the enforced 50% while working toward
-  the documented 95% goal.
+Author unit tests in `src/*Test` using `kotlin.test`; JVM-specific cases can leverage JUnit 5 and MockK. Place integration and performance scenarios in `ests/integration` with descriptive `*Test.kt` filenames. Maintain at least 50% coverage via Kover while working toward the 95% target.
 
 ## Commit & Pull Request Guidelines
+Write commits with short imperative subjects (e.g., "Add validation wiring"). PRs should summarize scope, enumerate validation steps (`./gradlew build`, key demos), and link relevant roadmap items or issues. Attach coverage artifacts for core logic and screenshots for visual work, and request CI validation for cross-platform changes.
 
-- Commits mirror the existing history: short, imperative subject lines without prefixes (Fix VoxelCraft terrain
-  generation, Add comprehensive documentation).
-- Each PR should summarise scope, list validation steps (./gradlew build, key demos), and link the relevant roadmap item
-  or issue; attach coverage artifacts for core logic and screenshots for visual work.
-- Keep branches focused, rebase before review, and request CI validation for cross-platform changes.
+## Security & Compliance Checks
+Run `./gradlew dependencyCheckAnalyze` during security reviews. Validate release readiness through `./gradlew validateProductionReadiness`, reviewing reports in `kreekt-validation/build/validation-reports/`.
