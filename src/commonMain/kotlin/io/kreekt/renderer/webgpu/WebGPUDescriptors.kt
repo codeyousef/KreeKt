@@ -175,6 +175,15 @@ object GPUBufferUsage {
 }
 
 /**
+ * GPU shader stage flags.
+ */
+object GPUShaderStage {
+    const val VERTEX = 0x1
+    const val FRAGMENT = 0x2
+    const val COMPUTE = 0x4
+}
+
+/**
  * GPU texture usage flags.
  */
 object GPUTextureUsage {

@@ -2,6 +2,20 @@ package io.kreekt.renderer.webgpu
 
 import io.kreekt.renderer.RendererException
 import io.kreekt.renderer.RendererResult
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.js.Promise
+
+/**
+ * Await a JavaScript Promise in a suspend function.
+ */
+private suspend fun <T> Promise<T>.awaitPromise(): T = suspendCancellableCoroutine { cont ->
+    this.then(
+        onFulfilled = { value -> cont.resume(value) },
+        onRejected = { error -> cont.resumeWithException(error as? Throwable ?: Exception(error.toString())) }
+    )
+}
 
 /**
  * WebGPU shader module implementation.
@@ -21,14 +35,18 @@ class WebGPUShaderModule(
      */
     suspend fun compile(): RendererResult<Unit> {
         return try {
+            console.log("Compiling shader: ${descriptor.label ?: "unnamed"} (${descriptor.stage})")
             val shaderDescriptor = js("({})").unsafeCast<GPUShaderModuleDescriptor>()
             shaderDescriptor.code = descriptor.code
             descriptor.label?.let { shaderDescriptor.label = it }
 
+            console.log("Creating shader module...")
             module = device.createShaderModule(shaderDescriptor)
+            console.log("Shader module created, getting compilation info...")
 
             // Validate shader compilation
-            val compilationInfo = module!!.getCompilationInfo().await<dynamic>()
+            val compilationInfo = module!!.getCompilationInfo().unsafeCast<Promise<dynamic>>().awaitPromise()
+            console.log("Compilation info received")
             val messages = compilationInfo.messages.unsafeCast<Array<dynamic>>()
 
             // Check for errors
@@ -36,11 +54,15 @@ class WebGPUShaderModule(
             if (hasErrors) {
                 val errorMsg = messages.filter { it.type == "error" }
                     .joinToString("\n") { it.message.toString() }
+                console.error("Shader compilation errors: $errorMsg")
                 RendererResult.Error(RendererException.ResourceCreationFailed("Shader compilation failed: $errorMsg"))
             } else {
+                console.log("Shader compiled successfully: ${descriptor.label ?: "unnamed"}")
                 RendererResult.Success(Unit)
             }
         } catch (e: Exception) {
+            console.error("Shader module creation exception: ${e.message}")
+            e.printStackTrace()
             RendererResult.Error(RendererException.ResourceCreationFailed("Shader module creation failed", e))
         }
     }

@@ -125,6 +125,7 @@ kotlin {
         // Web/Browser
         val jsMain by getting {
             dependencies {
+                implementation(libs.kotlinx.coroutines.core)
                 implementation(npm("@webgpu/types", "0.1.40"))
 
                 // Future Phase 3+ dependencies (see CLAUDE.md - Advanced Features):
