@@ -3,6 +3,7 @@ package io.kreekt.examples.voxelcraft
 import io.kreekt.core.scene.Mesh
 import io.kreekt.examples.voxelcraft.util.decodeRLE
 import io.kreekt.examples.voxelcraft.util.encodeRLE
+import io.kreekt.geometry.BufferGeometry
 import io.kreekt.material.MeshBasicMaterial
 
 /**
@@ -30,6 +31,7 @@ class Chunk(
     val position: ChunkPosition,
     internal val world: VoxelWorld
 ) {
+
     /**
      * Block storage as flat ByteArray (65,536 elements)
      * Each byte is a BlockType.id (0-7)
@@ -45,12 +47,28 @@ class Chunk(
     var mesh: Mesh? = null
         private set
 
+    internal var suppressDirtyEvents: Boolean = false
+
+    var terrainGenerated: Boolean = false
+        internal set
+
     /**
      * Dirty flag indicating mesh needs regeneration
      * Set to true when blocks are modified via setBlock()
      */
-    var isDirty: Boolean = true
+    var isDirty: Boolean = false
         private set
+
+    internal fun markDirty() {
+        if (suppressDirtyEvents) {
+            isDirty = true
+            return
+        }
+        if (!isDirty) {
+            isDirty = true
+            world.onChunkDirty(this)
+        }
+    }
 
     /**
      * Flag indicating if this chunk has been modified by the player (for delta saves)
@@ -96,7 +114,7 @@ class Chunk(
 
         if (oldType != type.id) {
             blocks[index] = type.id
-            isDirty = true
+            markDirty()
         }
     }
 
@@ -106,28 +124,20 @@ class Chunk(
      * Called when isDirty = true. Generates optimized mesh using greedy meshing
      * and face culling (implemented in ChunkMeshGenerator).
      */
-    fun regenerateMesh() {
-        val geometry = ChunkMeshGenerator.generate(this)
-
-        // Create or update mesh
+    fun updateMesh(geometry: BufferGeometry) {
         if (mesh == null) {
-            // Create material with vertex colors
             val material = MeshBasicMaterial().apply {
                 vertexColors = true
             }
             mesh = Mesh(geometry, material)
-
-            // Position mesh at chunk world coordinates
             mesh?.position?.set(
                 position.toWorldX().toFloat(),
                 0f,
                 position.toWorldZ().toFloat()
             )
         } else {
-            // Update existing mesh geometry
             mesh?.geometry = geometry
         }
-
         isDirty = false
     }
 
@@ -160,7 +170,8 @@ class Chunk(
             "Invalid chunk data size: expected $BLOCKS_PER_CHUNK, got ${decoded.size}"
         }
         decoded.copyInto(blocks)
-        isDirty = true
+        terrainGenerated = true
+        markDirty()
     }
 
     /**
@@ -188,7 +199,8 @@ class Chunk(
      */
     fun fill(type: BlockType) {
         blocks.fill(type.id)
-        isDirty = true
+        terrainGenerated = true
+        markDirty()
     }
 
     /**
@@ -226,6 +238,7 @@ class Chunk(
     fun dispose() {
         mesh = null
         isDirty = false
+        terrainGenerated = false
     }
 
     companion object {

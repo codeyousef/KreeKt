@@ -1,6 +1,10 @@
 package io.kreekt.examples.voxelcraft.integration
 
 import io.kreekt.examples.voxelcraft.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -12,6 +16,8 @@ import kotlin.test.assertTrue
  * Tests verify save/load functionality from quickstart.md.
  */
 class StoragePersistenceTest {
+    private fun testScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+
 
     /**
      * T019: Quickstart Step 8 - Save world state
@@ -25,8 +31,8 @@ class StoragePersistenceTest {
     @Test
     fun testSaveWorld() {
         // Given: World with modifications
-        val world = VoxelWorld(12345L)
-        world.generateTerrain()
+        val world = VoxelWorld(12345L, testScope())
+        runBlocking { world.generateTerrain() }
         world.setBlock(10, 70, 10, BlockType.Wood) // Place a block
         world.player.position.set(5.0f, 75.0f, 5.0f) // Move player
 
@@ -51,15 +57,15 @@ class StoragePersistenceTest {
     @Test
     fun testLoadWorld() {
         // Given: World with saved state
-        val world1 = VoxelWorld(12345L)
-        world1.generateTerrain()
+        val world1 = VoxelWorld(12345L, testScope())
+        runBlocking { world1.generateTerrain() }
         world1.setBlock(10, 70, 10, BlockType.Wood)
         world1.player.position.set(5.0f, 75.0f, 5.0f)
         world1.player.isFlying = true
 
         // When: Create and restore from WorldState
         val worldState = WorldState.from(world1)
-        val world2 = worldState.restore()
+        val world2 = worldState.restore(testScope())
 
         // Then: World state restored
         assertEquals(12345L, world2.seed)
@@ -76,8 +82,8 @@ class StoragePersistenceTest {
     fun testAutoSave() {
         // Contract: WorldState supports auto-save functionality
 
-        val world = VoxelWorld(12345L)
-        world.generateTerrain()
+        val world = VoxelWorld(12345L, testScope())
+        runBlocking { world.generateTerrain() }
 
         // Expected: WorldState can be created for auto-save
         val worldState = WorldState.from(world)
@@ -90,8 +96,8 @@ class StoragePersistenceTest {
     fun testSaveOnPageClose() {
         // Contract: WorldState supports save on page close
 
-        val world = VoxelWorld(12345L)
-        world.generateTerrain()
+        val world = VoxelWorld(12345L, testScope())
+        runBlocking { world.generateTerrain() }
 
         // Expected: WorldState can be created for page close save
         val worldState = WorldState.from(world)
@@ -104,8 +110,8 @@ class StoragePersistenceTest {
     fun testCompressionRatio() {
         // Contract: SerializedChunk supports compression
 
-        val world = VoxelWorld(12345L)
-        world.generateTerrain()
+        val world = VoxelWorld(12345L, testScope())
+        runBlocking { world.generateTerrain() }
 
         val chunk = world.getChunk(ChunkPosition(0, 0))
         assertNotNull(chunk)
@@ -137,8 +143,8 @@ class StoragePersistenceTest {
     fun testCorruptedDataRecovery() {
         // Contract: WorldState deserialization supports error handling
 
-        val world = VoxelWorld(12345L)
-        world.generateTerrain()
+        val world = VoxelWorld(12345L, testScope())
+        runBlocking { world.generateTerrain() }
 
         // Expected: WorldState can be created
         val worldState = WorldState.from(world)
@@ -151,8 +157,8 @@ class StoragePersistenceTest {
     fun testPartialChunkSave() {
         // Optimization: WorldState.from() supports partial chunk save
 
-        val world = VoxelWorld(12345L)
-        world.generateTerrain()
+        val world = VoxelWorld(12345L, testScope())
+        runBlocking { world.generateTerrain() }
 
         // Modify some blocks
         world.setBlock(10, 70, 10, BlockType.Wood)

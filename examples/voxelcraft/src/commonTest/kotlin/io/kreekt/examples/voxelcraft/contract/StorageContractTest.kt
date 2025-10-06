@@ -1,6 +1,10 @@
 package io.kreekt.examples.voxelcraft.contract
 
 import io.kreekt.examples.voxelcraft.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -11,6 +15,8 @@ import kotlin.test.assertNotNull
  * Tests verify that WorldStorage implementation matches storage-api.yaml specification.
  */
 class StorageContractTest {
+    private fun testScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+
 
     /**
      * T011: POST /storage/save
@@ -20,8 +26,8 @@ class StorageContractTest {
      */
     @Test
     fun testSaveWorldState() {
-        val world = VoxelWorld(12345L)
-        world.generateTerrain()
+        val world = VoxelWorld(12345L, testScope())
+        runBlocking { world.generateTerrain() }
 
         // Create WorldState from world
         val worldState = WorldState.from(world)
@@ -46,12 +52,12 @@ class StorageContractTest {
      */
     @Test
     fun testLoadWorldState() {
-        val world = VoxelWorld(12345L)
-        world.generateTerrain()
+        val world = VoxelWorld(12345L, testScope())
+        runBlocking { world.generateTerrain() }
 
         // Create and restore WorldState
         val worldState = WorldState.from(world)
-        val restored = worldState.restore()
+        val restored = worldState.restore(testScope())
 
         // Expected: Restored world has same seed
         assertEquals(world.seed, restored.seed)
@@ -87,7 +93,7 @@ class StorageContractTest {
         // Note: Actual localStorage clear tested in JS-specific tests
 
         // Test WorldState structure supports clear operation
-        val world = VoxelWorld(12345L)
+        val world = VoxelWorld(12345L, testScope())
         val worldState = WorldState.from(world)
         assertNotNull(worldState)
     }
@@ -96,8 +102,8 @@ class StorageContractTest {
     fun testWorldStateSerialization() {
         // Contract: WorldState must be @Serializable
 
-        val world = VoxelWorld(12345L)
-        world.generateTerrain()
+        val world = VoxelWorld(12345L, testScope())
+        runBlocking { world.generateTerrain() }
 
         // Create WorldState
         val worldState = WorldState.from(world)
@@ -113,8 +119,8 @@ class StorageContractTest {
     fun testChunkCompression() {
         // Contract: SerializedChunk structure
 
-        val world = VoxelWorld(12345L)
-        world.generateTerrain()
+        val world = VoxelWorld(12345L, testScope())
+        runBlocking { world.generateTerrain() }
 
         // Get a chunk and create serialized version
         val chunk = world.getChunk(ChunkPosition(0, 0))
@@ -134,8 +140,8 @@ class StorageContractTest {
     fun testChunkDecompression() {
         // Contract: Chunk round-trip serialization
 
-        val world = VoxelWorld(12345L)
-        world.generateTerrain()
+        val world = VoxelWorld(12345L, testScope())
+        runBlocking { world.generateTerrain() }
 
         val originalChunk = world.getChunk(ChunkPosition(0, 0))
         assertNotNull(originalChunk)
@@ -165,7 +171,7 @@ class StorageContractTest {
     fun testAutoSaveInterval() {
         // Contract: WorldState supports auto-save
 
-        val world = VoxelWorld(12345L)
+        val world = VoxelWorld(12345L, testScope())
         val worldState = WorldState.from(world)
 
         // Expected: WorldState can be created for auto-save
@@ -178,7 +184,7 @@ class StorageContractTest {
     fun testSaveOnPageClose() {
         // Contract: WorldState supports save on close
 
-        val world = VoxelWorld(12345L)
+        val world = VoxelWorld(12345L, testScope())
         val worldState = WorldState.from(world)
 
         // Expected: WorldState can be created for page close save

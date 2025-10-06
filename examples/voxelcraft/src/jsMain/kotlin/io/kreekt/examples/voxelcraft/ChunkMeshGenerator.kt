@@ -2,6 +2,7 @@ package io.kreekt.examples.voxelcraft
 
 import io.kreekt.geometry.BufferAttribute
 import io.kreekt.geometry.BufferGeometry
+import kotlinx.coroutines.yield
 
 /**
  * ChunkMeshGenerator generates optimized meshes for chunks using greedy meshing and face culling.
@@ -19,7 +20,8 @@ object ChunkMeshGenerator {
      * @param chunk The chunk to generate mesh for
      * @return BufferGeometry ready for rendering with KreeKt
      */
-    fun generate(chunk: Chunk): BufferGeometry {
+    suspend fun generate(chunk: Chunk): BufferGeometry {
+        var operations = 0
         val vertices = mutableListOf<Float>()
         val normals = mutableListOf<Float>()
         val uvs = mutableListOf<Float>()
@@ -30,8 +32,8 @@ object ChunkMeshGenerator {
 
         // Generate faces for each of the 6 directions
         for (direction in FaceDirection.values()) {
-            generateFacesForDirection(
-                chunk, direction, vertices, normals, uvs, colors, indices, vertexOffset
+            operations = generateFacesForDirection(
+                chunk, direction, vertices, normals, uvs, colors, indices, vertexOffset, operations
             )
             vertexOffset = vertices.size / 3
         }
@@ -58,7 +60,7 @@ object ChunkMeshGenerator {
     /**
      * Generate all faces for a specific direction using greedy meshing
      */
-    private fun generateFacesForDirection(
+    private suspend fun generateFacesForDirection(
         chunk: Chunk,
         direction: FaceDirection,
         vertices: MutableList<Float>,
@@ -66,8 +68,10 @@ object ChunkMeshGenerator {
         uvs: MutableList<Float>,
         colors: MutableList<Float>,
         indices: MutableList<Int>,
-        vertexOffset: Int
-    ) {
+        vertexOffset: Int,
+        operationsIn: Int
+    ): Int {
+        var operations = operationsIn
         // Determine axis-aligned dimensions
         val (uAxis, vAxis, wAxis) = DirectionHelper.getAxes(direction)
 
@@ -126,6 +130,10 @@ object ChunkMeshGenerator {
                         vertices, normals, uvs, colors, indices,
                         u, v, w, width, height, direction, blockType, vertexOffset
                     )
+                    operations += width * height
+                    if (operations % 4096 == 0) {
+                        yield()
+                    }
 
                     // Clear mask for merged area
                     for (du in 0 until width) {
@@ -136,6 +144,7 @@ object ChunkMeshGenerator {
                 }
             }
         }
+        return operations
     }
 
     /**

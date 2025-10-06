@@ -1,22 +1,49 @@
-package io.kreekt.examples.voxelcraft
+﻿package io.kreekt.examples.voxelcraft
 
 import io.kreekt.core.scene.Scene
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
+import kotlin.coroutines.ContinuationInterceptor
 
 /**
- * VoxelWorld - Main world entity managing chunks and player
+ * VoxelWorld - Main world entity managing chunks and player.
  *
- * Uses KreeKt Scene to manage chunk meshes for rendering.
- *
- * Data model: data-model.md Section 4
+ * Uses a coroutine-backed meshing and generation pipeline so heavy work yields regularly
+ * and keeps the render loop responsive.
  */
-class VoxelWorld(val seed: Long) {
+class VoxelWorld(
+    val seed: Long,
+    parentScope: CoroutineScope
+) {
     val chunks = mutableMapOf<ChunkPosition, Chunk>()
     val player = Player(this)
     private val generator = TerrainGenerator(seed)
     val scene = Scene()
 
+    private val parentJob: Job? = parentScope.coroutineContext[Job]
+    private val worldJob = SupervisorJob(parentJob)
+    private val scope = CoroutineScope(parentScope.coroutineContext + worldJob)
+    private val mainDispatcher: CoroutineDispatcher =
+        (parentScope.coroutineContext[ContinuationInterceptor] as? CoroutineDispatcher)
+            ?: Dispatchers.Main
+
+    private val dirtyQueue = ArrayDeque<Chunk>()
+    private val dirtySet = mutableSetOf<ChunkPosition>()
+    private val pendingMeshes = mutableSetOf<ChunkPosition>()
+    private val meshSemaphore = Semaphore(1)
+
+    private val generationQueue = ArrayDeque<ChunkPosition>()
+    private val activeGeneration = mutableSetOf<ChunkPosition>()
+    private val generationLocks = mutableMapOf<ChunkPosition, Mutex>()
+
+    private var lastStreamCenter: ChunkPosition = ChunkPosition(0, 0)
+    private var streamingInitialized = false
+
     val chunkCount: Int get() = chunks.size
+
     var isGenerated = false
         private set
 
@@ -25,29 +52,33 @@ class VoxelWorld(val seed: Long) {
 
     suspend fun generateTerrain(onProgress: ((Int, Int) -> Unit)? = null) {
         isGeneratingTerrain = true
-        val positions = ChunkPosition.allChunks()
-        val total = positions.size
-        val batchSize = 1  // Process 1 chunk at a time to maintain 60 FPS
+        val center = ChunkPosition(0, 0)
+        val initialPositions = ChunkPosition.spiralAround(center, INITIAL_GENERATION_RADIUS)
+        val total = initialPositions.size
+        var processed = 0
 
-        positions.chunked(batchSize).forEachIndexed { batchIndex, batch ->
-            batch.forEachIndexed { indexInBatch, pos ->
-                val chunk = Chunk(pos, this)
-                generator.generate(chunk)
-                chunks[pos] = chunk
-
-                val currentIndex = batchIndex * batchSize + indexInBatch + 1
-                onProgress?.invoke(currentIndex, total)
+        for (pos in initialPositions) {
+            ensureChunkGenerated(pos)
+            processed++
+            onProgress?.invoke(processed, total)
+            if (processed % 2 == 0) {
+                yield()
             }
-
-            // Yield to JavaScript event loop to allow DOM updates and rendering
-            // Using delay(0) ensures we yield to the event loop properly
-            delay(0)
         }
 
-        // Spawn player above terrain
-        player.position.set(0.0f, 100.0f, 0.0f)
+        lastStreamCenter = center
+        enqueueChunksAround(center, STREAM_RADIUS)
+        streamingInitialized = true
         isGenerated = true
         isGeneratingTerrain = false
+    }
+
+    internal fun onChunkDirty(chunk: Chunk) {
+        if (!chunk.isDirty) return
+        if (pendingMeshes.contains(chunk.position)) return
+        if (dirtySet.add(chunk.position)) {
+            dirtyQueue.addLast(chunk)
+        }
     }
 
     fun getBlock(x: Int, y: Int, z: Int): BlockType? {
@@ -71,53 +102,140 @@ class VoxelWorld(val seed: Long) {
         return true
     }
 
-    fun getChunk(position: ChunkPosition): Chunk? {
-        return chunks[position]
-    }
+    fun getChunk(position: ChunkPosition): Chunk? = chunks[position]
 
     fun update(deltaTime: Float) {
-        // Skip mesh generation during terrain generation for 60 FPS
-        if (!isGeneratingTerrain) {
-            // Process chunks progressively to avoid blocking the main thread
-            // Mesh generation takes ~100ms per chunk, so process 1 at a time
-            val chunksPerFrame = 1
-
-            val dirtyChunks = chunks.values.filter { it.isDirty }
-            val processedChunks = dirtyChunks.take(chunksPerFrame)
-
-            if (processedChunks.isNotEmpty()) {
-                console.log("Processing ${processedChunks.size} dirty chunks (${dirtyChunks.size} total dirty, ${scene.children.size} in scene)")
-            }
-
-            processedChunks.forEach { chunk ->
-                // Remove old mesh from scene if it exists
-                chunk.mesh?.let {
-                    console.log("Removing old mesh for chunk ${chunk.position}")
-                    scene.remove(it)
-                }
-
-                // Regenerate mesh
-                chunk.regenerateMesh()
-
-                // Add new mesh to scene
-                chunk.mesh?.let {
-                    console.log("Adding mesh for chunk ${chunk.position} to scene")
-                    scene.add(it)
-                } ?: console.warn("Chunk ${chunk.position} has no mesh after regeneration!")
-            }
+        if (streamingInitialized) {
+            updateStreaming()
+            pumpGenerationQueue(MAX_GENERATION_PER_FRAME)
         }
 
-        // Update player
+        pumpDirtyChunks(MAX_DIRTY_CHUNKS_PER_FRAME)
         player.update(deltaTime)
     }
 
+    private fun updateStreaming() {
+        val playerPos = player.position
+        val center = ChunkPosition.fromWorldCoordinates(playerPos.x.toInt(), playerPos.z.toInt())
+        if (center != lastStreamCenter) {
+            lastStreamCenter = center
+            enqueueChunksAround(center, STREAM_RADIUS)
+        }
+    }
+
+    private fun enqueueChunksAround(center: ChunkPosition, radius: Int) {
+        ChunkPosition.spiralAround(center, radius).forEach { position ->
+            val chunk = chunks[position]
+            if (chunk?.terrainGenerated == true) return@forEach
+            if (activeGeneration.contains(position) || generationQueue.contains(position)) return@forEach
+            generationQueue.addLast(position)
+        }
+    }
+
+    private fun pumpGenerationQueue(maxPerFrame: Int) {
+        var launched = 0
+        while (launched < maxPerFrame && generationQueue.isNotEmpty()) {
+            val position = generationQueue.removeFirst()
+            val chunk = chunks.getOrPut(position) { Chunk(position, this) }
+            if (chunk.terrainGenerated || activeGeneration.contains(position)) {
+                continue
+            }
+
+            activeGeneration.add(position)
+            scope.launch {
+                try {
+                    ensureChunkGenerated(position)
+                } finally {
+                    activeGeneration.remove(position)
+                }
+            }
+            launched++
+        }
+    }
+
+    private fun pumpDirtyChunks(maxPerFrame: Int) {
+        if (isGeneratingTerrain) return
+        var processed = 0
+        while (processed < maxPerFrame && dirtyQueue.isNotEmpty()) {
+            val chunk = dirtyQueue.removeFirst()
+            dirtySet.remove(chunk.position)
+
+            if (!chunk.isDirty || pendingMeshes.contains(chunk.position)) {
+                continue
+            }
+
+            pendingMeshes.add(chunk.position)
+            scope.launch {
+                try {
+                    meshSemaphore.withPermit {
+                        val geometry = ChunkMeshGenerator.generate(chunk)
+                        withContext(mainDispatcher) {
+                            val wasNew = chunk.mesh == null
+                            chunk.updateMesh(geometry)
+                            chunk.mesh?.let { mesh ->
+                                if (wasNew || mesh.parent == null) {
+                                    scene.add(mesh)
+                                }
+                            }
+                        }
+                    }
+                } finally {
+                    pendingMeshes.remove(chunk.position)
+                    if (chunk.isDirty) {
+                        onChunkDirty(chunk)
+                    }
+                }
+            }
+            processed++
+        }
+    }
+
+    suspend fun ensureChunkGenerated(position: ChunkPosition): Chunk {
+        val chunk = chunks.getOrPut(position) { Chunk(position, this) }
+        if (chunk.terrainGenerated) return chunk
+
+        val mutex = generationLocks.getOrPut(position) { Mutex() }
+        mutex.withLock {
+            if (!chunk.terrainGenerated) {
+                chunk.suppressDirtyEvents = true
+                try {
+                    generator.generate(chunk)
+                } finally {
+                    chunk.suppressDirtyEvents = false
+                }
+                chunk.terrainGenerated = true
+                if (chunk.isDirty) {
+                    onChunkDirty(chunk)
+                }
+            }
+        }
+        if (chunk.terrainGenerated) {
+            generationLocks.remove(position)
+        }
+        return chunk
+    }
+
     fun dispose() {
-        // Remove all chunks from scene and cleanup
+        worldJob.cancel()
         chunks.values.forEach { chunk ->
             chunk.mesh?.let { scene.remove(it) }
             chunk.dispose()
         }
         chunks.clear()
+        dirtyQueue.clear()
+        dirtySet.clear()
+        pendingMeshes.clear()
+        generationQueue.clear()
+        activeGeneration.clear()
+        generationLocks.clear()
         scene.clear()
     }
+
+    companion object {
+        private const val INITIAL_GENERATION_RADIUS = 4
+        private const val STREAM_RADIUS = 6
+        private const val MAX_GENERATION_PER_FRAME = 1
+        private const val MAX_DIRTY_CHUNKS_PER_FRAME = 2
+    }
 }
+

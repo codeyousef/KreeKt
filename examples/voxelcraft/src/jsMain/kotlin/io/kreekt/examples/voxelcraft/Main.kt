@@ -6,10 +6,11 @@ import io.kreekt.renderer.RendererConfig
 import io.kreekt.renderer.webgl.WebGLRenderer
 import kotlinx.browser.document
 import kotlinx.browser.window
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.w3c.dom.HTMLCanvasElement
+
+private val gameScope = MainScope()
+private var initJob: Job? = null
 
 /**
  * VoxelCraft entry point
@@ -23,7 +24,6 @@ import org.w3c.dom.HTMLCanvasElement
  * - Game loop with delta time
  */
 
-@OptIn(DelicateCoroutinesApi::class)
 fun main() {
     console.log("🎮 VoxelCraft Starting...")
 
@@ -33,101 +33,96 @@ fun main() {
         // Expose startGameFromButton to JavaScript using window.asDynamic()
         window.asDynamic().startGameFromButton = ::startGameFromButton
     })
+
+    window.addEventListener("beforeunload", {
+        gameScope.cancel()
+    })
 }
 
-@OptIn(DelicateCoroutinesApi::class)
 fun startGameFromButton() {
     console.log("🎮 Starting game from button click...")
-    GlobalScope.launch {
+    initJob?.cancel()
+    initJob = gameScope.launch {
         initGame()
     }
 }
 
-suspend fun initGame() {
+suspend fun initGame() = coroutineScope {
     Logger.info("🌍 Initializing VoxelCraft...")
 
-    // Get canvas element
     val canvas = document.getElementById("kreekt-canvas") as? HTMLCanvasElement
     if (canvas == null) {
         Logger.error("❌ Canvas element not found!")
-        return
+        return@coroutineScope
     }
 
-    // Setup canvas size
     canvas.width = 800
     canvas.height = 600
 
-    // Try to load saved world first
     val storage = WorldStorage()
     val savedState = storage.load()
-
-    // Create world (without terrain generation yet)
-    val world = VoxelWorld(seed = 12345L)
-
-    // Generate terrain with progress tracking
     val startTime = js("Date.now()") as Double
 
-    if (savedState != null) {
-        updateLoadingProgress("Loading saved world...")
-        Logger.info("📂 Restoring from save...")
+    val world = savedState?.restore(this) ?: VoxelWorld(seed = 12345L, parentScope = this)
 
-        // Restore world state
-        val restoredWorld = savedState.restore()
-
-        // Generate terrain first (all chunks need to exist)
-        generateTerrainAsync(restoredWorld, startTime, canvas, savedState)
-    } else {
-        generateTerrainAsync(world, startTime, canvas, null)
-    }
+    generateTerrainAsync(
+        scope = this,
+        world = world,
+        startTime = startTime,
+        canvas = canvas,
+        savedState = savedState
+    )
 }
 
-@OptIn(DelicateCoroutinesApi::class)
-fun generateTerrainAsync(world: VoxelWorld, startTime: Double, canvas: HTMLCanvasElement, savedState: WorldState?) {
-    Logger.info("🌍 Generating world...")
+
+fun generateTerrainAsync(
+    scope: CoroutineScope,
+    world: VoxelWorld,
+    startTime: Double,
+    canvas: HTMLCanvasElement,
+    savedState: WorldState?
+) {
+    Logger.info("?? Generating world...")
     updateLoadingProgress("Starting terrain generation...")
 
-    // Start game loop immediately in a coroutine, terrain generates in background
-    GlobalScope.launch {
-        continueInitialization(world, 0.0, canvas)
+    scope.launch {
+        continueInitialization(world, canvas)
     }
 
-    // Launch coroutine for async terrain generation with progress updates
-    GlobalScope.launch {
+    scope.launch {
         try {
-            Logger.info("📊 About to generate ${ChunkPosition.TOTAL_CHUNKS} chunks...")
+            Logger.info("?? About to generate ${ChunkPosition.TOTAL_CHUNKS} chunks...")
 
-            // Hide loading screen and start game immediately
             window.setTimeout({
                 hideLoadingScreen()
-                Logger.info("🚀 Game loop started (terrain generating in background)!")
-                Logger.info("🎮 Controls: WASD=Move, Mouse=Look, F=Flight, Space/Shift=Up/Down")
+                Logger.info("?? Game loop started (terrain generating in background)!")
+                Logger.info("?? Controls: WASD=Move, Mouse=Look, F=Flight, Space/Shift=Up/Down")
             }, 100)
 
             world.generateTerrain { current, total ->
                 val percent = (current * 100) / total
-                // Only log every 10% to reduce spam
                 if (percent % 10 == 0) {
-                    Logger.info("⏳ Generating terrain... $percent% ($current/$total chunks)")
+                    Logger.info("? Generating terrain... $percent% ($current/$total chunks)")
                 }
             }
 
-            // Apply saved modifications if loading from save
             if (savedState != null) {
                 savedState.applyModifications(world)
-                Logger.info("✅ Applied ${savedState.chunks.size} saved chunk modifications")
+                Logger.info("? Applied ${savedState.chunks.size} saved chunk modifications")
             }
 
             val generationTime = js("Date.now()") as Double - startTime
-            Logger.info("✅ Terrain generation complete in ${generationTime.toInt()}ms")
-            Logger.info("📊 Chunks: ${world.chunkCount}")
+            updateLoadingProgress("Terrain ready in ${generationTime.toInt()}ms")
+            Logger.info("? Terrain generation complete in ${generationTime.toInt()}ms")
+            Logger.info("?? Chunks: ${world.chunkCount}")
         } catch (e: Throwable) {
-            Logger.error("❌ Generation failed: ${e.message}")
+            Logger.error("? Generation failed: ${e.message}", e)
             console.error(e)
         }
     }
 }
 
-suspend fun continueInitialization(world: VoxelWorld, generationTime: Double, canvas: HTMLCanvasElement) {
+suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement) {
     val storage = WorldStorage()
 
     updateLoadingProgress("Initializing renderer...")
@@ -153,7 +148,7 @@ suspend fun continueInitialization(world: VoxelWorld, generationTime: Double, ca
         far = 1000.0f
     )
 
-    updateLoadingProgress("World ready! (${generationTime.toInt()}ms)")
+    updateLoadingProgress("World ready!")
 
     // Initialize block interaction
     val blockInteraction = BlockInteraction(world, world.player)
@@ -271,8 +266,8 @@ fun updateFPS(fps: Int, triangles: Int = 0, drawCalls: Int = 0) {
 /**
  * VoxelCraft game facade - Simplified for vertical slice
  */
-class VoxelCraft(val seed: Long) {
-    val world = VoxelWorld(seed)
+class VoxelCraft(val seed: Long, private val scope: CoroutineScope = gameScope) {
+    val world = VoxelWorld(seed, scope)
 
     fun update(deltaTime: Float) {
         world.update(deltaTime)
@@ -283,11 +278,12 @@ class VoxelCraft(val seed: Long) {
     }
 
     companion object {
-        fun fromSavedState(state: Any): VoxelCraft {
+        fun fromSavedState(state: Any, scope: CoroutineScope = gameScope): VoxelCraft {
             val worldState = state as WorldState
-            return VoxelCraft(worldState.seed).apply {
-                // World is already restored in WorldState.restore()
-            }
+            return VoxelCraft(worldState.seed, scope)
         }
     }
 }
+
+
+

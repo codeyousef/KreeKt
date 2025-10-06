@@ -1,5 +1,7 @@
 package io.kreekt.examples.voxelcraft
 
+import kotlinx.coroutines.yield
+
 /**
  * Terrain generator using Simplex noise
  *
@@ -14,10 +16,11 @@ class TerrainGenerator(val seed: Long) {
     private val noise2D = SimplexNoise(seed)
     private val noise3D = SimplexNoise(seed + 1)
 
-    fun generate(chunk: Chunk) {
+    suspend fun generate(chunk: Chunk) {
         val worldX = chunk.position.toWorldX()
         val worldZ = chunk.position.toWorldZ()
 
+        var operations = 0
         for (localX in 0..15) {
             for (localZ in 0..15) {
                 val x = worldX + localX
@@ -43,6 +46,10 @@ class TerrainGenerator(val seed: Long) {
                         }
                     }
                     chunk.setBlock(localX, y, localZ, blockType)
+                    operations++
+                    if (operations % 2048 == 0) {
+                        yield()
+                    }
                 }
             }
         }

@@ -1,29 +1,49 @@
 package io.kreekt.examples.voxelcraft
 
-/**
- * Logger for VoxelCraft
- *
- * Provides structured logging with different severity levels.
- * Uses browser console for output with appropriate styling.
- */
-enum class LogLevel { DEBUG, INFO, WARN, ERROR }
+import io.kreekt.util.KreektLogger
 
+/**
+ * Thin wrapper around the shared KreeKt logger so the example uses the
+ * project-wide logging pipeline (formatting, filtering, custom handlers).
+ */
 object Logger {
-    var level = LogLevel.INFO
+    private const val TAG = "VoxelCraft"
+
+    init {
+        if (KreektLogger.customLogHandler == null) {
+            KreektLogger.customLogHandler = { level, tag, message, throwable ->
+                val formatted = "[${level.name}][$tag] $message"
+                when (level) {
+                    KreektLogger.LogLevel.DEBUG -> console.log(formatted)
+                    KreektLogger.LogLevel.INFO -> console.info(formatted)
+                    KreektLogger.LogLevel.WARN -> console.warn(formatted)
+                    KreektLogger.LogLevel.ERROR -> console.error(formatted)
+                    KreektLogger.LogLevel.NONE -> Unit
+                }
+                throwable?.let { console.error(it) }
+            }
+        }
+    }
+
+    var level: KreektLogger.LogLevel
+        get() = KreektLogger.level
+        set(value) {
+            KreektLogger.level = value
+        }
 
     fun debug(message: String) {
-        if (level <= LogLevel.DEBUG) console.log("[DEBUG] $message")
+        KreektLogger.debug(TAG, message)
     }
 
     fun info(message: String) {
-        if (level <= LogLevel.INFO) console.log("[INFO] $message")
+        KreektLogger.info(TAG, message)
     }
 
     fun warn(message: String) {
-        if (level <= LogLevel.WARN) console.warn("[WARN] $message")
+        KreektLogger.warn(TAG, message)
     }
 
-    fun error(message: String) {
-        if (level <= LogLevel.ERROR) console.error("[ERROR] $message")
+    fun error(message: String, throwable: Throwable? = null) {
+        KreektLogger.error(TAG, message, throwable)
     }
 }

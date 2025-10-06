@@ -1,6 +1,8 @@
 package io.kreekt.examples.voxelcraft
 
+import kotlin.math.abs
 import kotlin.math.floor
+import kotlin.math.max
 
 /**
  * ChunkPosition data class representing a chunk's location in the world grid
@@ -83,6 +85,25 @@ data class ChunkPosition(
          *
          * @return List of all 1,024 chunk positions
          */
+
+        fun spiralAround(center: ChunkPosition, radius: Int): List<ChunkPosition> {
+            val result = mutableListOf<ChunkPosition>()
+            val minBound = -16
+            val maxBound = 15
+            for (layer in 0..radius) {
+                val rangeX = (center.chunkX - layer)..(center.chunkX + layer)
+                val rangeZ = (center.chunkZ - layer)..(center.chunkZ + layer)
+                for (x in rangeX) {
+                    for (z in rangeZ) {
+                        if (max(abs(x - center.chunkX), abs(z - center.chunkZ)) != layer) continue
+                        if (x !in minBound..maxBound || z !in minBound..maxBound) continue
+                        result.add(ChunkPosition(x, z))
+                    }
+                }
+            }
+            return result
+        }
+
         fun allChunks(): List<ChunkPosition> = buildList {
             for (chunkX in -16..15) {
                 for (chunkZ in -16..15) {

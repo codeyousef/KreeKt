@@ -1,6 +1,7 @@
 package io.kreekt.examples.voxelcraft
 
 import io.kreekt.core.math.Vector3
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.Serializable
 
 /**
@@ -56,8 +57,8 @@ data class WorldState(
      *
      * @return Restored VoxelWorld instance (terrain NOT generated - call generateTerrain())
      */
-    fun restore(): VoxelWorld {
-        val world = VoxelWorld(seed)
+    fun restore(scope: CoroutineScope): VoxelWorld {
+        val world = VoxelWorld(seed, scope)
 
         // Restore player state
         world.player.position =
@@ -80,7 +81,7 @@ data class WorldState(
     suspend fun applyModifications(world: VoxelWorld) {
         chunks.forEach { serializedChunk ->
             val chunkPos = ChunkPosition(serializedChunk.chunkX, serializedChunk.chunkZ)
-            val chunk = world.getChunk(chunkPos) ?: return@forEach
+            val chunk = world.ensureChunkGenerated(chunkPos)
             chunk.deserialize(serializedChunk.compressedBlocks)
             chunk.isModifiedByPlayer = true  // Mark as player-modified
         }
