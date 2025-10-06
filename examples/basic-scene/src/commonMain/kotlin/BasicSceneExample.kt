@@ -22,13 +22,14 @@ import io.kreekt.geometry.primitives.PlaneGeometry
 import io.kreekt.geometry.primitives.SphereGeometry
 import io.kreekt.material.SimpleMaterial
 import io.kreekt.renderer.Renderer
-import io.kreekt.renderer.createRenderer
+import io.kreekt.renderer.RenderSurface
 import kotlinx.coroutines.delay
 import kotlin.math.cos
 import kotlin.math.sin
 
 // Platform-specific declarations
-expect fun createRenderer(): io.kreekt.renderer.RendererResult<Renderer>
+expect suspend fun createPlatformSurface(): RenderSurface
+expect suspend fun initializeRendererWithBackend(surface: RenderSurface): Renderer
 expect class InputState() {
     fun isKeyPressed(key: String): Boolean
     val isMousePressed: Boolean
@@ -55,6 +56,7 @@ class BasicSceneExample {
 
     suspend fun initialize() {
         println("🚀 Initializing KreeKt Basic Scene Example...")
+        println("📊 Using new WebGPU/Vulkan backend system")
 
         // Create scene
         scene = Scene().apply {
@@ -72,12 +74,15 @@ class BasicSceneExample {
             lookAt(Vector3.ZERO)
         }
 
-        // Initialize renderer (platform-specific)
-        val rendererResult = createRenderer()
-        renderer = when (rendererResult) {
-            is io.kreekt.renderer.RendererResult.Success -> rendererResult.value
-            is io.kreekt.renderer.RendererResult.Error -> throw Exception("Failed to create renderer: ${rendererResult.exception.message}")
-        }
+        // Initialize renderer using new backend system
+        println("🔧 Creating platform-specific render surface...")
+        val surface = createPlatformSurface()
+
+        println("🔧 Initializing backend negotiation...")
+
+        // Initialize renderer with backend telemetry
+        renderer = initializeRendererWithBackend(surface)
+
         renderer.setSize(1920, 1080)
         renderer.clearColor = Color(0.05f, 0.05f, 0.1f)
 

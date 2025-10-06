@@ -33,7 +33,7 @@ class VoxelWorld(
     private val dirtyQueue = ArrayDeque<Chunk>()
     private val dirtySet = mutableSetOf<ChunkPosition>()
     private val pendingMeshes = mutableSetOf<ChunkPosition>()
-    private val meshSemaphore = Semaphore(1)
+    private val meshSemaphore = Semaphore(4)
 
     private val generationQueue = ArrayDeque<ChunkPosition>()
     private val activeGeneration = mutableSetOf<ChunkPosition>()
@@ -234,8 +234,8 @@ class VoxelWorld(
     companion object {
         private const val INITIAL_GENERATION_RADIUS = 4
         private const val STREAM_RADIUS = 6
-        private const val MAX_GENERATION_PER_FRAME = 1
-        private const val MAX_DIRTY_CHUNKS_PER_FRAME = 2
+        private const val MAX_GENERATION_PER_FRAME = 8
+        private const val MAX_DIRTY_CHUNKS_PER_FRAME = 32  // Process many chunks per frame for fast initial load
     }
 }
 

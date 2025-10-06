@@ -59,6 +59,7 @@ data class PerformanceBudget(
 /**
  * Platform target identifiers.
  */
+@Serializable
 enum class PlatformTarget {
     WEB,
     DESKTOP,

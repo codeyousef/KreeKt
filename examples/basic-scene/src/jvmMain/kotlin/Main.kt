@@ -41,6 +41,9 @@ fun main() {
         throw RuntimeException("Failed to create the GLFW window")
     }
 
+    // Set the global window handle for backend initialization
+    glfwWindowHandle = window
+
     // Camera state
     val camera = CameraState()
     var lastMouseX = 640.0

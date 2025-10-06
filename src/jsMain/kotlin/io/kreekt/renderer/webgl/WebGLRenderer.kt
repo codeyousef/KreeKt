@@ -220,7 +220,7 @@ class WebGLRenderer(
         }
 
         // Bind and render buffers
-        renderGeometry(buffers, gl, program)
+        renderGeometry(buffers, geometry, gl, program)
     }
 
     private fun setupGeometry(
@@ -267,6 +267,7 @@ class WebGLRenderer(
 
     private fun renderGeometry(
         buffers: GeometryBuffers,
+        geometry: BufferGeometry,
         gl: WebGLRenderingContext,
         program: WebGLProgram
     ) {
@@ -300,6 +301,7 @@ class WebGLRenderer(
 
         // Draw
         if (buffers.indexBuffer != null) {
+            // Indexed rendering
             gl.bindBuffer(WebGLRenderingContext.ELEMENT_ARRAY_BUFFER, buffers.indexBuffer)
             gl.drawElements(
                 WebGLRenderingContext.TRIANGLES,
@@ -309,6 +311,19 @@ class WebGLRenderer(
             )
             stats.addDrawCall()
             stats.addTriangles(buffers.indexCount / 3)
+        } else {
+            // Non-indexed rendering fallback
+            val positionAttr = geometry.getAttribute("position")
+            val vertexCount = positionAttr?.count ?: 0
+            if (vertexCount > 0) {
+                gl.drawArrays(
+                    WebGLRenderingContext.TRIANGLES,
+                    0,
+                    vertexCount
+                )
+                stats.addDrawCall()
+                stats.addTriangles(vertexCount / 3)
+            }
         }
     }
 

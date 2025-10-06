@@ -47,7 +47,7 @@ class TerrainGenerator(val seed: Long) {
                     }
                     chunk.setBlock(localX, y, localZ, blockType)
                     operations++
-                    if (operations % 2048 == 0) {
+                    if (operations % 8192 == 0) {
                         yield()
                     }
                 }

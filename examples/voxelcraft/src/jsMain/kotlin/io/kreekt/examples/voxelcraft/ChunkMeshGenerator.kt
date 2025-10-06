@@ -50,6 +50,9 @@ object ChunkMeshGenerator {
         val indexArray = indices.map { it.toFloat() }.toFloatArray()
         geometry.setIndex(BufferAttribute(indexArray, 1))
 
+        // Debug logging
+        console.log("Chunk mesh: ${vertices.size/3} vertices, ${indices.size/3} triangles")
+
         // Compute bounding volumes for frustum culling
         geometry.computeBoundingBox()
         geometry.computeBoundingSphere()
@@ -131,7 +134,7 @@ object ChunkMeshGenerator {
                         u, v, w, width, height, direction, blockType, vertexOffset
                     )
                     operations += width * height
-                    if (operations % 4096 == 0) {
+                    if (operations % 16384 == 0) {
                         yield()
                     }
 

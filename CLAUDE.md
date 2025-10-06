@@ -387,12 +387,10 @@ A fully functional creative-mode voxel building game demonstrating KreeKt's capa
 **Run**: `./gradlew :examples:voxelcraft:runJs`
 
 ## Recent Changes
+- 016-implement-production-ready: Added Kotlin 1.9+ with Multiplatform plugin
 
 - **2025-10-04**: VoxelCraft example specification and implementation plan created (014-create-a-basic)
 - **2025-10-04**: Added comprehensive documentation (18 files, ~10,000 lines, 93.4% coverage)
-- 012-complete-three-js: Added Kotlin 1.9+ with Multiplatform plugin
-- 011-reference-https-threejs: Added Kotlin 1.9+ with Multiplatform plugin
-- 010-systematically-address-all: Added Kotlin 1.9+ with Kotlin Multiplatform plugin
 
 1. **2025-09-29**: Complete production readiness validation system implemented
 2. **2025-09-29**: Constitutional compliance validation (60 FPS, 5MB, type safety, cross-platform)

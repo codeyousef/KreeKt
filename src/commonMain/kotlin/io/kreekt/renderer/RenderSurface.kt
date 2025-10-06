@@ -3,12 +3,11 @@ import kotlin.math.PI
 
 /**
  * Platform-agnostic render surface interface.
- * Uses expect/actual pattern for platform-specific implementations.
  *
  * Represents the surface that the renderer will draw to,
  * such as a canvas, window, or view.
  */
-expect class RenderSurface {
+interface RenderSurface {
     /**
      * Width of the render surface in pixels
      */
@@ -176,25 +175,8 @@ interface SurfaceFactory {
     fun isValidTarget(target: Any): Boolean
 }
 
-/**
- * Platform-specific surface creation functions
- */
-expect object RenderSurfaceFactory {
-    /**
-     * Creates a render surface for the given target
-     */
-    fun createSurface(target: Any, config: SurfaceConfig = SurfaceConfig()): RenderSurface
-
-    /**
-     * Gets capabilities for a potential surface
-     */
-    fun getSurfaceCapabilities(target: Any): SurfaceCapabilities?
-
-    /**
-     * Checks if the target is valid for surface creation
-     */
-    fun isValidTarget(target: Any): Boolean
-}
+// Platform-specific surface creation is handled by platform implementations
+// (WebGPURenderSurface for JS, VulkanRenderSurface for JVM)
 
 /**
  * Surface event listener interface
