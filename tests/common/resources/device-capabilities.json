@@ -1,0 +1,130 @@
+{
+  "profiles": [
+    {
+      "profileId": "apple-m1-integrated",
+      "deviceName": "Apple M1 GPU",
+      "vendorId": "0x106b",
+      "productId": "0x0001",
+      "driverVersion": "Metal 3.0",
+      "osBuild": "macOS 14.0",
+      "gpuFamily": "Apple Silicon",
+      "capabilities": {
+        "COMPUTE": "SUPPORTED",
+        "RAY_TRACING": "SUPPORTED",
+        "XR_SURFACE": "SUPPORTED"
+      },
+      "performanceBaseline": {
+        "targetFps": 60,
+        "minFps": 30,
+        "initBudgetMs": 2500
+      },
+      "preferredBackend": "VULKAN",
+      "notes": "MoltenVK translation layer, excellent compute and ray tracing support"
+    },
+    {
+      "profileId": "intel-iris-xe-integrated",
+      "deviceName": "Intel Iris Xe Graphics",
+      "vendorId": "0x8086",
+      "productId": "0x9a49",
+      "driverVersion": "30.0.101.1191",
+      "osBuild": "Windows 11 22H2",
+      "gpuFamily": "Intel Gen12",
+      "capabilities": {
+        "COMPUTE": "SUPPORTED",
+        "RAY_TRACING": "EMULATED",
+        "XR_SURFACE": "SUPPORTED"
+      },
+      "performanceBaseline": {
+        "targetFps": 60,
+        "minFps": 30,
+        "initBudgetMs": 3000
+      },
+      "preferredBackend": "VULKAN",
+      "notes": "Ray tracing via software emulation, good compute performance"
+    },
+    {
+      "profileId": "adreno-730-mobile",
+      "deviceName": "Qualcomm Adreno 730",
+      "vendorId": "0x5143",
+      "productId": "0x07030000",
+      "driverVersion": "512.615.0",
+      "osBuild": "Android 13 (API 33)",
+      "gpuFamily": "Adreno 7xx",
+      "capabilities": {
+        "COMPUTE": "SUPPORTED",
+        "RAY_TRACING": "MISSING",
+        "XR_SURFACE": "SUPPORTED"
+      },
+      "performanceBaseline": {
+        "targetFps": 60,
+        "minFps": 30,
+        "initBudgetMs": 2800
+      },
+      "preferredBackend": "VULKAN",
+      "notes": "Mobile GPU, no hardware ray tracing, excellent compute and XR support"
+    },
+    {
+      "profileId": "mali-g710-mobile",
+      "deviceName": "ARM Mali-G710 MP10",
+      "vendorId": "0x13b5",
+      "productId": "0xa002",
+      "driverVersion": "r39p0",
+      "osBuild": "Android 13 (API 33)",
+      "gpuFamily": "Mali Valhall",
+      "capabilities": {
+        "COMPUTE": "SUPPORTED",
+        "RAY_TRACING": "MISSING",
+        "XR_SURFACE": "SUPPORTED"
+      },
+      "performanceBaseline": {
+        "targetFps": 60,
+        "minFps": 30,
+        "initBudgetMs": 2900
+      },
+      "preferredBackend": "VULKAN",
+      "notes": "Mobile GPU, good compute performance, XR ready"
+    },
+    {
+      "profileId": "chrome-webgpu-desktop",
+      "deviceName": "Generic WebGPU Adapter",
+      "vendorId": "0x0000",
+      "productId": "0x0000",
+      "driverVersion": "Chromium 128.0.6613.84",
+      "osBuild": "Browser",
+      "gpuFamily": "WebGPU",
+      "capabilities": {
+        "COMPUTE": "SUPPORTED",
+        "RAY_TRACING": "MISSING",
+        "XR_SURFACE": "SUPPORTED"
+      },
+      "performanceBaseline": {
+        "targetFps": 60,
+        "minFps": 30,
+        "initBudgetMs": 2000
+      },
+      "preferredBackend": "WEBGPU",
+      "notes": "Browser-based WebGPU, compute shaders supported, WebXR ready"
+    },
+    {
+      "profileId": "unsupported-legacy",
+      "deviceName": "Legacy GPU (No Support)",
+      "vendorId": "0x1002",
+      "productId": "0x6779",
+      "driverVersion": "Legacy",
+      "osBuild": "Windows 10",
+      "gpuFamily": "Legacy",
+      "capabilities": {
+        "COMPUTE": "MISSING",
+        "RAY_TRACING": "MISSING",
+        "XR_SURFACE": "MISSING"
+      },
+      "performanceBaseline": {
+        "targetFps": 30,
+        "minFps": 15,
+        "initBudgetMs": 5000
+      },
+      "preferredBackend": null,
+      "notes": "Legacy GPU without modern graphics API support - should trigger fail-fast denial"
+    }
+  ]
+}
