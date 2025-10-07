@@ -165,6 +165,13 @@ class WebGPUPipeline(
     }
 
     /**
+     * Checks if the pipeline is ready for use.
+     * T006: Added for non-blocking pipeline creation.
+     */
+    val isReady: Boolean
+        get() = pipeline != null
+
+    /**
      * Gets the GPU render pipeline.
      */
     fun getPipeline(): GPURenderPipeline? = pipeline

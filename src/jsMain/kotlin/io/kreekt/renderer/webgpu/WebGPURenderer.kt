@@ -3,10 +3,13 @@ package io.kreekt.renderer.webgpu
 import io.kreekt.camera.Camera
 import io.kreekt.camera.Viewport
 import io.kreekt.core.math.Color
+import io.kreekt.core.math.Matrix4
 import io.kreekt.core.scene.Mesh
 import io.kreekt.core.scene.Scene
 import io.kreekt.geometry.BufferGeometry
 import io.kreekt.material.MeshBasicMaterial
+import io.kreekt.optimization.Frustum
+import io.kreekt.optimization.BoundingBox
 import io.kreekt.renderer.*
 import io.kreekt.renderer.webgpu.shaders.BasicShaders
 import kotlinx.coroutines.GlobalScope
@@ -206,6 +209,19 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
             triangleCount = 0
             drawCallCount = 0
 
+            // T009: Create frustum for culling
+            camera.updateMatrixWorld()
+            camera.updateProjectionMatrix()
+            val projectionViewMatrix = Matrix4()
+                .copy(camera.projectionMatrix)
+                .multiply(camera.matrixWorldInverse)
+
+            val frustum = Frustum()
+            frustum.setFromMatrix(projectionViewMatrix)
+
+            var culledCount = 0
+            var visibleCount = 0
+
             // Get current texture from swap chain
             val currentTexture = context!!.getCurrentTexture()
             val textureView = currentTexture.createView()
@@ -237,9 +253,29 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
             // Begin render pass
             val renderPass = commandEncoder.beginRenderPass(renderPassDescriptor)
 
-            // Render scene
+            // T009: Render scene with frustum culling
             scene.traverse { obj ->
                 if (obj is Mesh) {
+                    // Check if mesh has chunk data for frustum culling
+                    val chunk = obj.userData["chunk"]
+                    if (chunk != null) {
+                        // VoxelCraft chunk - use frustum culling
+                        try {
+                            // Use reflection-like approach to access boundingBox
+                            val boundingBox = js("chunk.boundingBox")
+                            if (boundingBox != null) {
+                                val isVisible = frustum.intersectsBox(boundingBox.unsafeCast<BoundingBox>())
+                                if (!isVisible) {
+                                    culledCount++
+                                    return@traverse // Skip this mesh
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // If anything fails, render the mesh anyway
+                            console.warn("Frustum culling error: ${e.message}")
+                        }
+                    }
+                    visibleCount++
                     renderMesh(obj, camera, renderPass)
                 }
             }
@@ -252,6 +288,19 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
             val commandBuffers = js("[]").unsafeCast<Array<GPUCommandBuffer>>()
             js("commandBuffers.push(commandBuffer)")
             device!!.queue.submit(commandBuffers)
+
+            // T009: Log frustum culling statistics
+            if (culledCount > 0 || visibleCount > 0) {
+                console.log("T009 Frustum culling: $visibleCount visible, $culledCount culled (${culledCount + visibleCount} total)")
+            }
+
+            // T010: Validate draw call count (FR-005: <100 draw calls for 81 chunks)
+            if (drawCallCount > 100) {
+                console.warn("⚠️ T010: Draw call count ($drawCallCount) exceeds limit of 100 (FR-005 requirement)")
+            }
+
+            // T010: Log performance metrics
+            console.log("T010 Performance: $drawCallCount draw calls, $triangleCount triangles, $visibleCount meshes")
 
             frameCount++
             RendererResult.Success(Unit)
@@ -493,74 +542,46 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
 
     /**
      * Get or create render pipeline for a material.
+     * T006: Fixed - No longer blocks render thread with busy-wait.
+     * Returns null if pipeline not ready (mesh skipped this frame, will render next frame).
      */
     private fun getOrCreatePipeline(geometry: BufferGeometry, material: MeshBasicMaterial): GPURenderPipeline? {
         val pipelineDescriptor = createPipelineDescriptor(geometry, material)
         val cacheKey = PipelineKey.fromDescriptor(pipelineDescriptor)
 
-        // Return cached pipeline if available
-        if (pipelineCache.has(cacheKey)) {
-            val cachedPipeline = pipelineCacheMap[cacheKey]
-            return cachedPipeline?.getPipeline()
+        // Synchronous cache lookup - return immediately if ready
+        pipelineCacheMap[cacheKey]?.let {
+            if (it.isReady) {
+                return it.getPipeline()
+            }
         }
 
-        // Create new pipeline
-        try {
+        // Launch async creation if not exists (non-blocking)
+        if (!pipelineCacheMap.containsKey(cacheKey)) {
             val pipeline = WebGPUPipeline(device!!, pipelineDescriptor)
-
-            // Create pipeline with detailed logging
-            console.log("Starting pipeline creation...")
-            var pipelineReady = false
-            var pipelineError: Throwable? = null
+            pipelineCacheMap[cacheKey] = pipeline
 
             GlobalScope.launch {
-                console.log("Pipeline coroutine started")
                 try {
                     val result = pipeline.create()
                     when (result) {
                         is RendererResult.Success<*> -> {
-                            console.log("Pipeline created successfully")
-                            pipelineReady = true
+                            console.log("✅ Pipeline ready for key: $cacheKey")
                         }
-
                         is RendererResult.Error<*> -> {
-                            console.error("Pipeline creation failed: ${result.exception.message}")
-                            pipelineError = result.exception
+                            console.error("❌ Pipeline creation failed: ${result.exception.message}")
+                            pipelineCacheMap.remove(cacheKey) // Remove failed pipeline
                         }
                     }
                 } catch (e: Exception) {
-                    console.error("Pipeline coroutine exception: ${e.message}")
-                    e.printStackTrace()
-                    pipelineError = e
+                    console.error("❌ Pipeline creation exception: ${e.message}")
+                    pipelineCacheMap.remove(cacheKey)
                 }
             }
-
-            // Busy wait with logs
-            var attempts = 0
-            while (!pipelineReady && pipelineError == null && attempts < 10000) {
-                attempts++
-                if (attempts % 1000 == 0) {
-                    console.log("Waiting for pipeline... attempt $attempts")
-                }
-            }
-
-            if (pipelineError != null) {
-                console.error("Pipeline creation failed: ${pipelineError?.message}")
-                pipelineError?.printStackTrace()
-                return null
-            }
-
-            if (!pipelineReady) {
-                console.error("Pipeline creation timed out after $attempts attempts")
-                return null
-            }
-
-            pipelineCacheMap[cacheKey] = pipeline
-            return pipeline.getPipeline()
-        } catch (e: Exception) {
-            console.error("Failed to create pipeline: ${e.message}")
-            return null
         }
+
+        // Return pipeline if ready, null otherwise (mesh skipped this frame)
+        return pipelineCacheMap[cacheKey]?.takeIf { it.isReady }?.getPipeline()
     }
 
     /**

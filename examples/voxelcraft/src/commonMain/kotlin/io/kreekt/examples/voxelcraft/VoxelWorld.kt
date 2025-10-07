@@ -71,6 +71,8 @@ class VoxelWorld(
         streamingInitialized = true
         isGenerated = true
         isGeneratingTerrain = false
+
+        Logger.info("✅ Terrain generation complete! dirtyQueue=${dirtyQueue.size}, pendingMeshes=${pendingMeshes.size}")
     }
 
     internal fun onChunkDirty(chunk: Chunk) {
@@ -78,6 +80,9 @@ class VoxelWorld(
         if (pendingMeshes.contains(chunk.position)) return
         if (dirtySet.add(chunk.position)) {
             dirtyQueue.addLast(chunk)
+            if (dirtyQueue.size % 10 == 0) {
+                Logger.debug("📝 onChunkDirty: Queue size now ${dirtyQueue.size}")
+            }
         }
     }
 
@@ -111,7 +116,12 @@ class VoxelWorld(
         }
 
         pumpDirtyChunks(MAX_DIRTY_CHUNKS_PER_FRAME)
-        player.update(deltaTime)
+
+        // T016b: Only update player physics after initial terrain generation completes
+        // This prevents player falling during async mesh generation
+        if (isGenerated && !isGeneratingTerrain) {
+            player.update(deltaTime)
+        }
     }
 
     private fun updateStreaming() {
@@ -154,16 +164,26 @@ class VoxelWorld(
     }
 
     private fun pumpDirtyChunks(maxPerFrame: Int) {
-        if (isGeneratingTerrain) return
+        if (isGeneratingTerrain) {
+            Logger.debug("⏸️ pumpDirtyChunks: Skipping (terrain generating), dirtyQueue=${dirtyQueue.size}")
+            return
+        }
+
+        if (dirtyQueue.isNotEmpty()) {
+            Logger.debug("🔧 pumpDirtyChunks: Processing up to $maxPerFrame chunks (queue=${dirtyQueue.size}, pending=${pendingMeshes.size})")
+        }
+
         var processed = 0
         while (processed < maxPerFrame && dirtyQueue.isNotEmpty()) {
             val chunk = dirtyQueue.removeFirst()
             dirtySet.remove(chunk.position)
 
             if (!chunk.isDirty || pendingMeshes.contains(chunk.position)) {
+                Logger.debug("⏭️ Skipping chunk ${chunk.position}: isDirty=${chunk.isDirty}, pending=${pendingMeshes.contains(chunk.position)}")
                 continue
             }
 
+            Logger.debug("🎨 Starting mesh generation for chunk ${chunk.position}")
             pendingMeshes.add(chunk.position)
             scope.launch {
                 try {
@@ -175,6 +195,7 @@ class VoxelWorld(
                             chunk.mesh?.let { mesh ->
                                 if (wasNew || mesh.parent == null) {
                                     scene.add(mesh)
+                                    Logger.debug("✅ Added mesh to scene for chunk ${chunk.position}, total meshes=${scene.children.size}")
                                 }
                             }
                         }
@@ -187,6 +208,10 @@ class VoxelWorld(
                 }
             }
             processed++
+        }
+
+        if (processed > 0) {
+            Logger.debug("✅ pumpDirtyChunks: Processed $processed chunks this frame")
         }
     }
 
