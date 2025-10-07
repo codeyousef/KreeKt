@@ -1,11 +1,15 @@
 package io.kreekt.examples.voxelcraft
 
 import io.kreekt.camera.PerspectiveCamera
+import io.kreekt.renderer.Renderer
+import io.kreekt.renderer.RendererConfig
+import io.kreekt.renderer.RendererFactory
+import io.kreekt.renderer.RendererInitializationException
+import io.kreekt.renderer.vulkan.VulkanSurface
 import kotlinx.coroutines.*
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWErrorCallback
-import org.lwjgl.opengl.GL
-import org.lwjgl.opengl.GL11.*
+import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.system.MemoryUtil
 import kotlin.system.measureTimeMillis
 
@@ -13,6 +17,7 @@ class VoxelCraftJVM {
     private var window: Long = 0
     private lateinit var world: VoxelWorld
     private lateinit var camera: PerspectiveCamera
+    private lateinit var renderer: Renderer
     private val gameScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     // Input state
@@ -32,6 +37,16 @@ class VoxelCraftJVM {
         Logger.info("OS: ${System.getProperty("os.name")} ${System.getProperty("os.version")}")
         Logger.info("Java: ${System.getProperty("java.version")}")
 
+        // T028: Check Vulkan availability (Feature 019)
+        Logger.info("🔧 Detecting graphics backends...")
+        val availableBackends = try {
+            RendererFactory.detectAvailableBackends()
+        } catch (e: Throwable) {
+            Logger.warn("Failed to detect backends: ${e.message}")
+            emptyList()
+        }
+        Logger.info("📊 Available backends: ${availableBackends.joinToString(", ")}")
+
         // Setup error callback
         GLFWErrorCallback.createPrint(System.err).set()
 
@@ -40,72 +55,71 @@ class VoxelCraftJVM {
             throw RuntimeException("Failed to initialize GLFW")
         }
 
-        // Configure GLFW - try Core Profile first, fallback to Any if needed
+        // T023: Check if Vulkan is supported
+        val vulkanSupported = GLFWVulkan.glfwVulkanSupported()
+        Logger.info("🌋 Vulkan supported: $vulkanSupported")
+
+        if (!vulkanSupported) {
+            glfwTerminate()
+            throw RuntimeException("Vulkan is not supported on this system. Please update your GPU drivers.")
+        }
+
+        // T023: Configure GLFW for Vulkan (no OpenGL context needed)
         glfwDefaultWindowHints()
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3)
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE)
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API) // No OpenGL/OpenGL ES context
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE)
 
         // Create window
-        window = glfwCreateWindow(800, 600, "VoxelCraft JVM", MemoryUtil.NULL, MemoryUtil.NULL)
-
-        // If core profile fails, try compatibility profile
-        if (window == MemoryUtil.NULL) {
-            Logger.warn("Failed to create Core Profile context, trying compatibility profile...")
-            glfwDefaultWindowHints()
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3)
-            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE)
-            glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
-            glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE)
-
-            window = glfwCreateWindow(800, 600, "VoxelCraft JVM", MemoryUtil.NULL, MemoryUtil.NULL)
-        }
+        window = glfwCreateWindow(800, 600, "VoxelCraft JVM (Vulkan)", MemoryUtil.NULL, MemoryUtil.NULL)
 
         if (window == MemoryUtil.NULL) {
             glfwTerminate()
             throw RuntimeException("Failed to create GLFW window - please check your GPU drivers")
         }
 
-        // Make OpenGL context current BEFORE any other GL operations
-        glfwMakeContextCurrent(window)
-
         // Setup input callbacks
         setupInputHandlers()
 
-        // Enable V-Sync
-        glfwSwapInterval(1)
-
-        // Initialize OpenGL capabilities - wrap in try-catch for better error reporting
-        try {
-            GL.createCapabilities()
-        } catch (e: Exception) {
-            Logger.error("Failed to initialize OpenGL capabilities", e)
-            glfwDestroyWindow(window)
-            glfwTerminate()
-            throw RuntimeException("Failed to initialize OpenGL - please update your GPU drivers", e)
-        }
-
-        Logger.info("✅ OpenGL ${glGetString(GL_VERSION)}")
-        Logger.info("✅ Renderer: ${glGetString(GL_RENDERER)}")
-        Logger.info("✅ Vendor: ${glGetString(GL_VENDOR)}")
-
-        // Enable depth testing
-        glEnable(GL_DEPTH_TEST)
-        glDepthFunc(GL_LESS)
-
-        // Enable backface culling
-        glEnable(GL_CULL_FACE)
-        glCullFace(GL_BACK)
-
-        // Set clear color (sky blue)
-        glClearColor(0.53f, 0.81f, 0.92f, 1.0f)
-
         // Show window
         glfwShowWindow(window)
+
+        // T023: Initialize Vulkan renderer using RendererFactory
+        Logger.info("🔧 Initializing Vulkan renderer...")
+
+        runBlocking {
+            val surface = VulkanSurface(window)
+            val config = RendererConfig(enableValidation = true)
+
+            renderer = try {
+                RendererFactory.create(surface, config).getOrElse { exception ->
+                    when (exception) {
+                        is RendererInitializationException.NoGraphicsSupportException -> {
+                            Logger.error("❌ Graphics not supported: ${exception.message}")
+                            Logger.error("   Platform: ${exception.platform}")
+                            Logger.error("   Available: ${exception.availableBackends}")
+                            Logger.error("   Required: ${exception.requiredFeatures}")
+                            throw exception
+                        }
+
+                        else -> {
+                            Logger.error("❌ Renderer initialization failed: ${exception.message}")
+                            throw exception
+                        }
+                    }
+                }
+            } catch (e: Throwable) {
+                Logger.error("❌ Failed to create renderer: ${e.message}")
+                glfwDestroyWindow(window)
+                glfwTerminate()
+                throw e
+            }
+
+            Logger.info("✅ Renderer initialized!")
+            Logger.info("  Backend: ${renderer.backend}")
+            Logger.info("  Device: ${renderer.capabilities.deviceName}")
+            Logger.info("  Driver: ${renderer.capabilities.driverVersion}")
+        }
 
         // Initialize camera
         camera = PerspectiveCamera(
@@ -263,28 +277,38 @@ class VoxelCraftJVM {
             camera.updateMatrixWorld(true)
             camera.updateProjectionMatrix()
 
-            // Render
-            glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+            // T023: Render scene using Vulkan renderer
+            renderer.render(world.scene, camera)
 
-            // TODO: Render scene using KreeKt renderer
-            // For now, just clear the screen
+            // Handle window resize
+            val width = IntArray(1)
+            val height = IntArray(1)
+            glfwGetFramebufferSize(window, width, height)
+            if (width[0] > 0 && height[0] > 0) {
+                renderer.resize(width[0], height[0])
+            }
 
             // Log stats every 60 frames
             if (frameCount % 60 == 0) {
                 val fps = (1.0f / deltaTime).toInt()
-                Logger.info("📊 FPS: $fps | Player: (${world.player.position.x.toInt()}, ${world.player.position.y.toInt()}, ${world.player.position.z.toInt()}) | Chunks: ${world.chunkCount}")
+                val stats = renderer.getStats()
+                Logger.info("📊 FPS: $fps (${stats.fps.toInt()} renderer) | Player: (${world.player.position.x.toInt()}, ${world.player.position.y.toInt()}, ${world.player.position.z.toInt()}) | Chunks: ${world.chunkCount}")
             }
 
             frameCount++
 
-            // Swap buffers and poll events
-            glfwSwapBuffers(window)
+            // Poll events (no swap needed - Vulkan handles presentation)
             glfwPollEvents()
         }
     }
 
     private fun cleanup() {
         Logger.info("🔚 Shutting down...")
+
+        // Dispose renderer
+        if (::renderer.isInitialized) {
+            renderer.dispose()
+        }
 
         // Dispose world
         world.dispose()

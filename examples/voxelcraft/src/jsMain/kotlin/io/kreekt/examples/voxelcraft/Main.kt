@@ -2,8 +2,9 @@ package io.kreekt.examples.voxelcraft
 
 import io.kreekt.camera.PerspectiveCamera
 import io.kreekt.renderer.FPSCounter
-import io.kreekt.renderer.WebGPURenderSurface
-import io.kreekt.renderer.webgl.WebGLRenderer
+import io.kreekt.renderer.RendererFactory
+import io.kreekt.renderer.RendererInitializationException
+import io.kreekt.renderer.webgpu.WebGPUSurface
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.*
@@ -19,7 +20,7 @@ private var initJob: Job? = null
  * - World generation with Simplex noise (1,024 chunks)
  * - Player controls (WASD movement, mouse camera)
  * - Flight mode (F key toggle)
- * - WebGL2 rendering with KreeKt
+ * - WebGPU rendering with KreeKt (Feature 019/020)
  * - Persistence (save/load to localStorage)
  * - Game loop with delta time
  */
@@ -138,44 +139,50 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
 
     updateLoadingProgress("Initializing renderer...")
 
-    // Create render surface
-    val surface = WebGPURenderSurface(canvas)
+    // T027: Create render surface using Feature 019 API
+    val surface = WebGPUSurface(canvas)
 
-    // Initialize renderer with backend detection
+    // T027: Initialize renderer with RendererFactory (automatic backend detection)
     Logger.info("🔧 Initializing renderer backend for VoxelCraft...")
     Logger.info("📊 Backend Negotiation:")
     Logger.info("  Detecting capabilities...")
 
-    val hasWebGPU = js("'gpu' in navigator").unsafeCast<Boolean>()
+    // Detect available backends
+    val availableBackends = RendererFactory.detectAvailableBackends()
+    Logger.info("  Available backends: ${availableBackends.joinToString(", ")}")
 
-    if (hasWebGPU) {
-        Logger.info("  Available backends: WebGPU 1.0")
-        Logger.info("  Selected: WebGPU (via WebGL2 compatibility)")
-        Logger.info("  Features:")
-        Logger.info("    COMPUTE: Emulated via WebGL2")
-        Logger.info("    RAY_TRACING: Not available")
-        Logger.info("    XR_SURFACE: Not available")
-    } else {
-        Logger.info("  Available backends: WebGL 2.0")
-        Logger.info("  Selected: WebGL2")
-        Logger.info("  Features:")
-        Logger.info("    COMPUTE: Not available")
-        Logger.info("    RAY_TRACING: Not available")
-        Logger.info("    XR_SURFACE: Not available")
+    // Create renderer with automatic backend selection (WebGPU → WebGL fallback)
+    val renderer = try {
+        RendererFactory.create(surface).getOrElse { exception ->
+            when (exception) {
+                is RendererInitializationException.NoGraphicsSupportException -> {
+                    Logger.error("❌ Graphics not supported: ${exception.message}")
+                    Logger.error("   Platform: ${exception.platform}")
+                    Logger.error("   Available: ${exception.availableBackends}")
+                    Logger.error("   Required: ${exception.requiredFeatures}")
+                    throw exception
+                }
+
+                else -> {
+                    Logger.error("❌ Renderer initialization failed: ${exception.message}")
+                    throw exception
+                }
+            }
+        }
+    } catch (e: Throwable) {
+        Logger.error("❌ Failed to create renderer: ${e.message}")
+        updateLoadingProgress("Error: ${e.message}")
+        throw e
     }
 
-    // TEMPORARY: Use WebGL2 renderer due to WebGPU bind group layout bug
-    // TODO: Re-enable WebGPU once bind group layout issue is fixed
-    Logger.info("🚀 Creating WebGL2 renderer (WebGPU disabled due to pipeline bug)...")
-    val renderer = WebGLRenderer(canvas)
-
-    // T020: Track backend type for performance validation
-    val backendType = if (hasWebGPU) "WebGPU" else "WebGL 2.0"
-
+    // Log selected backend
     Logger.info("✅ Renderer initialized!")
-    Logger.info("  Init Time: ~50ms")
-    Logger.info("  Within Budget: true (2000ms limit)")
-    Logger.info("  Backend: $backendType")
+    Logger.info("  Backend: ${renderer.backend}")
+    Logger.info("  Device: ${renderer.capabilities.deviceName}")
+    Logger.info("  Features:")
+    Logger.info("    COMPUTE: ${renderer.capabilities.supportsCompute}")
+    Logger.info("    RAY_TRACING: ${renderer.capabilities.supportsRayTracing}")
+    Logger.info("    MSAA: ${renderer.capabilities.supportsMultisampling} (max ${renderer.capabilities.maxSamples}x)")
 
     // Create camera
     val camera = PerspectiveCamera(
