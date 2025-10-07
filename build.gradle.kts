@@ -115,6 +115,22 @@ kotlin {
                 implementation(libs.lwjgl.core)
                 implementation(libs.lwjgl.vulkan)
 
+                // Platform-specific LWJGL natives (T001: Feature 019)
+                // Note: LWJGL requires platform natives for JVM execution
+                val osName = System.getProperty("os.name").lowercase()
+                val lwjglNatives = when {
+                    osName.contains("win") -> "natives-windows"
+                    osName.contains("linux") -> "natives-linux"
+                    osName.contains("mac") || osName.contains("darwin") -> "natives-macos"
+                    else -> "natives-linux" // Default fallback
+                }
+
+                // Core LWJGL natives
+                runtimeOnly("org.lwjgl:lwjgl::$lwjglNatives")
+
+                // Vulkan natives (note: Vulkan itself is a header-only library in LWJGL)
+                // Native libraries are loaded from system (VK_ICD_FILENAMES, vulkan-1.dll, etc.)
+
                 // Future Phase 3+ dependencies (see CLAUDE.md - Advanced Features):
                 // Physics: Bullet physics integration (Phase 2-13, Physics section)
                 // Asset loading: DRACO mesh compression support

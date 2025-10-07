@@ -2,11 +2,8 @@ package io.kreekt.examples.voxelcraft
 
 import io.kreekt.camera.PerspectiveCamera
 import io.kreekt.renderer.FPSCounter
-import io.kreekt.renderer.RenderSurface
 import io.kreekt.renderer.WebGPURenderSurface
-import io.kreekt.renderer.RendererConfig
 import io.kreekt.renderer.webgl.WebGLRenderer
-import io.kreekt.renderer.webgpu.WebGPURendererFactory
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.*
@@ -167,9 +164,10 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
         Logger.info("    XR_SURFACE: Not available")
     }
 
-    // Use WebGPU renderer with automatic WebGL fallback
-    Logger.info("🚀 Creating renderer with WebGPU (auto-fallback to WebGL)...")
-    val renderer = WebGPURendererFactory.create(canvas)
+    // TEMPORARY: Use WebGL2 renderer due to WebGPU bind group layout bug
+    // TODO: Re-enable WebGPU once bind group layout issue is fixed
+    Logger.info("🚀 Creating WebGL2 renderer (WebGPU disabled due to pipeline bug)...")
+    val renderer = WebGLRenderer(canvas)
 
     // T020: Track backend type for performance validation
     val backendType = if (hasWebGPU) "WebGPU" else "WebGL 2.0"

@@ -52,8 +52,16 @@ kotlin {
 
         val jvmMain by getting {
             dependencies {
-                val lwjglVersion = "3.3.4"
-                val lwjglNatives = "natives-linux"
+                val lwjglVersion = "3.3.5" // Updated to latest stable version
+
+                // Detect OS for native libraries
+                val osName = System.getProperty("os.name").lowercase()
+                val lwjglNatives = when {
+                    osName.contains("win") -> "natives-windows"
+                    osName.contains("linux") -> "natives-linux"
+                    osName.contains("mac") || osName.contains("darwin") -> "natives-macos"
+                    else -> throw GradleException("Unsupported OS: $osName")
+                }
 
                 implementation("org.lwjgl:lwjgl:$lwjglVersion")
                 implementation("org.lwjgl:lwjgl-glfw:$lwjglVersion")
@@ -116,12 +124,10 @@ tasks.register<JavaExec>("runJvm") {
     group = "examples"
     description = "Run VoxelCraft on JVM with LWJGL/OpenGL"
 
-    dependsOn("jvmJar")
+    dependsOn("jvmMainClasses")
 
-    classpath = files(
-        tasks.named("jvmJar").get().outputs.files,
-        configurations.getByName("jvmRuntimeClasspath")
-    )
+    classpath = kotlin.jvm().compilations.getByName("main").output.allOutputs +
+            kotlin.jvm().compilations.getByName("main").runtimeDependencyFiles
 
     mainClass.set("io.kreekt.examples.voxelcraft.MainJvmKt")
 
@@ -132,8 +138,18 @@ tasks.register<JavaExec>("runJvm") {
         "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED"
     )
 
+    // Enable standard output/error streams
+    standardInput = System.`in`
+    standardOutput = System.out
+    errorOutput = System.err
+
+    // Ignore exit value for now to see errors
+    isIgnoreExitValue = false
+
     doFirst {
         println("🎮 Starting VoxelCraft (JVM/LWJGL)")
         println("Controls: WASD=Move, Mouse=Look, F=Flight, Space/Shift=Up/Down, ESC=Quit")
+        println("OS: ${System.getProperty("os.name")}")
+        println("Java: ${System.getProperty("java.version")}")
     }
 }

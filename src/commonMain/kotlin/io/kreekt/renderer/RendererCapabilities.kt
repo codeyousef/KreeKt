@@ -1,13 +1,45 @@
 package io.kreekt.renderer
-import io.kreekt.renderer.TextureFormat
-import kotlin.math.PI
 
 /**
  * Describes the capabilities and limits of a renderer.
  * Provides information about what features are supported
  * and what the hardware/software limits are.
+ *
+ * T012: Updated for Feature 019 - WebGPU/Vulkan Primary Renderer
+ * Added: backend, supportsCompute, supportsRayTracing, deviceName, driverVersion
  */
 data class RendererCapabilities(
+    /**
+     * Current graphics backend (T012: Feature 019)
+     */
+    val backend: BackendType = BackendType.WEBGL,
+
+    /**
+     * GPU device name (T012: Feature 019, FR-024)
+     * Example: "NVIDIA GeForce RTX 4090", "Apple M2", "Intel UHD Graphics 630"
+     */
+    val deviceName: String = "Unknown",
+
+    /**
+     * Driver version string (T012: Feature 019, FR-024)
+     */
+    val driverVersion: String = "Unknown",
+
+    /**
+     * Whether compute shaders are supported (T012: Feature 019)
+     */
+    val supportsCompute: Boolean = false,
+
+    /**
+     * Whether hardware ray tracing is supported (T012: Feature 019)
+     */
+    val supportsRayTracing: Boolean = false,
+
+    /**
+     * Whether MSAA multisampling is supported (T012: Feature 019)
+     */
+    val supportsMultisampling: Boolean = true,
+
     /**
      * Maximum texture size (width or height)
      */

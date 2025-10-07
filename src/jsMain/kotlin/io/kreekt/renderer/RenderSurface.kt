@@ -1,33 +1,25 @@
+/**
+ * T023: RenderSurface Actual (JS)
+ * Feature: 019-we-should-not
+ *
+ * JS actual declaration for RenderSurface interface.
+ */
+
 package io.kreekt.renderer
 
-import org.w3c.dom.HTMLCanvasElement
-
 /**
- * WebGPU render surface backed by an HTML canvas element
+ * JS actual for RenderSurface interface.
+ *
+ * Implemented by WebGPUSurface (see io.kreekt.renderer.webgpu.WebGPUSurface).
  */
-class WebGPURenderSurface(val canvas: HTMLCanvasElement) : RenderSurface {
-    override val width: Int
-        get() = canvas.width
-
-    override val height: Int
-        get() = canvas.height
-
-    override val devicePixelRatio: Float
-        get() = js("window.devicePixelRatio").unsafeCast<Float>()
-
-    override val isValid: Boolean
-        get() = true
-
-    override fun resize(width: Int, height: Int) {
-        canvas.width = width
-        canvas.height = height
-    }
-
-    override fun present() {
-        // WebGPU handles presentation automatically
-    }
-
-    override fun dispose() {
-        // Cleanup WebGPU resources
-    }
+actual interface RenderSurface {
+    actual val width: Int
+    actual val height: Int
+    actual fun getHandle(): Any
 }
+
+/*
+ * NOTE: Previous WebGPURenderSurface class replaced with Feature 019 expect/actual pattern.
+ * See git history for old implementation.
+ * New implementation: io.kreekt.renderer.webgpu.WebGPUSurface
+ */

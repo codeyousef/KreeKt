@@ -34,6 +34,7 @@ class VoxelWorld(
     private val dirtySet = mutableSetOf<ChunkPosition>()
     private val pendingMeshes = mutableSetOf<ChunkPosition>()
     private val meshSemaphore = Semaphore(4)
+    private val dirtyQueueMutex = Mutex()
 
     private val generationQueue = ArrayDeque<ChunkPosition>()
     private val activeGeneration = mutableSetOf<ChunkPosition>()
@@ -78,10 +79,14 @@ class VoxelWorld(
     internal fun onChunkDirty(chunk: Chunk) {
         if (!chunk.isDirty) return
         if (pendingMeshes.contains(chunk.position)) return
-        if (dirtySet.add(chunk.position)) {
-            dirtyQueue.addLast(chunk)
-            if (dirtyQueue.size % 10 == 0) {
-                Logger.debug("📝 onChunkDirty: Queue size now ${dirtyQueue.size}")
+        scope.launch {
+            dirtyQueueMutex.withLock {
+                if (dirtySet.add(chunk.position)) {
+                    dirtyQueue.addLast(chunk)
+                    if (dirtyQueue.size % 10 == 0) {
+                        Logger.debug("📝 onChunkDirty: Queue size now ${dirtyQueue.size}")
+                    }
+                }
             }
         }
     }
@@ -169,14 +174,20 @@ class VoxelWorld(
             return
         }
 
-        if (dirtyQueue.isNotEmpty()) {
-            Logger.debug("🔧 pumpDirtyChunks: Processing up to $maxPerFrame chunks (queue=${dirtyQueue.size}, pending=${pendingMeshes.size})")
+        // Try to acquire lock, skip if busy
+        if (!dirtyQueueMutex.tryLock()) {
+            return
         }
 
-        var processed = 0
-        while (processed < maxPerFrame && dirtyQueue.isNotEmpty()) {
-            val chunk = dirtyQueue.removeFirst()
-            dirtySet.remove(chunk.position)
+        try {
+            if (dirtyQueue.isNotEmpty()) {
+                Logger.debug("🔧 pumpDirtyChunks: Processing up to $maxPerFrame chunks (queue=${dirtyQueue.size}, pending=${pendingMeshes.size})")
+            }
+
+            var processed = 0
+            while (processed < maxPerFrame && dirtyQueue.isNotEmpty()) {
+                val chunk = dirtyQueue.removeFirst()
+                dirtySet.remove(chunk.position)
 
             if (!chunk.isDirty || pendingMeshes.contains(chunk.position)) {
                 Logger.debug("⏭️ Skipping chunk ${chunk.position}: isDirty=${chunk.isDirty}, pending=${pendingMeshes.contains(chunk.position)}")
@@ -207,11 +218,14 @@ class VoxelWorld(
                     }
                 }
             }
-            processed++
-        }
+                processed++
+            }
 
-        if (processed > 0) {
-            Logger.debug("✅ pumpDirtyChunks: Processed $processed chunks this frame")
+            if (processed > 0) {
+                Logger.debug("✅ pumpDirtyChunks: Processed $processed chunks this frame")
+            }
+        } finally {
+            dirtyQueueMutex.unlock()
         }
     }
 

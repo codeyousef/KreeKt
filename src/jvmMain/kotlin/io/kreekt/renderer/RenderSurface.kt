@@ -1,35 +1,25 @@
+/**
+ * T019: RenderSurface Actual (JVM)
+ * Feature: 019-we-should-not
+ *
+ * JVM actual declaration for RenderSurface interface.
+ */
+
 package io.kreekt.renderer
 
 /**
- * Vulkan render surface for desktop platforms (GLFW window)
+ * JVM actual for RenderSurface interface.
+ *
+ * Implemented by VulkanSurface (see io.kreekt.renderer.vulkan.VulkanSurface).
  */
-class VulkanRenderSurface(
-    val windowHandle: Long,
-    private var surfaceWidth: Int,
-    private var surfaceHeight: Int
-) : RenderSurface {
-    override val width: Int
-        get() = surfaceWidth
-
-    override val height: Int
-        get() = surfaceHeight
-
-    override val devicePixelRatio: Float
-        get() = 1.0f // Can be queried from GLFW if needed
-
-    override val isValid: Boolean
-        get() = windowHandle != 0L
-
-    override fun resize(width: Int, height: Int) {
-        surfaceWidth = width
-        surfaceHeight = height
-    }
-
-    override fun present() {
-        // Vulkan present is handled by swapchain
-    }
-
-    override fun dispose() {
-        // Cleanup Vulkan surface resources
-    }
+actual interface RenderSurface {
+    actual val width: Int
+    actual val height: Int
+    actual fun getHandle(): Any
 }
+
+/*
+ * NOTE: Previous VulkanRenderSurface class replaced with Feature 019 expect/actual pattern.
+ * See git history for old implementation.
+ * New implementation: io.kreekt.renderer.vulkan.VulkanSurface
+ */

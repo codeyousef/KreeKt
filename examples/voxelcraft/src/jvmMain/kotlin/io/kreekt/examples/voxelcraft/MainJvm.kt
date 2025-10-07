@@ -29,6 +29,8 @@ class VoxelCraftJVM {
 
     private fun init() {
         Logger.info("🎮 VoxelCraft JVM Starting...")
+        Logger.info("OS: ${System.getProperty("os.name")} ${System.getProperty("os.version")}")
+        Logger.info("Java: ${System.getProperty("java.version")}")
 
         // Setup error callback
         GLFWErrorCallback.createPrint(System.err).set()
@@ -38,30 +40,58 @@ class VoxelCraftJVM {
             throw RuntimeException("Failed to initialize GLFW")
         }
 
-        // Configure GLFW
+        // Configure GLFW - try Core Profile first, fallback to Any if needed
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3)
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE)
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE)
 
         // Create window
         window = glfwCreateWindow(800, 600, "VoxelCraft JVM", MemoryUtil.NULL, MemoryUtil.NULL)
+
+        // If core profile fails, try compatibility profile
+        if (window == MemoryUtil.NULL) {
+            Logger.warn("Failed to create Core Profile context, trying compatibility profile...")
+            glfwDefaultWindowHints()
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3)
+            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE)
+            glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
+            glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE)
+
+            window = glfwCreateWindow(800, 600, "VoxelCraft JVM", MemoryUtil.NULL, MemoryUtil.NULL)
+        }
+
         if (window == MemoryUtil.NULL) {
             glfwTerminate()
-            throw RuntimeException("Failed to create GLFW window")
+            throw RuntimeException("Failed to create GLFW window - please check your GPU drivers")
         }
+
+        // Make OpenGL context current BEFORE any other GL operations
+        glfwMakeContextCurrent(window)
 
         // Setup input callbacks
         setupInputHandlers()
 
-        // Make OpenGL context current
-        glfwMakeContextCurrent(window)
-        glfwSwapInterval(1) // Enable V-Sync
+        // Enable V-Sync
+        glfwSwapInterval(1)
 
-        // Initialize OpenGL capabilities
-        GL.createCapabilities()
+        // Initialize OpenGL capabilities - wrap in try-catch for better error reporting
+        try {
+            GL.createCapabilities()
+        } catch (e: Exception) {
+            Logger.error("Failed to initialize OpenGL capabilities", e)
+            glfwDestroyWindow(window)
+            glfwTerminate()
+            throw RuntimeException("Failed to initialize OpenGL - please update your GPU drivers", e)
+        }
+
+        Logger.info("✅ OpenGL ${glGetString(GL_VERSION)}")
+        Logger.info("✅ Renderer: ${glGetString(GL_RENDERER)}")
+        Logger.info("✅ Vendor: ${glGetString(GL_VENDOR)}")
 
         // Enable depth testing
         glEnable(GL_DEPTH_TEST)
@@ -73,9 +103,6 @@ class VoxelCraftJVM {
 
         // Set clear color (sky blue)
         glClearColor(0.53f, 0.81f, 0.92f, 1.0f)
-
-        Logger.info("✅ OpenGL ${glGetString(GL_VERSION)}")
-        Logger.info("✅ Renderer: ${glGetString(GL_RENDERER)}")
 
         // Show window
         glfwShowWindow(window)
