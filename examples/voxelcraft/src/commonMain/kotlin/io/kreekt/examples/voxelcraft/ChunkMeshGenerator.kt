@@ -50,8 +50,8 @@ object ChunkMeshGenerator {
         val indexArray = indices.map { it.toFloat() }.toFloatArray()
         geometry.setIndex(BufferAttribute(indexArray, 1))
 
-        // T004/T022: Reduced geometry logging for production (single line)
-        // console.log("Chunk mesh: ${vertices.size/3} verts, ${indices.size/3} tris, id=${geometry.hashCode()}")
+        // T004/T022: Temporary diagnostic logging to debug mesh generation
+        Logger.debug("🧊 Chunk mesh: ${vertices.size/3} verts, ${indices.size/3} tris")
 
         // Compute bounding volumes for frustum culling
         geometry.computeBoundingBox()

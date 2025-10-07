@@ -1,6 +1,7 @@
 package io.kreekt.examples.voxelcraft
 
 import io.kreekt.camera.PerspectiveCamera
+import io.kreekt.renderer.FPSCounter
 import io.kreekt.renderer.RenderSurface
 import io.kreekt.renderer.WebGPURenderSurface
 import io.kreekt.renderer.RendererConfig
@@ -68,16 +69,15 @@ suspend fun initGame() = coroutineScope {
     val world = savedState?.restore(this) ?: VoxelWorld(seed = 12345L, parentScope = this)
 
     // T016: Fix camera/player position - ensure player is at proper spawn height
-    if (world.player.position.y < 10.0f) {
-        Logger.info("📍 Saved player position too low (Y=${world.player.position.y}), resetting to spawn height")
-        world.player.position.y = 100.0f  // Higher spawn to prevent falling through terrain
-    }
+    Logger.info("🔍 Player position after load: (${world.player.position.x}, ${world.player.position.y}, ${world.player.position.z})")
+    Logger.info("🔍 Player rotation: (${world.player.rotation.x}, ${world.player.rotation.y}, ${world.player.rotation.z})")
+    Logger.info("🔍 Flight mode: ${world.player.isFlying}")
 
-    // T016b: Enable flight mode by default to prevent falling during terrain generation
-    if (!world.player.isFlying) {
-        world.player.isFlying = true
-        Logger.info("🚁 Flight mode enabled by default (prevents falling during terrain loading)")
-    }
+    // Always reset to proper spawn for debugging
+    world.player.position.set(0.0f, 100.0f, 0.0f)
+    world.player.rotation.set(0.0f, 0.0f, 0.0f)
+    world.player.isFlying = true
+    Logger.info("📍 Reset player to spawn: (0, 100, 0), flight mode: ON")
 
     generateTerrainAsync(
         scope = this,
@@ -171,9 +171,13 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
     Logger.info("🚀 Creating renderer with WebGPU (auto-fallback to WebGL)...")
     val renderer = WebGPURendererFactory.create(canvas)
 
+    // T020: Track backend type for performance validation
+    val backendType = if (hasWebGPU) "WebGPU" else "WebGL 2.0"
+
     Logger.info("✅ Renderer initialized!")
     Logger.info("  Init Time: ~50ms")
     Logger.info("  Within Budget: true (2000ms limit)")
+    Logger.info("  Backend: $backendType")
 
     // Create camera
     val camera = PerspectiveCamera(
@@ -205,23 +209,23 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
         storage.save(world)
     })
 
-    // Start game loop
+    // T014: FPS counter with rolling average
+    val fpsCounter = FPSCounter(windowSize = 60)
     var lastTime = js("Date.now()") as Double
     var frameCount = 0
-    var fpsUpdateTime = lastTime
 
     fun gameLoop() {
-        val currentTime = js("Date.now()") as Double
+        val currentTime = js("performance.now()") as Double
         val deltaTime = ((currentTime - lastTime) / 1000.0).toFloat()
         lastTime = currentTime
 
-        // T002/T021: Camera position diagnostic logging removed for production
-        // if (frameCount < 10) {
-        //     console.log("📷 Camera pos: (${camera.position.x}, ${camera.position.y}, ${camera.position.z})")
-        //     console.log("📷 Camera rot: (${camera.rotation.x}, ${camera.rotation.y}, ${camera.rotation.z})")
-        //     console.log("🧱 Scene children count: ${world.scene.children.size}")
-        //     console.log("🧱 Scene type: ${world.scene::class.simpleName}")
-        // }
+        // T002: Temporary diagnostic logging
+        if (frameCount < 10 || frameCount % 60 == 0) {
+            console.log("📷 Frame $frameCount: Camera pos: (${camera.position.x}, ${camera.position.y}, ${camera.position.z})")
+            console.log("📷 Frame $frameCount: Camera rot: (${camera.rotation.x}, ${camera.rotation.y}, ${camera.rotation.z})")
+            console.log("🧱 Frame $frameCount: Scene children: ${world.scene.children.size}")
+            console.log("👤 Frame $frameCount: Player pos: (${world.player.position.x}, ${world.player.position.y}, ${world.player.position.z})")
+        }
 
         // Update controllers
         playerController.update(deltaTime)
@@ -251,15 +255,27 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
         // Update HUD (every frame)
         updateHUD(world)
 
-        // Update FPS counter (every second)
-        frameCount++
-        if (currentTime - fpsUpdateTime >= 1000) {
-            val fps = (frameCount * 1000.0 / (currentTime - fpsUpdateTime)).toInt()
-            val stats = renderer.getStats()
-            updateFPS(fps, stats.triangles, stats.calls)
-            frameCount = 0
-            fpsUpdateTime = currentTime
+        // T014: Update FPS counter with rolling average (every frame)
+        val fps = fpsCounter.update(currentTime)
+        val stats = renderer.getStats()
+        updateFPS(fps.toInt(), stats.triangles, stats.calls)
+
+        // T020: Performance validation after warmup (frame 120 = ~2 seconds)
+        val validationResult = PerformanceValidator.validateAfterWarmup(
+            frameCount = frameCount,
+            metrics = PerformanceValidator.PerformanceMetrics(
+                fps = fps,
+                drawCalls = stats.calls,
+                triangles = stats.triangles,
+                backendType = backendType,
+                frameTime = fpsCounter.getAverageFrameTime()
+            )
+        )
+        validationResult?.let { result ->
+            PerformanceValidator.logResult(result)
         }
+
+        frameCount++
 
         // Request next frame
         window.requestAnimationFrame { gameLoop() }

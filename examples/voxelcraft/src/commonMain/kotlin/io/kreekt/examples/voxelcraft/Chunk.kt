@@ -1,5 +1,7 @@
 package io.kreekt.examples.voxelcraft
 
+import io.kreekt.core.math.Box3
+import io.kreekt.core.math.Vector3
 import io.kreekt.core.scene.Mesh
 import io.kreekt.examples.voxelcraft.util.decodeRLE
 import io.kreekt.examples.voxelcraft.util.encodeRLE
@@ -46,6 +48,12 @@ class Chunk(
      */
     var mesh: Mesh? = null
         private set
+
+    /**
+     * Bounding box for frustum culling (T009)
+     * Calculated from chunk world position
+     */
+    val boundingBox: Box3 = calculateBoundingBox(position)
 
     internal var suppressDirtyEvents: Boolean = false
 
@@ -135,6 +143,8 @@ class Chunk(
                 0f,
                 position.toWorldZ().toFloat()
             )
+            // T009: Link chunk to mesh for frustum culling
+            mesh?.userData?.set("chunk", this)
         } else {
             mesh?.geometry = geometry
         }
@@ -256,6 +266,20 @@ class Chunk(
          * Chunk height in blocks
          */
         const val HEIGHT = 256
+
+        /**
+         * Calculates bounding box for frustum culling (T009)
+         * @param pos Chunk position
+         * @return Axis-aligned bounding box in world coordinates
+         */
+        fun calculateBoundingBox(pos: ChunkPosition): Box3 {
+            val worldX = pos.toWorldX().toFloat()
+            val worldZ = pos.toWorldZ().toFloat()
+            return Box3(
+                min = Vector3(worldX, 0f, worldZ),
+                max = Vector3(worldX + SIZE, HEIGHT.toFloat(), worldZ + SIZE)
+            )
+        }
     }
 
     override fun toString(): String {

@@ -357,36 +357,51 @@ The validation system provides real-time feedback during development through IDE
 ### VoxelCraft - Minecraft Clone Example
 
 **Path**: `examples/voxelcraft/`
-**Platform**: JavaScript (WebGL2)
-**Status**: In Development (Spec: 014-create-a-basic)
+**Platforms**: JavaScript (WebGL2), JVM (LWJGL/OpenGL)
+**Status**: Multiplatform (Specs: 014-create-a-basic, 018-optimize-voxelcraft-rendering)
 
-A fully functional creative-mode voxel building game demonstrating KreeKt's capabilities:
+A fully functional creative-mode voxel building game demonstrating KreeKt's multiplatform capabilities:
 
 **Features**:
 
 - Procedurally generated 512x512x256 block world using Simplex noise
 - Chunk-based rendering with greedy meshing (1,024 chunks, 16x16x256 each)
-- First-person camera controls with Pointer Lock API
+- First-person camera controls
 - WASD movement with collision detection and physics
 - Flight mode with vertical movement
-- Block breaking/placing with raycasting
+- Block breaking/placing with raycasting (JS only currently)
 - Inventory system (unlimited blocks in creative mode)
-- LocalStorage persistence with RLE + gzip compression
+- LocalStorage persistence with RLE + gzip compression (JS only)
 - 7-10 block types (Grass, Dirt, Stone, Wood, Leaves, Sand, Water)
 - Performance: 60 FPS target, 30 FPS minimum (constitutional requirement)
 
 **Technical Highlights**:
 
+- **Multiplatform Architecture**: Shared game logic in commonMain with platform-specific implementations
 - Demonstrates KreeKt scene graph, cameras, and geometries
 - Advanced mesh generation (face culling, greedy meshing)
 - Terrain generation with natural features (trees, caves)
-- Browser storage integration (save/load game state)
-- Input handling (keyboard + mouse with Pointer Lock)
+- Platform-specific input handling (browser Pointer Lock API, LWJGL keyboard/mouse)
 - Performance optimization (frustum culling, chunk batching)
 
-**Run**: `./gradlew :examples:voxelcraft:runJs`
+**Run**:
+- JS: `./gradlew :examples:voxelcraft:runJs`
+- JVM: `./gradlew :examples:voxelcraft:runJvm`
+
+**Multiplatform Structure**:
+- `commonMain`: Shared game logic (VoxelWorld, Player, Chunk, ChunkMeshGenerator, TerrainGenerator, etc.)
+- `jsMain`: Browser-specific code (HTML5 Canvas, Pointer Lock, LocalStorage)
+- `jvmMain`: JVM-specific code (LWJGL window, OpenGL context, keyboard/mouse)
 
 ## Recent Changes
+- **2025-10-07**: Implemented full JVM target for VoxelCraft (018-optimize-voxelcraft-rendering)
+  - Moved shared game logic to commonMain (VoxelWorld, Player, Chunk, ChunkMeshGenerator, TerrainGenerator, etc.)
+  - Created expect/actual Logger for platform-specific logging
+  - Implemented LWJGL-based JVM main with full game loop
+  - Added keyboard/mouse input handling for JVM platform
+  - Game now runs on both JS (browser) and JVM (native) platforms
+  - This demonstrates KreeKt is truly a multiplatform library
+
 - **2025-10-07**: Fixed VoxelCraft rendering issues (017-in-voxelcraft-example)
   - Root cause: Player falling during async terrain/mesh generation
   - Fix: Disabled player physics until terrain generation completes
@@ -396,9 +411,7 @@ A fully functional creative-mode voxel building game demonstrating KreeKt's capa
   - Cleaned up diagnostic logging for production
 
 - 017-in-voxelcraft-example: Added Kotlin 1.9+ with Multiplatform plugin, targeting JS/Browser
-- 016-implement-production-ready: Added Kotlin 1.9+ with Multiplatform plugin
 
-- **2025-10-04**: VoxelCraft example specification and implementation plan created (014-create-a-basic)
 
 1. **2025-09-29**: Complete production readiness validation system implemented
 2. **2025-09-29**: Constitutional compliance validation (60 FPS, 5MB, type safety, cross-platform)

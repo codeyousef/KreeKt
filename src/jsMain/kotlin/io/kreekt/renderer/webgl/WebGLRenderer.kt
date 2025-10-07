@@ -8,10 +8,22 @@ import io.kreekt.core.scene.Mesh
 import io.kreekt.core.scene.Scene
 import io.kreekt.geometry.BufferGeometry
 import io.kreekt.material.MeshBasicMaterial
+import io.kreekt.optimization.Frustum
+import io.kreekt.optimization.BoundingBox
 import io.kreekt.renderer.*
 import io.kreekt.util.KreektLogger
 import org.khronos.webgl.*
 import org.w3c.dom.HTMLCanvasElement
+
+// T011: WebGL VAO extension types
+external interface OES_vertex_array_object {
+    fun createVertexArrayOES(): WebGLVertexArrayObjectOES?
+    fun deleteVertexArrayOES(arrayObject: WebGLVertexArrayObjectOES?)
+    fun isVertexArrayOES(arrayObject: WebGLVertexArrayObjectOES?): Boolean
+    fun bindVertexArrayOES(arrayObject: WebGLVertexArrayObjectOES?)
+}
+
+external interface WebGLVertexArrayObjectOES
 
 /**
  * WebGL Renderer implementation for KreeKt
@@ -25,6 +37,7 @@ class WebGLRenderer(
 ) : Renderer {
 
     private var gl: WebGLRenderingContext? = null
+    private var vaoExt: OES_vertex_array_object? = null  // T011: VAO extension
     private var isInitialized = false
     private var isDisposed = false
     private var contextLost = false
@@ -54,7 +67,11 @@ class WebGLRenderer(
     // Shader program cache
     private val shaderPrograms = mutableMapOf<String, WebGLProgram>()
     private val buffers = mutableMapOf<Int, WebGLBuffer>()
-    private val geometryCache = mutableMapOf<Int, GeometryBuffers>()
+    private val geometryCache = mutableMapOf<Int, GeometryBuffers>()  // T025: Use mesh.id for stable caching
+
+    // T023: Buffer creation throttling to prevent lag when many meshes load at once
+    private var bufferCreationsThisFrame = 0
+    private val maxBufferCreationsPerFrame = 2  // Limit to 2 new geometries per frame (aggressive throttling)
 
     private var nextBufferId = 0
     private var basicShaderProgram: WebGLProgram? = null
@@ -64,7 +81,8 @@ class WebGLRenderer(
         val normalBuffer: WebGLBuffer?,
         val colorBuffer: WebGLBuffer?,
         val indexBuffer: WebGLBuffer?,
-        val indexCount: Int
+        val indexCount: Int,
+        val vao: WebGLVertexArrayObjectOES? = null  // T011: VAO for efficient attribute setup
     )
 
     override suspend fun initialize(surface: RenderSurface): RendererResult<Unit> {
@@ -93,6 +111,16 @@ class WebGLRenderer(
                 )
 
             gl = glContext.unsafeCast<WebGLRenderingContext>()
+
+            // T011: Get VAO extension for efficient vertex attribute setup
+            gl?.let { gl ->
+                vaoExt = gl.getExtension("OES_vertex_array_object")?.unsafeCast<OES_vertex_array_object>()
+                if (vaoExt != null) {
+                    console.log("✅ VAO extension available")
+                } else {
+                    console.warn("⚠️ VAO extension not available - performance will be reduced")
+                }
+            }
 
             // Setup WebGL state
             gl?.let { gl ->
@@ -171,7 +199,17 @@ class WebGLRenderer(
         }
     }
 
+    private var frameCount = 0
+    private var lastFrameTime = 0.0
+
     private fun renderScene(scene: Scene, camera: Camera, gl: WebGLRenderingContext) {
+        val frameStartTime = js("performance.now()") as Double
+        frameCount++
+        val startTime = if (frameCount <= 10) js("performance.now()") as Double else 0.0
+
+        // T023: Reset buffer creation counter at the start of each frame
+        bufferCreationsThisFrame = 0
+
         // T003: Shader compilation validation (keep error checking, remove verbose logging)
         val program = basicShaderProgram
         if (program == null) {
@@ -179,7 +217,6 @@ class WebGLRenderer(
             console.error("🔴 Renderer initialization may have failed silently")
             return
         }
-        // T020: Removed verbose logging - console.log("✅ Using shader program: ${program}")
         gl.useProgram(program)
 
         // Get uniform locations
@@ -191,19 +228,85 @@ class WebGLRenderer(
         gl.uniformMatrix4fv(uProjectionMatrix, false, camera.projectionMatrix.toFloat32Array())
         gl.uniformMatrix4fv(uViewMatrix, false, camera.matrixWorldInverse.toFloat32Array())
 
-        // T001/T020: Scene traversal (diagnostic logging removed for production)
+        // T009: Create frustum for culling
+        val projectionViewMatrix = Matrix4()
+            .copy(camera.projectionMatrix)
+            .multiply(camera.matrixWorldInverse)
+
+        val frustum = Frustum()
+        frustum.setFromMatrix(projectionViewMatrix)
+
+        var culledCount = 0
+        var visibleCount = 0
+
+        val traverseStart = if (frameCount <= 10) js("performance.now()") as Double else 0.0
+
+        // T024: Measure rendering time
+        var renderMeshTime = 0.0
+
+        // T001/T020: Scene traversal with frustum culling
         var meshCount = 0
         scene.traverse { obj ->
             if (obj is Mesh) {
+                // T009: Check if mesh has chunk data for frustum culling
+                val chunk = obj.userData["chunk"]
+                if (chunk != null) {
+                    // VoxelCraft chunk - use frustum culling
+                    try {
+                        val boundingBox = js("chunk.boundingBox")
+                        if (boundingBox != null) {
+                            val isVisible = frustum.intersectsBox(boundingBox.unsafeCast<BoundingBox>())
+                            if (!isVisible) {
+                                culledCount++
+                                return@traverse // Skip this mesh
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // If anything fails, render the mesh anyway
+                        console.warn("Frustum culling error: ${e.message}")
+                    }
+                }
+                visibleCount++
                 meshCount++
-                // T020: Removed per-mesh logging - console.log("🎨 Rendering mesh: ${obj.name ?: "unnamed"}, geometry hash: ${obj.geometry.hashCode()}")
+
+                // T024: Time the render call
+                val meshStart = js("performance.now()") as Double
                 renderMesh(obj, gl, program, uModelMatrix)
+                renderMeshTime += js("performance.now()") as Double - meshStart
             }
         }
-        // T020: Removed verbose logging - console.log("✅ Scene traversal complete: $meshCount meshes found")
+
+        if (frameCount <= 10) {
+            val traverseTime = js("performance.now()") as Double - traverseStart
+            val totalTime = js("performance.now()") as Double - startTime
+            console.log("⏱️ Frame $frameCount: Total=${totalTime.toInt()}ms, Traverse=${traverseTime.toInt()}ms, Meshes=$meshCount")
+        }
+
+        // T009: Log frustum culling statistics
+        if (culledCount > 0 || visibleCount > 0) {
+            console.log("T009 WebGL Frustum culling: $visibleCount visible, $culledCount culled (${culledCount + visibleCount} total)")
+        }
+
+        // T023: Log buffer creation throttling statistics
+        if (bufferCreationsThisFrame > 0) {
+            console.log("T023 Buffer creation: $bufferCreationsThisFrame new geometries this frame (max $maxBufferCreationsPerFrame)")
+        }
+
         if (meshCount == 0) {
             console.warn("⚠️ Scene traversal found 0 meshes - check scene.add() calls")
         }
+
+        // T024: Measure total frame time and log slow frames
+        val totalFrameTime = js("performance.now()") as Double - frameStartTime
+        val fps = if (totalFrameTime > 0) 1000.0 / totalFrameTime else 0.0
+
+        if (totalFrameTime > 33) {  // Slower than 30 FPS
+            val avgPerMesh = if (meshCount > 0) renderMeshTime / meshCount else 0.0
+            console.error("🐌 T024 SLOW FRAME: ${totalFrameTime.toInt()}ms (${fps.toInt()} FPS)")
+            console.error("   Meshes: $meshCount, renderMesh total: ${renderMeshTime.toInt()}ms, avg: ${avgPerMesh.toInt()}ms/mesh")
+        }
+
+        lastFrameTime = totalFrameTime
     }
 
     private fun renderMesh(
@@ -218,19 +321,25 @@ class WebGLRenderer(
         // Only render MeshBasicMaterial for now
         if (material !is MeshBasicMaterial) return
 
-        // Update mesh world matrix
-        mesh.updateMatrixWorld(true)
+        // Update mesh world matrix (only if needed, don't force)
+        mesh.updateMatrixWorld(false)  // Changed from true to false - don't force recompute
 
         // Set model matrix
         gl.uniformMatrix4fv(uModelMatrix, false, mesh.matrixWorld.toFloat32Array())
 
-        // Get or create geometry buffers
-        val geometryId = geometry.hashCode()
-        var buffers = geometryCache[geometryId]
+        // T025: Get or create geometry buffers (use mesh.id for stable caching)
+        var buffers = geometryCache[mesh.id]
 
         if (buffers == null) {
+            // T023: Throttle buffer creation to prevent lag when many meshes load at once
+            if (bufferCreationsThisFrame >= maxBufferCreationsPerFrame) {
+                // Reached limit for this frame - skip this mesh, it will be rendered next frame
+                return
+            }
+
             buffers = setupGeometry(geometry, gl, program)
-            geometryCache[geometryId] = buffers
+            geometryCache[mesh.id] = buffers
+            bufferCreationsThisFrame++
         }
 
         // Bind and render buffers
@@ -242,6 +351,8 @@ class WebGLRenderer(
         gl: WebGLRenderingContext,
         program: WebGLProgram
     ): GeometryBuffers {
+        val startTime = js("performance.now()") as Double
+
         // Setup position buffer
         val positionAttr = geometry.getAttribute("position")
             ?: throw Exception("Geometry missing position attribute")
@@ -270,13 +381,77 @@ class WebGLRenderer(
             indexCount = indexAttr.count
         }
 
+        // T011: Create VAO and setup all vertex attributes once
+        var vao: WebGLVertexArrayObjectOES? = null
+        vaoExt?.let { ext ->
+            vao = ext.createVertexArrayOES()
+            ext.bindVertexArrayOES(vao)
+
+            // Setup all vertex attributes inside the VAO
+            val aPosition = getOrCacheAttribLocation(gl, program, "aPosition")
+            if (aPosition >= 0) {
+                gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, positionBuffer)
+                gl.enableVertexAttribArray(aPosition)
+                gl.vertexAttribPointer(aPosition, 3, WebGLRenderingContext.FLOAT, false, 0, 0)
+            }
+
+            normalBuffer?.let { buffer ->
+                val aNormal = getOrCacheAttribLocation(gl, program, "aNormal")
+                if (aNormal >= 0) {
+                    gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, buffer)
+                    gl.enableVertexAttribArray(aNormal)
+                    gl.vertexAttribPointer(aNormal, 3, WebGLRenderingContext.FLOAT, false, 0, 0)
+                }
+            }
+
+            colorBuffer?.let { buffer ->
+                val aColor = getOrCacheAttribLocation(gl, program, "aColor")
+                if (aColor >= 0) {
+                    gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, buffer)
+                    gl.enableVertexAttribArray(aColor)
+                    gl.vertexAttribPointer(aColor, 3, WebGLRenderingContext.FLOAT, false, 0, 0)
+                }
+            }
+
+            // Bind index buffer (stored in VAO)
+            indexBuffer?.let {
+                gl.bindBuffer(WebGLRenderingContext.ELEMENT_ARRAY_BUFFER, it)
+            }
+
+            // Unbind VAO
+            ext.bindVertexArrayOES(null)
+        }
+
+        val totalTime = js("performance.now()") as Double - startTime
+        if (totalTime > 10) {
+            console.warn("⚠️ setupGeometry took ${totalTime.toInt()}ms for ${indexCount/3} triangles")
+        }
+
         return GeometryBuffers(
             positionBuffer = positionBuffer,
             normalBuffer = normalBuffer,
             colorBuffer = colorBuffer,
             indexBuffer = indexBuffer,
-            indexCount = indexCount
+            indexCount = indexCount,
+            vao = vao
         )
+    }
+
+    // Cache attribute locations (CRITICAL for performance)
+    private var cachedAttribLocations: Map<String, Int>? = null
+
+    private fun getOrCacheAttribLocation(gl: WebGLRenderingContext, program: WebGLProgram, name: String): Int {
+        if (cachedAttribLocations == null) {
+            // Cache all attribute locations once
+            cachedAttribLocations = mapOf(
+                "aPosition" to gl.getAttribLocation(program, "aPosition"),
+                "aNormal" to gl.getAttribLocation(program, "aNormal"),
+                "aColor" to gl.getAttribLocation(program, "aColor"),
+                "aUV" to gl.getAttribLocation(program, "aUV")
+            )
+            console.log("✅ Cached attribute locations: ${cachedAttribLocations}")
+        }
+        return cachedAttribLocations!![name] ?: -1
     }
 
     private fun renderGeometry(
@@ -285,38 +460,46 @@ class WebGLRenderer(
         gl: WebGLRenderingContext,
         program: WebGLProgram
     ) {
-        // Bind position attribute
-        val aPosition = gl.getAttribLocation(program, "aPosition")
-        if (aPosition >= 0) {
-            gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, buffers.positionBuffer)
-            gl.enableVertexAttribArray(aPosition)
-            gl.vertexAttribPointer(aPosition, 3, WebGLRenderingContext.FLOAT, false, 0, 0)
-        }
-
-        // Bind normal attribute
-        buffers.normalBuffer?.let { buffer ->
-            val aNormal = gl.getAttribLocation(program, "aNormal")
-            if (aNormal >= 0) {
-                gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, buffer)
-                gl.enableVertexAttribArray(aNormal)
-                gl.vertexAttribPointer(aNormal, 3, WebGLRenderingContext.FLOAT, false, 0, 0)
+        // T011: Use VAO if available (much faster - single bind instead of 3-4 attribute setups)
+        val ext = vaoExt
+        if (buffers.vao != null && ext != null) {
+            // Fast path: Just bind the VAO
+            ext.bindVertexArrayOES(buffers.vao)
+        } else {
+            // Fallback path: Set up vertex attributes manually
+            val aPosition = getOrCacheAttribLocation(gl, program, "aPosition")
+            if (aPosition >= 0) {
+                gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, buffers.positionBuffer)
+                gl.enableVertexAttribArray(aPosition)
+                gl.vertexAttribPointer(aPosition, 3, WebGLRenderingContext.FLOAT, false, 0, 0)
             }
-        }
 
-        // Bind color attribute
-        buffers.colorBuffer?.let { buffer ->
-            val aColor = gl.getAttribLocation(program, "aColor")
-            if (aColor >= 0) {
-                gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, buffer)
-                gl.enableVertexAttribArray(aColor)
-                gl.vertexAttribPointer(aColor, 3, WebGLRenderingContext.FLOAT, false, 0, 0)
+            buffers.normalBuffer?.let { buffer ->
+                val aNormal = getOrCacheAttribLocation(gl, program, "aNormal")
+                if (aNormal >= 0) {
+                    gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, buffer)
+                    gl.enableVertexAttribArray(aNormal)
+                    gl.vertexAttribPointer(aNormal, 3, WebGLRenderingContext.FLOAT, false, 0, 0)
+                }
+            }
+
+            buffers.colorBuffer?.let { buffer ->
+                val aColor = getOrCacheAttribLocation(gl, program, "aColor")
+                if (aColor >= 0) {
+                    gl.bindBuffer(WebGLRenderingContext.ARRAY_BUFFER, buffer)
+                    gl.enableVertexAttribArray(aColor)
+                    gl.vertexAttribPointer(aColor, 3, WebGLRenderingContext.FLOAT, false, 0, 0)
+                }
+            }
+
+            if (buffers.indexBuffer != null) {
+                gl.bindBuffer(WebGLRenderingContext.ELEMENT_ARRAY_BUFFER, buffers.indexBuffer)
             }
         }
 
         // Draw
         if (buffers.indexBuffer != null) {
             // Indexed rendering
-            gl.bindBuffer(WebGLRenderingContext.ELEMENT_ARRAY_BUFFER, buffers.indexBuffer)
             gl.drawElements(
                 WebGLRenderingContext.TRIANGLES,
                 buffers.indexCount,
@@ -338,6 +521,11 @@ class WebGLRenderer(
                 stats.addDrawCall()
                 stats.addTriangles(vertexCount / 3)
             }
+        }
+
+        // T011: Unbind VAO after drawing
+        if (buffers.vao != null && ext != null) {
+            ext.bindVertexArrayOES(null)
         }
     }
 

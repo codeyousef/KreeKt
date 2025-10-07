@@ -4,6 +4,8 @@ plugins {
 }
 
 kotlin {
+    jvm()
+
     js(IR) {
         binaries.executable()
         browser {
@@ -47,6 +49,27 @@ kotlin {
                 implementation(libs.kotlin.test)
             }
         }
+
+        val jvmMain by getting {
+            dependencies {
+                val lwjglVersion = "3.3.4"
+                val lwjglNatives = "natives-linux"
+
+                implementation("org.lwjgl:lwjgl:$lwjglVersion")
+                implementation("org.lwjgl:lwjgl-glfw:$lwjglVersion")
+                implementation("org.lwjgl:lwjgl-opengl:$lwjglVersion")
+
+                runtimeOnly("org.lwjgl:lwjgl:$lwjglVersion:$lwjglNatives")
+                runtimeOnly("org.lwjgl:lwjgl-glfw:$lwjglVersion:$lwjglNatives")
+                runtimeOnly("org.lwjgl:lwjgl-opengl:$lwjglVersion:$lwjglNatives")
+            }
+        }
+
+        val jvmTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+            }
+        }
     }
 }
 
@@ -86,5 +109,31 @@ tasks.register("buildJs") {
 
     doFirst {
         println("📦 Building VoxelCraft production bundle...")
+    }
+}
+
+tasks.register<JavaExec>("runJvm") {
+    group = "examples"
+    description = "Run VoxelCraft on JVM with LWJGL/OpenGL"
+
+    dependsOn("jvmJar")
+
+    classpath = files(
+        tasks.named("jvmJar").get().outputs.files,
+        configurations.getByName("jvmRuntimeClasspath")
+    )
+
+    mainClass.set("io.kreekt.examples.voxelcraft.MainJvmKt")
+
+    // Add JVM args for LWJGL native access on Java 17+
+    jvmArgs = listOf(
+        "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+        "--add-opens", "java.base/jdk.internal.misc=ALL-UNNAMED",
+        "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED"
+    )
+
+    doFirst {
+        println("🎮 Starting VoxelCraft (JVM/LWJGL)")
+        println("Controls: WASD=Move, Mouse=Look, F=Flight, Space/Shift=Up/Down, ESC=Quit")
     }
 }
