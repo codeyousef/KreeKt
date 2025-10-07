@@ -67,6 +67,18 @@ suspend fun initGame() = coroutineScope {
 
     val world = savedState?.restore(this) ?: VoxelWorld(seed = 12345L, parentScope = this)
 
+    // T016: Fix camera/player position - ensure player is at proper spawn height
+    if (world.player.position.y < 10.0f) {
+        Logger.info("📍 Saved player position too low (Y=${world.player.position.y}), resetting to spawn height")
+        world.player.position.y = 100.0f  // Higher spawn to prevent falling through terrain
+    }
+
+    // T016b: Enable flight mode by default to prevent falling during terrain generation
+    if (!world.player.isFlying) {
+        world.player.isFlying = true
+        Logger.info("🚁 Flight mode enabled by default (prevents falling during terrain loading)")
+    }
+
     generateTerrainAsync(
         scope = this,
         world = world,
@@ -202,6 +214,14 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
         val currentTime = js("Date.now()") as Double
         val deltaTime = ((currentTime - lastTime) / 1000.0).toFloat()
         lastTime = currentTime
+
+        // T002/T021: Camera position diagnostic logging removed for production
+        // if (frameCount < 10) {
+        //     console.log("📷 Camera pos: (${camera.position.x}, ${camera.position.y}, ${camera.position.z})")
+        //     console.log("📷 Camera rot: (${camera.rotation.x}, ${camera.rotation.y}, ${camera.rotation.z})")
+        //     console.log("🧱 Scene children count: ${world.scene.children.size}")
+        //     console.log("🧱 Scene type: ${world.scene::class.simpleName}")
+        // }
 
         // Update controllers
         playerController.update(deltaTime)

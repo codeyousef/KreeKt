@@ -111,7 +111,12 @@ class VoxelWorld(
         }
 
         pumpDirtyChunks(MAX_DIRTY_CHUNKS_PER_FRAME)
-        player.update(deltaTime)
+
+        // T016b: Only update player physics after initial terrain generation completes
+        // This prevents player falling during async mesh generation
+        if (isGenerated && !isGeneratingTerrain) {
+            player.update(deltaTime)
+        }
     }
 
     private fun updateStreaming() {

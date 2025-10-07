@@ -387,10 +387,18 @@ A fully functional creative-mode voxel building game demonstrating KreeKt's capa
 **Run**: `./gradlew :examples:voxelcraft:runJs`
 
 ## Recent Changes
+- **2025-10-07**: Fixed VoxelCraft rendering issues (017-in-voxelcraft-example)
+  - Root cause: Player falling during async terrain/mesh generation
+  - Fix: Disabled player physics until terrain generation completes
+  - Fix: Enabled flight mode by default to prevent falling
+  - Fix: Increased spawn height to Y=100 for saved worlds
+  - Result: Stable camera position, meshes render correctly
+  - Cleaned up diagnostic logging for production
+
+- 017-in-voxelcraft-example: Added Kotlin 1.9+ with Multiplatform plugin, targeting JS/Browser
 - 016-implement-production-ready: Added Kotlin 1.9+ with Multiplatform plugin
 
 - **2025-10-04**: VoxelCraft example specification and implementation plan created (014-create-a-basic)
-- **2025-10-04**: Added comprehensive documentation (18 files, ~10,000 lines, 93.4% coverage)
 
 1. **2025-09-29**: Complete production readiness validation system implemented
 2. **2025-09-29**: Constitutional compliance validation (60 FPS, 5MB, type safety, cross-platform)

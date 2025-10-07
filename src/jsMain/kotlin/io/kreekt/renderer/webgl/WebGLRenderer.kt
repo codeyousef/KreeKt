@@ -172,7 +172,14 @@ class WebGLRenderer(
     }
 
     private fun renderScene(scene: Scene, camera: Camera, gl: WebGLRenderingContext) {
-        val program = basicShaderProgram ?: return
+        // T003: Shader compilation validation (keep error checking, remove verbose logging)
+        val program = basicShaderProgram
+        if (program == null) {
+            console.error("🔴 basicShaderProgram is null - shader compilation failed!")
+            console.error("🔴 Renderer initialization may have failed silently")
+            return
+        }
+        // T020: Removed verbose logging - console.log("✅ Using shader program: ${program}")
         gl.useProgram(program)
 
         // Get uniform locations
@@ -184,11 +191,18 @@ class WebGLRenderer(
         gl.uniformMatrix4fv(uProjectionMatrix, false, camera.projectionMatrix.toFloat32Array())
         gl.uniformMatrix4fv(uViewMatrix, false, camera.matrixWorldInverse.toFloat32Array())
 
-        // Traverse scene and render meshes
+        // T001/T020: Scene traversal (diagnostic logging removed for production)
+        var meshCount = 0
         scene.traverse { obj ->
             if (obj is Mesh) {
+                meshCount++
+                // T020: Removed per-mesh logging - console.log("🎨 Rendering mesh: ${obj.name ?: "unnamed"}, geometry hash: ${obj.geometry.hashCode()}")
                 renderMesh(obj, gl, program, uModelMatrix)
             }
+        }
+        // T020: Removed verbose logging - console.log("✅ Scene traversal complete: $meshCount meshes found")
+        if (meshCount == 0) {
+            console.warn("⚠️ Scene traversal found 0 meshes - check scene.add() calls")
         }
     }
 
