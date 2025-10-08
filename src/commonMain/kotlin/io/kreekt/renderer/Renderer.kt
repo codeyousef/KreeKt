@@ -7,8 +7,8 @@
 
 package io.kreekt.renderer
 
-import io.kreekt.scene.Camera
-import io.kreekt.scene.Scene
+import io.kreekt.camera.Camera
+import io.kreekt.core.scene.Scene
 
 /**
  * Unified renderer interface across platforms.
@@ -61,7 +61,7 @@ expect interface Renderer {
      *
      * Throws: RendererInitializationException on failure
      */
-    suspend fun initialize(config: RendererConfig): Result<Unit, RendererError>
+    suspend fun initialize(config: RendererConfig): io.kreekt.core.Result<Unit>
 
     /**
      * Render a scene from the camera's perspective.
@@ -109,19 +109,7 @@ expect interface Renderer {
      */
     fun dispose()
 
-    /**
-     * Get current performance statistics.
-     *
-     * @return RenderStats with FPS, frame time, triangle count, draw calls, memory usage
-     *
-     * Used by:
-     * - PerformanceValidator for FR-019 validation
-     * - Debug UI (VoxelCraft HUD)
-     * - Profiling tools
-     *
-     * Stats are updated after each render() call.
-     */
-    fun getStats(): RenderStats
+    // Note: Use the 'stats' property instead of getStats() to avoid JVM signature clash
 }
 
 /*

@@ -208,7 +208,7 @@ fun main() {
                     frameCount = 0
                     fpsTimer = 0.0
                 }
-        }
+            }
 
             println("\n✅ Example completed successfully!")
 

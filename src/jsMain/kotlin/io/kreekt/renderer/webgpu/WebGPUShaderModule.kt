@@ -1,7 +1,4 @@
 package io.kreekt.renderer.webgpu
-
-import io.kreekt.renderer.RendererException
-import io.kreekt.renderer.RendererResult
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -33,7 +30,7 @@ class WebGPUShaderModule(
      * Compiles the WGSL shader code.
      * @return Success or Error with compilation details
      */
-    suspend fun compile(): RendererResult<Unit> {
+    suspend fun compile(): io.kreekt.core.Result<Unit> {
         return try {
             console.log("Compiling shader: ${descriptor.label ?: "unnamed"} (${descriptor.stage})")
             val shaderDescriptor = js("({})").unsafeCast<GPUShaderModuleDescriptor>()
@@ -55,15 +52,15 @@ class WebGPUShaderModule(
                 val errorMsg = messages.filter { it.type == "error" }
                     .joinToString("\n") { it.message.toString() }
                 console.error("Shader compilation errors: $errorMsg")
-                RendererResult.Error(RendererException.ResourceCreationFailed("Shader compilation failed: $errorMsg"))
+                io.kreekt.core.Result.Error("Shader compilation failed: $errorMsg", RuntimeException(errorMsg))
             } else {
                 console.log("Shader compiled successfully: ${descriptor.label ?: "unnamed"}")
-                RendererResult.Success(Unit)
+                io.kreekt.core.Result.Success(Unit)
             }
         } catch (e: Exception) {
             console.error("Shader module creation exception: ${e.message}")
             e.printStackTrace()
-            RendererResult.Error(RendererException.ResourceCreationFailed("Shader module creation failed", e))
+            io.kreekt.core.Result.Error("Shader module creation failed: ${e.message}", e)
         }
     }
 

@@ -7,7 +7,7 @@ package io.kreekt.renderer.feature020
  * Provides cross-platform buffer creation for vertex data, index data,
  * and uniform data (transformation matrices).
  */
-expect class BufferManager {
+interface BufferManager {
     /**
      * Create vertex buffer from float array (interleaved position + color).
      *

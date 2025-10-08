@@ -78,7 +78,7 @@ expect object RendererFactory {
     suspend fun create(
         surface: RenderSurface,
         config: RendererConfig = RendererConfig()
-    ): Result<Renderer, RendererInitializationException>
+    ): io.kreekt.core.Result<Renderer>
 
     /**
      * Detect available graphics backends on this platform.

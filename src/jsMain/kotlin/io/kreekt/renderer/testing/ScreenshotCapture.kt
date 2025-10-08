@@ -8,11 +8,12 @@
 package io.kreekt.renderer.testing
 
 import kotlinx.browser.document
-import kotlinx.coroutines.await
-import org.khronos.webgl.Uint8Array
+import org.khronos.webgl.Uint8ClampedArray
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.files.Blob
-import kotlin.js.Promise
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 
 /**
  * Screenshot capture utility for JS platform.
@@ -126,18 +127,15 @@ object ScreenshotCapture {
         canvas: HTMLCanvasElement,
         mimeType: String = "image/png"
     ): Blob {
-        return Promise<Blob> { resolve, reject ->
-            canvas.toBlob(
-                callback = { blob ->
-                    if (blob != null) {
-                        resolve(blob)
-                    } else {
-                        reject(Throwable("Canvas toBlob returned null"))
-                    }
-                },
-                type = mimeType
-            )
-        }.await()
+        return suspendCoroutine { cont ->
+            canvas.toBlob({ blob: Blob? ->
+                if (blob != null) {
+                    cont.resume(blob)
+                } else {
+                    cont.resumeWithException(RuntimeException("Canvas toBlob returned null"))
+                }
+            }, mimeType)
+        }
     }
 
     /**
@@ -167,14 +165,14 @@ object ScreenshotCapture {
     }
 
     /**
-     * Get canvas pixels as Uint8Array (RGBA format).
+     * Get canvas pixels as Uint8ClampedArray (RGBA format).
      *
      * Useful for programmatic image comparison.
      *
      * @param canvas HTMLCanvasElement to read
-     * @return Uint8Array with pixel data (width * height * 4 bytes)
+     * @return Uint8ClampedArray with pixel data (width * height * 4 bytes)
      */
-    fun getCanvasPixels(canvas: HTMLCanvasElement): Uint8Array {
+    fun getCanvasPixels(canvas: HTMLCanvasElement): Uint8ClampedArray {
         val context = canvas.getContext("2d").unsafeCast<org.w3c.dom.CanvasRenderingContext2D>()
         val imageData = context.getImageData(0.0, 0.0, canvas.width.toDouble(), canvas.height.toDouble())
         return imageData.data
@@ -202,7 +200,7 @@ object ScreenshotCapture {
         }
 
         for (i in 0 until pixels1.length) {
-            if (pixels1[i] != pixels2[i]) {
+            if (pixels1.asDynamic()[i] != pixels2.asDynamic()[i]) {
                 return false
             }
         }

@@ -36,9 +36,12 @@ suspend fun initializeRenderer(
 ): Renderer {
     return try {
         // Attempt to create renderer via RendererFactory
-        RendererFactory.create(surface, config).getOrElse { exception ->
-            // Handle specific exception types with detailed logging
-            when (exception) {
+        when (val result = RendererFactory.create(surface, config)) {
+            is io.kreekt.core.Result.Success -> result.value
+            is io.kreekt.core.Result.Error -> {
+                val exception = result.exception as? RendererInitializationException
+                // Handle specific exception types with detailed logging
+                when (exception) {
                 is RendererInitializationException.NoGraphicsSupportException -> {
                     Logger.error("❌ Graphics Not Supported")
                     Logger.error("   Platform: ${exception.platform}")
@@ -102,6 +105,12 @@ suspend fun initializeRenderer(
                     Logger.error("  - Operating system")
                     Logger.error("  - Full error log")
                     throw exception
+                }
+                    else -> {
+                        // Unknown exception type
+                        Logger.error("❌ Renderer initialization failed: ${result.message}")
+                        throw exception ?: RuntimeException(result.message)
+                    }
                 }
             }
         }

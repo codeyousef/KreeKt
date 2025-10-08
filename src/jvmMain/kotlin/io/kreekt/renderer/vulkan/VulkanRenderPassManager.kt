@@ -24,7 +24,7 @@ import org.lwjgl.vulkan.VkRenderPassBeginInfo
  * @property commandBuffer Vulkan command buffer for recording
  * @property renderPass Vulkan render pass handle
  */
-actual class VulkanRenderPassManager(
+class VulkanRenderPassManager(
     private val device: VkDevice,
     private val commandBuffer: VkCommandBuffer,
     private val renderPass: Long // VkRenderPass
@@ -41,7 +41,7 @@ actual class VulkanRenderPassManager(
      * @param framebuffer Platform-specific framebuffer handle
      * @throws RenderPassException if render pass already active
      */
-    actual override fun beginRenderPass(clearColor: Color, framebuffer: FramebufferHandle) {
+    override fun beginRenderPass(clearColor: Color, framebuffer: FramebufferHandle) {
         if (renderPassActive) {
             throw RenderPassException("Render pass already active. Call endRenderPass() first.")
         }
@@ -93,7 +93,7 @@ actual class VulkanRenderPassManager(
      * @param pipeline Platform-specific pipeline handle
      * @throws IllegalStateException if no active render pass
      */
-    actual override fun bindPipeline(pipeline: PipelineHandle) {
+    override fun bindPipeline(pipeline: PipelineHandle) {
         if (!renderPassActive) {
             throw IllegalStateException("No active render pass. Call beginRenderPass() first.")
         }
@@ -118,7 +118,7 @@ actual class VulkanRenderPassManager(
      * @param slot Binding slot (default 0)
      * @throws InvalidBufferException if buffer invalid
      */
-    actual override fun bindVertexBuffer(buffer: BufferHandle, slot: Int) {
+    override fun bindVertexBuffer(buffer: BufferHandle, slot: Int) {
         if (!renderPassActive) {
             throw IllegalStateException("No active render pass. Call beginRenderPass() first.")
         }
@@ -150,7 +150,7 @@ actual class VulkanRenderPassManager(
      * @param buffer Index buffer handle
      * @throws InvalidBufferException if buffer invalid
      */
-    actual override fun bindIndexBuffer(buffer: BufferHandle) {
+    override fun bindIndexBuffer(buffer: BufferHandle) {
         if (!renderPassActive) {
             throw IllegalStateException("No active render pass. Call beginRenderPass() first.")
         }
@@ -179,7 +179,7 @@ actual class VulkanRenderPassManager(
      * @param binding Binding index (default 0)
      * @throws InvalidBufferException if buffer invalid
      */
-    actual override fun bindUniformBuffer(buffer: BufferHandle, group: Int, binding: Int) {
+    override fun bindUniformBuffer(buffer: BufferHandle, group: Int, binding: Int) {
         if (!renderPassActive) {
             throw IllegalStateException("No active render pass. Call beginRenderPass() first.")
         }
@@ -211,7 +211,7 @@ actual class VulkanRenderPassManager(
      * @param instanceCount Number of instances (1 for non-instanced)
      * @throws IllegalStateException if no pipeline or buffers bound
      */
-    actual override fun drawIndexed(indexCount: Int, firstIndex: Int, instanceCount: Int) {
+    override fun drawIndexed(indexCount: Int, firstIndex: Int, instanceCount: Int) {
         if (!renderPassActive) {
             throw IllegalStateException("No active render pass. Call beginRenderPass() first.")
         }
@@ -232,7 +232,7 @@ actual class VulkanRenderPassManager(
      *
      * @throws IllegalStateException if no active render pass
      */
-    actual override fun endRenderPass() {
+    override fun endRenderPass() {
         if (!renderPassActive) {
             throw IllegalStateException("No active render pass. Call beginRenderPass() first.")
         }

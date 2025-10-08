@@ -7,7 +7,7 @@ package io.kreekt.renderer.feature020
  * Provides cross-platform swapchain management for acquiring images,
  * presenting to screen, and handling window resize.
  */
-expect class SwapchainManager {
+interface SwapchainManager {
     /**
      * Acquire next swapchain image for rendering.
      *

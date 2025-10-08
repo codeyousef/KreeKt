@@ -168,7 +168,7 @@ sealed class RendererInitializationException(
  *
  * Used in RendererFactory.create() return type.
  */
-typealias RendererResult<T> = Result<T, RendererInitializationException>
+typealias RendererResult<T> = io.kreekt.core.Result<T>
 
 /**
  * Type alias for RendererError used in Renderer.initialize().

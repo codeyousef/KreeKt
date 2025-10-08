@@ -55,17 +55,21 @@ data class RenderStats(
      * Returns human-readable performance summary.
      */
     override fun toString(): String {
-        return "${"%.1f".format(fps)} FPS | ${triangles}▲ | ${drawCalls}DC | ${"%.2f".format(frameTime)}ms"
+        val fpsStr = (fps * 10).toInt() / 10.0
+        val frameTimeStr = (frameTime * 100).toInt() / 100.0
+        return "$fpsStr FPS | ${triangles}▲ | ${drawCalls}DC | ${frameTimeStr}ms"
     }
 
     /**
      * Returns detailed performance report.
      */
     fun toDetailedString(): String {
+        val fpsStr = (fps * 10).toInt() / 10.0
+        val frameTimeStr = (frameTime * 100).toInt() / 100.0
         return buildString {
             appendLine("Performance Stats:")
-            appendLine("  FPS: ${"%.1f".format(fps)}")
-            appendLine("  Frame Time: ${"%.2f".format(frameTime)}ms")
+            appendLine("  FPS: $fpsStr")
+            appendLine("  Frame Time: ${frameTimeStr}ms")
             appendLine("  Triangles: $triangles")
             appendLine("  Draw Calls: $drawCalls")
             appendLine("  Texture Memory: ${textureMemory / 1024 / 1024}MB")

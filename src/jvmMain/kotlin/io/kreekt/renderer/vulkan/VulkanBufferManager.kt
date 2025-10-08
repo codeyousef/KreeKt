@@ -21,7 +21,7 @@ import org.lwjgl.vulkan.VK12.*
  * @property device Vulkan logical device
  * @property physicalDevice Vulkan physical device (for memory type queries)
  */
-actual class VulkanBufferManager(
+class VulkanBufferManager(
     private val device: VkDevice,
     private val physicalDevice: VkPhysicalDevice
 ) : BufferManager {
@@ -45,7 +45,7 @@ actual class VulkanBufferManager(
      * @throws IllegalArgumentException if data is empty
      * @throws OutOfMemoryException if allocation fails
      */
-    actual override fun createVertexBuffer(data: FloatArray): BufferHandle {
+    override fun createVertexBuffer(data: FloatArray): BufferHandle {
         if (data.isEmpty()) {
             throw IllegalArgumentException("Vertex data cannot be empty")
         }
@@ -130,7 +130,7 @@ actual class VulkanBufferManager(
      * @return Buffer handle with VkBuffer
      * @throws IllegalArgumentException if data is empty or not triangles
      */
-    actual override fun createIndexBuffer(data: IntArray): BufferHandle {
+    override fun createIndexBuffer(data: IntArray): BufferHandle {
         if (data.isEmpty()) {
             throw IllegalArgumentException("Index data cannot be empty")
         }
@@ -213,7 +213,7 @@ actual class VulkanBufferManager(
      * @return Buffer handle with VkBuffer
      * @throws IllegalArgumentException if sizeBytes < 64
      */
-    actual override fun createUniformBuffer(sizeBytes: Int): BufferHandle {
+    override fun createUniformBuffer(sizeBytes: Int): BufferHandle {
         if (sizeBytes < 64) {
             throw IllegalArgumentException(
                 "uniformBuffer.sizeBytes must be at least 64 bytes (mat4x4), got $sizeBytes"
@@ -285,7 +285,7 @@ actual class VulkanBufferManager(
      * @throws InvalidBufferException if handle is invalid or destroyed
      * @throws IllegalArgumentException if offset not aligned or data too large
      */
-    actual override fun updateUniformBuffer(handle: BufferHandle, data: ByteArray, offset: Int) {
+    override fun updateUniformBuffer(handle: BufferHandle, data: ByteArray, offset: Int) {
         // Validate handle
         if (!handle.isValid()) {
             throw InvalidBufferException("Buffer handle is invalid (null handle or zero size)")
@@ -335,7 +335,7 @@ actual class VulkanBufferManager(
      * @param handle Buffer handle to destroy
      * @throws InvalidBufferException if handle already destroyed
      */
-    actual override fun destroyBuffer(handle: BufferHandle) {
+    override fun destroyBuffer(handle: BufferHandle) {
         val bufferData = handle.handle as? VulkanBufferHandleData
             ?: throw InvalidBufferException("Buffer handle is not a VulkanBufferHandleData")
 

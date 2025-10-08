@@ -19,9 +19,9 @@ import org.khronos.webgl.Uint32Array
  *
  * @property device WebGPU device
  */
-actual class WebGPUBufferManager(
+class WebGPUBufferManager(
     private val device: dynamic // GPUDevice
-) {
+) : BufferManager {
 
     // Track destroyed buffers to prevent double-destroy
     private val destroyedBuffers = mutableSetOf<dynamic>()
@@ -39,7 +39,7 @@ actual class WebGPUBufferManager(
      * @throws IllegalArgumentException if data is empty
      * @throws OutOfMemoryException if allocation fails
      */
-    actual fun createVertexBuffer(data: FloatArray): BufferHandle {
+    override fun createVertexBuffer(data: FloatArray): BufferHandle {
         if (data.isEmpty()) {
             throw IllegalArgumentException("Vertex data cannot be empty")
         }
@@ -57,7 +57,7 @@ actual class WebGPUBufferManager(
             // Convert FloatArray to Float32Array
             val float32Array = Float32Array(data.size)
             for (i in data.indices) {
-                float32Array[i] = data[i]
+                float32Array.asDynamic()[i] = data[i]
             }
 
             // Create GPUBuffer
@@ -99,7 +99,7 @@ actual class WebGPUBufferManager(
      * @return Buffer handle with GPUBuffer
      * @throws IllegalArgumentException if data is empty or not triangles
      */
-    actual fun createIndexBuffer(data: IntArray): BufferHandle {
+    override fun createIndexBuffer(data: IntArray): BufferHandle {
         if (data.isEmpty()) {
             throw IllegalArgumentException("Index data cannot be empty")
         }
@@ -116,7 +116,7 @@ actual class WebGPUBufferManager(
             // Convert IntArray to Uint32Array
             val uint32Array = Uint32Array(data.size)
             for (i in data.indices) {
-                uint32Array[i] = data[i]
+                uint32Array.asDynamic()[i] = data[i]
             }
 
             // Create GPUBuffer
@@ -158,7 +158,7 @@ actual class WebGPUBufferManager(
      * @return Buffer handle with GPUBuffer
      * @throws IllegalArgumentException if sizeBytes < 64
      */
-    actual fun createUniformBuffer(sizeBytes: Int): BufferHandle {
+    override fun createUniformBuffer(sizeBytes: Int): BufferHandle {
         if (sizeBytes < 64) {
             throw IllegalArgumentException(
                 "uniformBuffer.sizeBytes must be at least 64 bytes (mat4x4), got $sizeBytes"
@@ -204,7 +204,7 @@ actual class WebGPUBufferManager(
      * @throws InvalidBufferException if handle is invalid or destroyed
      * @throws IllegalArgumentException if offset not aligned or data too large
      */
-    actual fun updateUniformBuffer(handle: BufferHandle, data: ByteArray, offset: Int) {
+    override fun updateUniformBuffer(handle: BufferHandle, data: ByteArray, offset: Int) {
         // Validate handle
         if (!handle.isValid()) {
             throw InvalidBufferException("Buffer handle is invalid (null handle or zero size)")
@@ -234,7 +234,7 @@ actual class WebGPUBufferManager(
             // Convert ByteArray to Int8Array
             val int8Array = Int8Array(data.size)
             for (i in data.indices) {
-                int8Array[i] = data[i]
+                int8Array.asDynamic()[i] = data[i]
             }
 
             // Write data to buffer
@@ -252,7 +252,7 @@ actual class WebGPUBufferManager(
      * @param handle Buffer handle to destroy
      * @throws InvalidBufferException if handle already destroyed
      */
-    actual fun destroyBuffer(handle: BufferHandle) {
+    override fun destroyBuffer(handle: BufferHandle) {
         val buffer = handle.handle
             ?: throw InvalidBufferException("Buffer handle is null")
 
@@ -263,7 +263,7 @@ actual class WebGPUBufferManager(
 
         try {
             // Destroy buffer
-            buffer.destroy()
+            buffer.asDynamic().destroy()
 
             // Mark as destroyed
             destroyedBuffers.add(buffer)

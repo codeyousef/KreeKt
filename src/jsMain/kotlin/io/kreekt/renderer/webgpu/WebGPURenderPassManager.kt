@@ -16,9 +16,9 @@ import io.kreekt.renderer.feature020.*
  *
  * @property commandEncoder WebGPU command encoder
  */
-actual class WebGPURenderPassManager(
+class WebGPURenderPassManager(
     private val commandEncoder: dynamic // GPUCommandEncoder
-) {
+) : RenderPassManager {
 
     // Track render pass state
     private var passEncoder: dynamic = null // GPURenderPassEncoder
@@ -32,7 +32,7 @@ actual class WebGPURenderPassManager(
      * @param framebuffer Platform-specific framebuffer handle (GPUTextureView)
      * @throws RenderPassException if render pass already active
      */
-    actual fun beginRenderPass(clearColor: Color, framebuffer: FramebufferHandle) {
+    override fun beginRenderPass(clearColor: Color, framebuffer: FramebufferHandle) {
         if (renderPassActive) {
             throw RenderPassException("Render pass already active. Call endRenderPass() first.")
         }
@@ -82,7 +82,7 @@ actual class WebGPURenderPassManager(
      * @param pipeline Platform-specific pipeline handle (GPURenderPipeline)
      * @throws IllegalStateException if no active render pass
      */
-    actual fun bindPipeline(pipeline: PipelineHandle) {
+    override fun bindPipeline(pipeline: PipelineHandle) {
         if (!renderPassActive) {
             throw IllegalStateException("No active render pass. Call beginRenderPass() first.")
         }
@@ -109,7 +109,7 @@ actual class WebGPURenderPassManager(
      * @param slot Binding slot (default 0)
      * @throws InvalidBufferException if buffer invalid
      */
-    actual fun bindVertexBuffer(buffer: BufferHandle, slot: Int) {
+    override fun bindVertexBuffer(buffer: BufferHandle, slot: Int) {
         if (!renderPassActive) {
             throw IllegalStateException("No active render pass. Call beginRenderPass() first.")
         }
@@ -138,7 +138,7 @@ actual class WebGPURenderPassManager(
      * @param buffer Index buffer handle (GPUBuffer)
      * @throws InvalidBufferException if buffer invalid
      */
-    actual fun bindIndexBuffer(buffer: BufferHandle) {
+    override fun bindIndexBuffer(buffer: BufferHandle) {
         if (!renderPassActive) {
             throw IllegalStateException("No active render pass. Call beginRenderPass() first.")
         }
@@ -169,7 +169,7 @@ actual class WebGPURenderPassManager(
      * @param binding Binding index (default 0)
      * @throws InvalidBufferException if buffer invalid
      */
-    actual fun bindUniformBuffer(buffer: BufferHandle, group: Int, binding: Int) {
+    override fun bindUniformBuffer(buffer: BufferHandle, group: Int, binding: Int) {
         if (!renderPassActive) {
             throw IllegalStateException("No active render pass. Call beginRenderPass() first.")
         }
@@ -203,7 +203,7 @@ actual class WebGPURenderPassManager(
      * @param instanceCount Number of instances (1 for non-instanced)
      * @throws IllegalStateException if no pipeline or buffers bound
      */
-    actual fun drawIndexed(indexCount: Int, firstIndex: Int, instanceCount: Int) {
+    override fun drawIndexed(indexCount: Int, firstIndex: Int, instanceCount: Int) {
         if (!renderPassActive) {
             throw IllegalStateException("No active render pass. Call beginRenderPass() first.")
         }
@@ -226,7 +226,7 @@ actual class WebGPURenderPassManager(
      *
      * @throws IllegalStateException if no active render pass
      */
-    actual fun endRenderPass() {
+    override fun endRenderPass() {
         if (!renderPassActive) {
             throw IllegalStateException("No active render pass. Call beginRenderPass() first.")
         }

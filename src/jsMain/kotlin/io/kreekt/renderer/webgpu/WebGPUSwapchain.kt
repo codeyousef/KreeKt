@@ -19,10 +19,10 @@ import io.kreekt.renderer.feature020.SwapchainImage
  * @property context WebGPU canvas context
  * @property device WebGPU device
  */
-actual class WebGPUSwapchain(
+class WebGPUSwapchain(
     private val context: dynamic, // GPUCanvasContext
     private val device: dynamic   // GPUDevice
-) {
+) : io.kreekt.renderer.feature020.SwapchainManager {
 
     private var currentWidth: Int = 800
     private var currentHeight: Int = 600
@@ -68,7 +68,7 @@ actual class WebGPUSwapchain(
      * @return Swapchain image ready for rendering
      * @throws SwapchainException if acquire fails
      */
-    actual fun acquireNextImage(): SwapchainImage {
+    override fun acquireNextImage(): SwapchainImage {
         if (!configured) {
             throw SwapchainException("Swapchain not configured")
         }
@@ -111,7 +111,7 @@ actual class WebGPUSwapchain(
      * @param image Swapchain image to present
      * @throws SwapchainException if present fails
      */
-    actual fun presentImage(image: SwapchainImage) {
+    override fun presentImage(image: SwapchainImage) {
         if (!image.isReady()) {
             throw SwapchainException("Swapchain image not ready for presentation")
         }
@@ -129,7 +129,7 @@ actual class WebGPUSwapchain(
      * @param height New height in pixels (> 0)
      * @throws IllegalArgumentException if width or height <= 0
      */
-    actual fun recreateSwapchain(width: Int, height: Int) {
+    override fun recreateSwapchain(width: Int, height: Int) {
         if (width <= 0) {
             throw IllegalArgumentException("width must be > 0, got $width")
         }
@@ -157,7 +157,7 @@ actual class WebGPUSwapchain(
      *
      * @return Pair of (width, height) in pixels
      */
-    actual fun getExtent(): Pair<Int, Int> {
+    override fun getExtent(): Pair<Int, Int> {
         return Pair(currentWidth, currentHeight)
     }
 

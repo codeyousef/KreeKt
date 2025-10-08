@@ -38,10 +38,11 @@ actual object RendererFactory {
     actual suspend fun create(
         surface: RenderSurface,
         config: RendererConfig
-    ): Result<Renderer, RendererInitializationException> {
+    ): io.kreekt.core.Result<Renderer> {
         // 1. Check if surface is valid
         if (surface !is WebGPUSurface) {
-            return Result.failure(
+            return io.kreekt.core.Result.Error(
+                "Expected WebGPUSurface, got ${surface::class.simpleName}",
                 RendererInitializationException.SurfaceCreationFailedException(
                     BackendType.WEBGPU,
                     "Expected WebGPUSurface, got ${surface::class.simpleName}"
@@ -65,11 +66,11 @@ actual object RendererFactory {
 
                 // Initialize renderer
                 val initResult = renderer.initialize(config)
-                if (initResult.isSuccess) {
+                if (initResult is io.kreekt.core.Result.Success) {
                     console.log("[KreeKt] Selected backend: WebGPU")
-                    return Result.success(renderer)
-                } else {
-                    console.warn("[KreeKt] WebGPU initialization failed: ${initResult.exceptionOrNull()?.message}")
+                    return io.kreekt.core.Result.Success(renderer)
+                } else if (initResult is io.kreekt.core.Result.Error) {
+                    console.warn("[KreeKt] WebGPU initialization failed: ${initResult.message}")
                 }
             } catch (e: Throwable) {
                 console.warn("[KreeKt] WebGPU creation failed: ${e.message}, falling back to WebGL")
@@ -81,14 +82,18 @@ actual object RendererFactory {
             try {
                 val renderer = createWebGLRenderer(canvas, config)
                 val initResult = renderer.initialize(config)
-                if (initResult.isSuccess) {
+                if (initResult is io.kreekt.core.Result.Success) {
                     console.log("[KreeKt] Selected backend: WebGL 2.0 (fallback)")
-                    return Result.success(renderer)
-                } else {
-                    return Result.failure(initResult.exceptionOrNull() as RendererInitializationException)
+                    return io.kreekt.core.Result.Success(renderer)
+                } else if (initResult is io.kreekt.core.Result.Error) {
+                    return io.kreekt.core.Result.Error(
+                        initResult.message,
+                        initResult.exception
+                    )
                 }
             } catch (e: Throwable) {
-                return Result.failure(
+                return io.kreekt.core.Result.Error(
+                    e.message ?: "Unknown error",
                     RendererInitializationException.DeviceCreationFailedException(
                         BackendType.WEBGL,
                         "WebGL context",
@@ -99,7 +104,8 @@ actual object RendererFactory {
         }
 
         // 5. No backend available
-        return Result.failure(
+        return io.kreekt.core.Result.Error(
+            "No graphics backend available on JS platform",
             RendererInitializationException.NoGraphicsSupportException(
                 platform = "JS",
                 availableBackends = availableBackends,
@@ -178,42 +184,22 @@ actual object RendererFactory {
             override val capabilities: RendererCapabilities = renderer.capabilities
             override var stats: RenderStats = RenderStats(0.0, 0.0, 0, 0)
 
-            override suspend fun initialize(config: RendererConfig): Result<Unit, RendererError> {
-                return try {
-                    renderer.initialize(WebGPUSurface(canvas))
-                    Result.success(Unit)
-                } catch (e: Throwable) {
-                    Result.failure(
-                        RendererInitializationException.DeviceCreationFailedException(
-                            BackendType.WEBGPU,
-                            "Unknown adapter",
-                            e.message ?: "Unknown error"
-                        )
-                    )
-                }
+            override suspend fun initialize(config: RendererConfig): io.kreekt.core.Result<Unit> {
+                return renderer.initialize(config)
             }
 
-            override fun render(scene: io.kreekt.scene.Scene, camera: io.kreekt.scene.Camera) {
-                // Convert Scene/Camera to core.scene.Scene/camera.Camera if needed
-                // For now, delegate directly
-                val coreScene = scene as? io.kreekt.core.scene.Scene
-                    ?: throw IllegalArgumentException("Scene must be io.kreekt.core.scene.Scene")
-                val coreCamera = camera as? io.kreekt.camera.Camera
-                    ?: throw IllegalArgumentException("Camera must be io.kreekt.camera.Camera")
-
-                renderer.render(coreScene, coreCamera).getOrThrow()
-                stats = renderer.getStats()
+            override fun render(scene: io.kreekt.core.scene.Scene, camera: io.kreekt.camera.Camera) {
+                renderer.render(scene, camera)
+                stats = renderer.stats
             }
 
             override fun resize(width: Int, height: Int) {
-                renderer.setSize(width, height)
+                renderer.setSize(width, height, true)
             }
 
             override fun dispose() {
                 renderer.dispose()
             }
-
-            override fun getStats(): RenderStats = stats
         }
     }
 
@@ -236,9 +222,10 @@ actual object RendererFactory {
             )
             override var stats: RenderStats = RenderStats(0.0, 0.0, 0, 0)
 
-            override suspend fun initialize(config: RendererConfig): Result<Unit, RendererError> {
+            override suspend fun initialize(config: RendererConfig): io.kreekt.core.Result<Unit> {
                 // TODO: Implement WebGL renderer initialization
-                return Result.failure(
+                return io.kreekt.core.Result.Error(
+                    "WebGL renderer not yet implemented in Feature 019",
                     RendererInitializationException.DeviceCreationFailedException(
                         BackendType.WEBGL,
                         "WebGL context",
@@ -247,13 +234,12 @@ actual object RendererFactory {
                 )
             }
 
-            override fun render(scene: io.kreekt.scene.Scene, camera: io.kreekt.scene.Camera) {
+            override fun render(scene: io.kreekt.core.scene.Scene, camera: io.kreekt.camera.Camera) {
                 throw UnsupportedOperationException("WebGL renderer not yet implemented")
             }
 
             override fun resize(width: Int, height: Int) {}
             override fun dispose() {}
-            override fun getStats(): RenderStats = stats
         }
     }
 }

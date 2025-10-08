@@ -10,7 +10,6 @@ package io.kreekt.renderer
 import io.kreekt.renderer.vulkan.VulkanRenderer
 import io.kreekt.renderer.vulkan.VulkanSurface
 import org.lwjgl.glfw.GLFWVulkan
-import org.lwjgl.system.MemoryStack
 import org.lwjgl.vulkan.VK12.*
 
 /**
@@ -36,10 +35,11 @@ actual object RendererFactory {
     actual suspend fun create(
         surface: RenderSurface,
         config: RendererConfig
-    ): Result<Renderer, RendererInitializationException> {
+    ): io.kreekt.core.Result<Renderer> {
         // 1. Check if surface is valid
         if (surface !is VulkanSurface) {
-            return Result.failure(
+            return io.kreekt.core.Result.Error(
+                "Expected VulkanSurface, got ${surface::class.simpleName}",
                 RendererInitializationException.SurfaceCreationFailedException(
                     BackendType.VULKAN,
                     "Expected VulkanSurface, got ${surface::class.simpleName}"
@@ -50,7 +50,8 @@ actual object RendererFactory {
         // 2. Detect available backends
         val availableBackends = detectAvailableBackends()
         if (BackendType.VULKAN !in availableBackends) {
-            return Result.failure(
+            return io.kreekt.core.Result.Error(
+                "Vulkan not available on platform JVM",
                 RendererInitializationException.NoGraphicsSupportException(
                     platform = "JVM",
                     availableBackends = availableBackends,
@@ -65,16 +66,20 @@ actual object RendererFactory {
 
             // 4. Initialize renderer
             val initResult = renderer.initialize(config)
-            if (initResult.isFailure) {
-                return Result.failure(initResult.exceptionOrNull() as RendererInitializationException)
+            if (initResult is io.kreekt.core.Result.Error) {
+                return io.kreekt.core.Result.Error(
+                    initResult.message,
+                    initResult.exception
+                )
             }
 
             // Log selected backend
             println("[KreeKt] Selected backend: Vulkan (${renderer.capabilities.deviceName})")
 
-            Result.success(renderer)
+            io.kreekt.core.Result.Success(renderer)
         } catch (e: Exception) {
-            Result.failure(
+            io.kreekt.core.Result.Error(
+                e.message ?: "Unknown error during renderer creation",
                 RendererInitializationException.DeviceCreationFailedException(
                     BackendType.VULKAN,
                     "Unknown device",
@@ -117,14 +122,10 @@ actual object RendererFactory {
             }
 
             // Try to get Vulkan instance extensions (will fail if Vulkan loader not present)
-            MemoryStack.stackPush().use { stack ->
-                val pCount = stack.callocInt(1)
-                val ppExtensions = GLFWVulkan.glfwGetRequiredInstanceExtensions(pCount)
-                val extensionCount = pCount.get(0)
+            val ppExtensions = GLFWVulkan.glfwGetRequiredInstanceExtensions()
 
-                // If we can get extensions, Vulkan is available
-                extensionCount > 0
-            }
+            // If we can get extensions, Vulkan is available
+            ppExtensions != null && ppExtensions.remaining() > 0
         } catch (e: Exception) {
             // Any exception means Vulkan is not available
             false

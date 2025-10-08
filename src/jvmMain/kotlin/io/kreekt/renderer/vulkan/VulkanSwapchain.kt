@@ -25,7 +25,7 @@ import org.lwjgl.vulkan.VK12.*
  * @property physicalDevice Vulkan physical device
  * @property surface Vulkan surface (window)
  */
-actual class VulkanSwapchain(
+class VulkanSwapchain(
     private val device: VkDevice,
     private val physicalDevice: VkPhysicalDevice,
     private val surface: Long // VkSurfaceKHR
@@ -193,7 +193,7 @@ actual class VulkanSwapchain(
      * @return Swapchain image ready for rendering
      * @throws SwapchainException if acquire fails
      */
-    actual override fun acquireNextImage(): SwapchainImage {
+    override fun acquireNextImage(): SwapchainImage {
         if (swapchain == VK_NULL_HANDLE) {
             throw SwapchainException("Swapchain not created")
         }
@@ -242,7 +242,7 @@ actual class VulkanSwapchain(
      * @param image Swapchain image to present
      * @throws SwapchainException if present fails
      */
-    actual override fun presentImage(image: SwapchainImage) {
+    override fun presentImage(image: SwapchainImage) {
         if (!image.isReady()) {
             throw SwapchainException("Swapchain image not ready for presentation")
         }
@@ -260,7 +260,7 @@ actual class VulkanSwapchain(
      * @param height New height in pixels (> 0)
      * @throws IllegalArgumentException if width or height <= 0
      */
-    actual override fun recreateSwapchain(width: Int, height: Int) {
+    override fun recreateSwapchain(width: Int, height: Int) {
         if (width <= 0) {
             throw IllegalArgumentException("width must be > 0, got $width")
         }
@@ -280,7 +280,7 @@ actual class VulkanSwapchain(
      *
      * @return Pair of (width, height) in pixels
      */
-    actual override fun getExtent(): Pair<Int, Int> {
+    override fun getExtent(): Pair<Int, Int> {
         return Pair(currentWidth, currentHeight)
     }
 

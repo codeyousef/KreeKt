@@ -8,8 +8,8 @@ import io.kreekt.core.scene.Mesh
 import io.kreekt.core.scene.Scene
 import io.kreekt.geometry.BufferGeometry
 import io.kreekt.material.MeshBasicMaterial
-import io.kreekt.optimization.Frustum
 import io.kreekt.optimization.BoundingBox
+import io.kreekt.optimization.Frustum
 import io.kreekt.renderer.*
 import io.kreekt.renderer.webgpu.shaders.BasicShaders
 import kotlinx.coroutines.GlobalScope
@@ -77,40 +77,47 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
     private var viewport = Viewport(0, 0, canvas.width, canvas.height)
 
     // Renderer interface properties
+    override val backend: BackendType = BackendType.WEBGPU
+
     override val capabilities: RendererCapabilities
         get() = rendererCapabilities ?: createDefaultCapabilities()
 
-    override var renderTarget: RenderTarget? = null
-    override var autoClear: Boolean = true
-    override var autoClearColor: Boolean = true
-    override var autoClearDepth: Boolean = true
-    override var autoClearStencil: Boolean = true
-    override var clearColor: Color = Color(0x000000)
-    override var clearAlpha: Float = 1f
-    override var shadowMap: ShadowMapSettings = ShadowMapSettings()
-    override var toneMapping: ToneMapping = ToneMapping.NONE
-    override var toneMappingExposure: Float = 1f
-    override var outputColorSpace: ColorSpace = ColorSpace.sRGB
-    override var physicallyCorrectLights: Boolean = false
+    override val stats: RenderStats
+        get() = RenderStats(
+            fps = 0.0, // TODO: Calculate actual FPS
+            frameTime = 0.0, // TODO: Calculate actual frame time
+            triangles = triangleCount,
+            drawCalls = drawCallCount,
+            textureMemory = 0, // TODO: Track texture memory
+            bufferMemory = 0 // TODO: Track buffer memory
+        )
+
+    // Old Three.js-style properties removed - not part of Feature 020 Renderer interface
+    // These will be restored in advanced features phase (Phase 2-13)
+    var clearColor: Color = Color(0x000000)
+    var clearAlpha: Float = 1f
 
     var isInitialized: Boolean = false
         private set
 
     val isWebGPU: Boolean = true
 
-    /**
-     * Initializes the WebGPU renderer.
-     * @return RendererResult.Success or RendererResult.Error
-     */
-    suspend fun initialize(): RendererResult<Unit> {
+
+    override suspend fun initialize(config: RendererConfig): io.kreekt.core.Result<Unit> {
+        // For WebGPU, surface is the canvas - already provided in constructor
+        return initializeInternal()
+    }
+
+    private suspend fun initializeInternal(): io.kreekt.core.Result<Unit> {
         return try {
             val startTime = js("performance.now()").unsafeCast<Double>()
 
             // Get GPU
             val gpu = WebGPUDetector.getGPU()
             if (gpu == null) {
-                return RendererResult.Error(
-                    RendererException.InitializationFailed("WebGPU not available")
+                return io.kreekt.core.Result.Error(
+                    "WebGPU not available",
+                    RuntimeException("WebGPU not available")
                 )
             }
 
@@ -121,8 +128,9 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
             val adapterPromise = gpu.requestAdapter(adapterOptions).unsafeCast<Promise<GPUAdapter?>>()
             val adapterResult = adapterPromise.awaitPromise()
             if (adapterResult == null) {
-                return RendererResult.Error(
-                    RendererException.InitializationFailed("Failed to request GPU adapter")
+                return io.kreekt.core.Result.Error(
+                    "Failed to request GPU adapter",
+                    RuntimeException("Failed to request GPU adapter")
                 )
             }
             adapter = adapterResult
@@ -134,18 +142,10 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
             val devicePromise = adapter!!.requestDevice(deviceDescriptor).unsafeCast<Promise<GPUDevice>>()
             device = devicePromise.awaitPromise()
 
-            // Setup device error handlers
-            device!!.asDynamic().addEventListener("uncapturederror", { event: dynamic ->
-                console.error("WebGPU uncaptured error:", event.error)
-                console.error("Error type:", event.error.constructor.name)
-                console.error("Error message:", event.error.message)
-            })
-
             // Monitor device loss
-            GlobalScope.launch {
+            device!!.lost.then { info ->
                 try {
-                    device!!.lost.unsafeCast<Promise<dynamic>>().awaitPromise()
-                    console.error("WebGPU device lost!")
+                    console.warn("WebGPU device lost: ${info}")
                     contextLossRecovery.handleContextLoss()
                 } catch (e: Exception) {
                     console.error("Error monitoring device loss: ${e.message}")
@@ -154,8 +154,9 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
 
             // Configure canvas context
             context = canvas.getContext("webgpu").unsafeCast<GPUCanvasContext?>()
-                ?: return RendererResult.Error(
-                    RendererException.InitializationFailed("Failed to get WebGPU context")
+                ?: return io.kreekt.core.Result.Error(
+                    "Failed to get WebGPU context",
+                    RuntimeException("Failed to get WebGPU context")
                 )
 
             val contextConfig = js("({})").unsafeCast<GPUCanvasConfiguration>()
@@ -164,20 +165,8 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
             contextConfig.alphaMode = "opaque"
             context!!.configure(contextConfig)
 
-            // Initialize component managers
-            pipelineCache = PipelineCache()
+            // Create buffer pool
             bufferPool = BufferPool(device!!)
-            contextLossRecovery = ContextLossRecovery()
-
-            // Setup context loss monitoring
-            contextLossRecovery.onContextLost = {
-                isInitialized = false
-                console.warn("WebGPU context lost - attempting recovery...")
-            }
-            contextLossRecovery.onContextRestored = {
-                isInitialized = true
-                console.info("WebGPU context restored successfully")
-            }
 
             // Create capabilities
             rendererCapabilities = createCapabilities(adapter!!)
@@ -187,25 +176,26 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
             val initTime = js("performance.now()").unsafeCast<Double>() - startTime
             console.log("WebGPU renderer initialized in ${initTime}ms")
 
-            RendererResult.Success(Unit)
+            io.kreekt.core.Result.Success(Unit)
         } catch (e: Exception) {
-            RendererResult.Error(
-                RendererException.InitializationFailed("Renderer initialization failed", e)
+            io.kreekt.core.Result.Error(
+                "Renderer initialization failed: ${e.message}",
+                e
             )
         }
     }
 
-    override suspend fun initialize(surface: RenderSurface): RendererResult<Unit> {
-        // For WebGPU, surface is the canvas - already provided in constructor
-        return initialize()
+    override fun resize(width: Int, height: Int) {
+        setSize(width, height, false)
     }
 
-    override fun render(scene: Scene, camera: Camera): RendererResult<Unit> {
+    override fun render(scene: Scene, camera: Camera) {
         if (!isInitialized || device == null || context == null) {
-            return RendererResult.Error(RendererException.InvalidState("Renderer not initialized"))
+            console.error("Renderer not initialized")
+            return
         }
 
-        return try {
+        try {
             triangleCount = 0
             drawCallCount = 0
 
@@ -235,16 +225,14 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
             // Color attachment
             val colorAttachment = js("({})").unsafeCast<GPURenderPassColorAttachment>()
             colorAttachment.view = textureView
-            colorAttachment.loadOp = if (autoClearColor) "clear" else "load"
+            colorAttachment.loadOp = "clear"
             colorAttachment.storeOp = "store"
-            if (autoClearColor) {
-                val clearValue = js("({})")
-                clearValue.r = clearColor.r
-                clearValue.g = clearColor.g
-                clearValue.b = clearColor.b
-                clearValue.a = clearAlpha
-                colorAttachment.clearValue = clearValue
-            }
+            val clearValue = js("({})")
+            clearValue.r = clearColor.r
+            clearValue.g = clearColor.g
+            clearValue.b = clearColor.b
+            clearValue.a = clearAlpha
+            colorAttachment.clearValue = clearValue
 
             val colorAttachments = js("[]").unsafeCast<Array<GPURenderPassColorAttachment?>>()
             js("colorAttachments.push(colorAttachment)")
@@ -303,9 +291,8 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
             console.log("T010 Performance: $drawCallCount draw calls, $triangleCount triangles, $visibleCount meshes")
 
             frameCount++
-            RendererResult.Success(Unit)
         } catch (e: Exception) {
-            RendererResult.Error(RendererException.RenderingFailed("Rendering failed", e))
+            console.error("Rendering failed: ${e.message}")
         }
     }
 
@@ -373,63 +360,14 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
         )
     }
 
-    override fun setSize(width: Int, height: Int, updateStyle: Boolean): RendererResult<Unit> {
+    /**
+     * Internal method to resize the canvas.
+     * Called by RendererFactory's resize() implementation.
+     */
+    fun setSize(width: Int, height: Int, updateStyle: Boolean) {
         canvas.width = width
         canvas.height = height
         viewport = Viewport(0, 0, width, height)
-        return RendererResult.Success(Unit)
-    }
-
-    override fun setPixelRatio(pixelRatio: Float): RendererResult<Unit> {
-        val width = (canvas.clientWidth * pixelRatio).toInt()
-        val height = (canvas.clientHeight * pixelRatio).toInt()
-        return setSize(width, height, false)
-    }
-
-    override fun setViewport(x: Int, y: Int, width: Int, height: Int): RendererResult<Unit> {
-        viewport = Viewport(x, y, width, height)
-        return RendererResult.Success(Unit)
-    }
-
-    override fun getViewport(): Viewport = viewport
-
-    override fun setScissorTest(enable: Boolean): RendererResult<Unit> {
-        // WebGPU doesn't have scissor test in the same way
-        return RendererResult.Success(Unit)
-    }
-
-    override fun setScissor(x: Int, y: Int, width: Int, height: Int): RendererResult<Unit> {
-        // Would be implemented with viewport/scissor rect
-        return RendererResult.Success(Unit)
-    }
-
-    override fun clear(color: Boolean, depth: Boolean, stencil: Boolean): RendererResult<Unit> {
-        autoClearColor = color
-        autoClearDepth = depth
-        autoClearStencil = stencil
-        return RendererResult.Success(Unit)
-    }
-
-    override fun clearColorBuffer(): RendererResult<Unit> {
-        return clear(true, false, false)
-    }
-
-    override fun clearDepth(): RendererResult<Unit> {
-        return clear(false, true, false)
-    }
-
-    override fun clearStencil(): RendererResult<Unit> {
-        return clear(false, false, true)
-    }
-
-    override fun resetState(): RendererResult<Unit> {
-        currentPipeline = null
-        return RendererResult.Success(Unit)
-    }
-
-    override fun compile(scene: Scene, camera: Camera): RendererResult<Unit> {
-        // Pre-compile pipelines for all meshes
-        return RendererResult.Success(Unit)
     }
 
     /**
@@ -565,11 +503,12 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
                 try {
                     val result = pipeline.create()
                     when (result) {
-                        is RendererResult.Success<*> -> {
+                        is io.kreekt.core.Result.Success -> {
                             console.log("✅ Pipeline ready for key: $cacheKey")
                         }
-                        is RendererResult.Error<*> -> {
-                            console.error("❌ Pipeline creation failed: ${result.exception.message}")
+
+                        is io.kreekt.core.Result.Error -> {
+                            console.error("❌ Pipeline creation failed: ${result.message}")
                             pipelineCacheMap.remove(cacheKey) // Remove failed pipeline
                         }
                     }
@@ -669,48 +608,14 @@ class WebGPURenderer(private val canvas: HTMLCanvasElement) : Renderer {
         bindGroup = device!!.createBindGroup(bindGroupDescriptor)
     }
 
-    override fun dispose(): RendererResult<Unit> {
+    override fun dispose() {
         pipelineCache.clear()
         bufferPool.dispose()
         contextLossRecovery.clear()
-        device?.destroy()
+        device?.asDynamic()?.destroy()
         device = null
         context = null
         isInitialized = false
-        return RendererResult.Success(Unit)
-    }
-
-    override fun forceContextLoss(): RendererResult<Unit> {
-        contextLossRecovery.handleContextLoss()
-        return RendererResult.Success(Unit)
-    }
-
-    override fun isContextLost(): Boolean {
-        return !isInitialized
-    }
-
-    override fun getStats(): RenderStats {
-        return RenderStats(
-            frame = frameCount,
-            calls = drawCallCount,
-            triangles = triangleCount,
-            points = 0,
-            lines = 0,
-            geometries = 0,
-            textures = 0,
-            shaders = pipelineCache.size(),
-            programs = pipelineCache.size()
-        )
-    }
-
-    override fun resetStats() {
-        frameCount = 0
-        triangleCount = 0
-        drawCallCount = 0
-    }
-
-    fun simulateContextLoss() {
-        forceContextLoss()
     }
 
     private fun createCapabilities(adapter: GPUAdapter): RendererCapabilities {

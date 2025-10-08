@@ -7,7 +7,7 @@ package io.kreekt.renderer.feature020
  * Provides cross-platform render pass recording for clearing framebuffer
  * and executing draw calls.
  */
-expect class RenderPassManager {
+interface RenderPassManager {
     /**
      * Begin render pass with clear color.
      *

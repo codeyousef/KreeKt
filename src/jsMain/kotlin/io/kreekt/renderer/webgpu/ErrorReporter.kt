@@ -1,7 +1,5 @@
 package io.kreekt.renderer.webgpu
 
-import io.kreekt.renderer.RendererException
-
 /**
  * Error handling and logging for WebGPU renderer.
  * T040: Clear, actionable error messages for debugging.

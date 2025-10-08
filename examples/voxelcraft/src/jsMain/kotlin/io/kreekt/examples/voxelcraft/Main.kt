@@ -153,19 +153,23 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
 
     // Create renderer with automatic backend selection (WebGPU → WebGL fallback)
     val renderer = try {
-        RendererFactory.create(surface).getOrElse { exception ->
-            when (exception) {
-                is RendererInitializationException.NoGraphicsSupportException -> {
-                    Logger.error("❌ Graphics not supported: ${exception.message}")
-                    Logger.error("   Platform: ${exception.platform}")
-                    Logger.error("   Available: ${exception.availableBackends}")
-                    Logger.error("   Required: ${exception.requiredFeatures}")
-                    throw exception
-                }
+        when (val result = RendererFactory.create(surface)) {
+            is io.kreekt.core.Result.Success -> result.value
+            is io.kreekt.core.Result.Error -> {
+                val exception = result.exception as? RendererInitializationException
+                when (exception) {
+                    is RendererInitializationException.NoGraphicsSupportException -> {
+                        Logger.error("❌ Graphics not supported: ${result.message}")
+                        Logger.error("   Platform: ${exception.platform}")
+                        Logger.error("   Available: ${exception.availableBackends}")
+                        Logger.error("   Required: ${exception.requiredFeatures}")
+                        throw exception
+                    }
 
-                else -> {
-                    Logger.error("❌ Renderer initialization failed: ${exception.message}")
-                    throw exception
+                    else -> {
+                        Logger.error("❌ Renderer initialization failed: ${result.message}")
+                        throw exception ?: RuntimeException(result.message)
+                    }
                 }
             }
         }
@@ -262,17 +266,17 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
 
         // T014: Update FPS counter with rolling average (every frame)
         val fps = fpsCounter.update(currentTime)
-        val stats = renderer.getStats()
-        updateFPS(fps.toInt(), stats.triangles, stats.calls)
+        val stats = renderer.stats
+        updateFPS(fps.toInt(), stats.triangles, stats.drawCalls)
 
         // T020: Performance validation after warmup (frame 120 = ~2 seconds)
         val validationResult = PerformanceValidator.validateAfterWarmup(
             frameCount = frameCount,
             metrics = PerformanceValidator.PerformanceMetrics(
                 fps = fps,
-                drawCalls = stats.calls,
+                drawCalls = stats.drawCalls,
                 triangles = stats.triangles,
-                backendType = backendType,
+                backendType = renderer.backend.name,
                 frameTime = fpsCounter.getAverageFrameTime()
             )
         )

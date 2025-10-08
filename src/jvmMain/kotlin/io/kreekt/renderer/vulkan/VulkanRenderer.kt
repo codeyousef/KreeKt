@@ -7,9 +7,9 @@
 
 package io.kreekt.renderer.vulkan
 
+import io.kreekt.camera.Camera
+import io.kreekt.core.scene.Scene
 import io.kreekt.renderer.*
-import io.kreekt.scene.Camera
-import io.kreekt.scene.Scene
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK12.*
@@ -72,11 +72,12 @@ class VulkanRenderer(
      * @param config Renderer configuration
      * @return Success or RendererError on failure
      */
-    override suspend fun initialize(config: RendererConfig): Result<Unit, RendererError> {
+    override suspend fun initialize(config: RendererConfig): io.kreekt.core.Result<Unit> {
         return try {
             // 1. Create VkInstance
             instance = createInstance(config.enableValidation)
-                ?: return Result.failure(
+                ?: return io.kreekt.core.Result.Error(
+                    "Failed to create VkInstance",
                     RendererInitializationException.AdapterRequestFailedException(
                         BackendType.VULKAN,
                         "Failed to create VkInstance"
@@ -85,7 +86,8 @@ class VulkanRenderer(
 
             // 2. Select physical device
             physicalDevice = selectPhysicalDevice(instance!!)
-                ?: return Result.failure(
+                ?: return io.kreekt.core.Result.Error(
+                    "No suitable Vulkan physical device found",
                     RendererInitializationException.AdapterRequestFailedException(
                         BackendType.VULKAN,
                         "No suitable Vulkan physical device found"
@@ -94,7 +96,8 @@ class VulkanRenderer(
 
             // 3. Create logical device
             device = createLogicalDevice(physicalDevice!!, config)
-                ?: return Result.failure(
+                ?: return io.kreekt.core.Result.Error(
+                    "Failed to create logical device",
                     RendererInitializationException.DeviceCreationFailedException(
                         BackendType.VULKAN,
                         getPhysicalDeviceInfo(physicalDevice!!),
@@ -105,14 +108,15 @@ class VulkanRenderer(
             // 4. Get graphics queue
             MemoryStack.stackPush().use { stack ->
                 val pQueue = stack.callocPointer(1)
-                vkGetDeviceQueue(device, 0, 0, pQueue)
-                graphicsQueue = VkQueue(pQueue.get(0), device)
+                vkGetDeviceQueue(device!!, 0, 0, pQueue)
+                graphicsQueue = VkQueue(pQueue.get(0), device!!)
             }
 
             // 5. Create command pool
             commandPool = createCommandPool(device!!)
             if (commandPool == VK_NULL_HANDLE) {
-                return Result.failure(
+                return io.kreekt.core.Result.Error(
+                    "Failed to create command pool",
                     RendererInitializationException.DeviceCreationFailedException(
                         BackendType.VULKAN,
                         getPhysicalDeviceInfo(physicalDevice!!),
@@ -128,11 +132,12 @@ class VulkanRenderer(
             capabilities = queryCapabilities(physicalDevice!!)
 
             initialized = true
-            Result.success(Unit)
+            io.kreekt.core.Result.Success(Unit)
         } catch (e: Exception) {
             // Clean up partial initialization
             dispose()
-            Result.failure(
+            io.kreekt.core.Result.Error(
+                e.message ?: "Unknown error",
                 RendererInitializationException.DeviceCreationFailedException(
                     BackendType.VULKAN,
                     "Unknown device",
@@ -192,8 +197,8 @@ class VulkanRenderer(
         device?.let { vkDeviceWaitIdle(it) }
 
         // Destroy command pool (also frees command buffers)
-        if (commandPool != VK_NULL_HANDLE) {
-            vkDestroyCommandPool(device, commandPool, null)
+        if (commandPool != VK_NULL_HANDLE && device != null) {
+            vkDestroyCommandPool(device!!, commandPool, null)
             commandPool = VK_NULL_HANDLE
         }
 
@@ -212,7 +217,7 @@ class VulkanRenderer(
         initialized = false
     }
 
-    override fun getStats(): RenderStats = stats
+    // Note: getStats() removed - use 'stats' property directly to avoid JVM signature clash
 
     // === Private Helper Methods ===
 
@@ -357,13 +362,10 @@ class VulkanRenderer(
                 maxTextureSize = limits.maxImageDimension2D(),
                 maxSamples = getSampleCountFromVulkanSampleCount(limits.framebufferColorSampleCounts()),
                 maxUniformBufferBindings = limits.maxPerStageDescriptorUniformBuffers(),
-                maxStorageBufferBindings = limits.maxPerStageDescriptorStorageBuffers(),
-                maxTextureBindings = limits.maxPerStageDescriptorSampledImages(),
-                maxColorAttachments = limits.maxColorAttachments(),
-                supportsDepthTexture = true,
-                supportsFloatTextures = true,
-                supportsInstancedArrays = true,
-                extensions = emptyList() // TODO: Query actual extensions
+                depthTextures = true,
+                floatTextures = true,
+                instancedRendering = true,
+                extensions = emptySet() // TODO: Query actual extensions
             )
         }
     }

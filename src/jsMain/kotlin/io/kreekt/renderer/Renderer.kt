@@ -7,8 +7,8 @@
 
 package io.kreekt.renderer
 
-import io.kreekt.scene.Camera
-import io.kreekt.scene.Scene
+import io.kreekt.camera.Camera
+import io.kreekt.core.scene.Scene
 
 /**
  * JS actual for Renderer interface.
@@ -20,9 +20,8 @@ actual interface Renderer {
     actual val capabilities: RendererCapabilities
     actual val stats: RenderStats
 
-    actual suspend fun initialize(config: RendererConfig): Result<Unit, RendererError>
+    actual suspend fun initialize(config: RendererConfig): io.kreekt.core.Result<Unit>
     actual fun render(scene: Scene, camera: Camera)
     actual fun resize(width: Int, height: Int)
     actual fun dispose()
-    actual fun getStats(): RenderStats
 }

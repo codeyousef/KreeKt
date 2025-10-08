@@ -92,19 +92,23 @@ class VoxelCraftJVM {
             val config = RendererConfig(enableValidation = true)
 
             renderer = try {
-                RendererFactory.create(surface, config).getOrElse { exception ->
-                    when (exception) {
-                        is RendererInitializationException.NoGraphicsSupportException -> {
-                            Logger.error("❌ Graphics not supported: ${exception.message}")
-                            Logger.error("   Platform: ${exception.platform}")
-                            Logger.error("   Available: ${exception.availableBackends}")
-                            Logger.error("   Required: ${exception.requiredFeatures}")
-                            throw exception
-                        }
+                when (val result = RendererFactory.create(surface, config)) {
+                    is io.kreekt.core.Result.Success -> result.value
+                    is io.kreekt.core.Result.Error -> {
+                        val exception = result.exception as? RendererInitializationException
+                        when (exception) {
+                            is RendererInitializationException.NoGraphicsSupportException -> {
+                                Logger.error("❌ Graphics not supported: ${result.message}")
+                                Logger.error("   Platform: ${exception.platform}")
+                                Logger.error("   Available: ${exception.availableBackends}")
+                                Logger.error("   Required: ${exception.requiredFeatures}")
+                                throw exception
+                            }
 
-                        else -> {
-                            Logger.error("❌ Renderer initialization failed: ${exception.message}")
-                            throw exception
+                            else -> {
+                                Logger.error("❌ Renderer initialization failed: ${result.message}")
+                                throw exception ?: RuntimeException(result.message)
+                            }
                         }
                     }
                 }
@@ -291,7 +295,7 @@ class VoxelCraftJVM {
             // Log stats every 60 frames
             if (frameCount % 60 == 0) {
                 val fps = (1.0f / deltaTime).toInt()
-                val stats = renderer.getStats()
+                val stats = renderer.stats
                 Logger.info("📊 FPS: $fps (${stats.fps.toInt()} renderer) | Player: (${world.player.position.x.toInt()}, ${world.player.position.y.toInt()}, ${world.player.position.z.toInt()}) | Chunks: ${world.chunkCount}")
             }
 
