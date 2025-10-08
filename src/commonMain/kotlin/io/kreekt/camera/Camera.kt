@@ -157,8 +157,18 @@ abstract class Camera : Object3D() {
      * Updates the view matrix (inverse world matrix)
      */
     override fun updateMatrixWorld(force: Boolean) {
+        // T021: Log BEFORE super.updateMatrixWorld
+        console.log("T021 [Camera.updateMatrixWorld] BEFORE super: matrixWorld[0..3]=[${matrixWorld.elements[0]}, ${matrixWorld.elements[1]}, ${matrixWorld.elements[2]}, ${matrixWorld.elements[3]}]")
+
         super.updateMatrixWorld(force)
+
+        // T021: Log AFTER super.updateMatrixWorld, BEFORE invert
+        console.log("T021 [Camera.updateMatrixWorld] AFTER super: matrixWorld[0..3]=[${matrixWorld.elements[0]}, ${matrixWorld.elements[1]}, ${matrixWorld.elements[2]}, ${matrixWorld.elements[3]}]")
+
         matrixWorldInverse.copy(matrixWorld).invert()
+
+        // T021: Log AFTER invert
+        console.log("T021 [Camera.updateMatrixWorld] AFTER invert: matrixWorldInverse[0..3]=[${matrixWorldInverse.elements[0]}, ${matrixWorldInverse.elements[1]}, ${matrixWorldInverse.elements[2]}, ${matrixWorldInverse.elements[3]}]")
     }
 
     /**

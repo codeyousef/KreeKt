@@ -216,7 +216,9 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
         aspect = canvas.width.toFloat() / canvas.height.toFloat(),
         near = 0.1f,
         far = 1000.0f
-    )
+    ).apply {
+        name = "MainCamera"  // T021: Add name for logging
+    }
 
     updateLoadingProgress("World ready!")
 
@@ -283,18 +285,26 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
         // T021: Manually update quaternion from Euler angles since onChange callbacks aren't implemented
         camera.quaternion.setFromEuler(camera.rotation)
 
-        // Force matrix update immediately after setting rotation
-        camera.updateMatrix()
-
-        // Diagnostic: Verify camera sync
-        if (frameCount < 5) {
-            console.log("🔍 AFTER SYNC - Camera pos: (${camera.position.x}, ${camera.position.y}, ${camera.position.z})")
-            console.log("🔍 AFTER SYNC - Camera rot: (${camera.rotation.x}, ${camera.rotation.y}, ${camera.rotation.z})")
-            console.log("🔍 PLAYER - Player rot: (${world.player.rotation.x}, ${world.player.rotation.y}, ${world.player.rotation.z})")
+        // T021 FIX: Manually update matrices since onChange callbacks aren't implemented
+        if (frameCount < 3) {
+            console.log("T021-MAIN Frame $frameCount: BEFORE updateMatrix, matrix[12-14]=(${camera.matrix.elements[12]}, ${camera.matrix.elements[13]}, ${camera.matrix.elements[14]})")
+            console.log("T021-MAIN Frame $frameCount: position=(${camera.position.x}, ${camera.position.y}, ${camera.position.z})")
         }
 
-        // Update camera matrices
+        camera.updateMatrix()  // Updates local matrix from position/quaternion/scale
+
+        if (frameCount < 3) {
+            console.log("T021-MAIN Frame $frameCount: AFTER updateMatrix, matrix[12-14]=(${camera.matrix.elements[12]}, ${camera.matrix.elements[13]}, ${camera.matrix.elements[14]})")
+            console.log("T021-MAIN Frame $frameCount: BEFORE updateMatrixWorld, matrixWorld[12-14]=(${camera.matrixWorld.elements[12]}, ${camera.matrixWorld.elements[13]}, ${camera.matrixWorld.elements[14]})")
+        }
+
         camera.updateMatrixWorld(true)
+
+        if (frameCount < 3) {
+            console.log("T021-MAIN Frame $frameCount: AFTER updateMatrixWorld, matrixWorld[12-14]=(${camera.matrixWorld.elements[12]}, ${camera.matrixWorld.elements[13]}, ${camera.matrixWorld.elements[14]})")
+            console.log("T021-MAIN Frame $frameCount: matrixWorldInverse[12-14]=(${camera.matrixWorldInverse.elements[12]}, ${camera.matrixWorldInverse.elements[13]}, ${camera.matrixWorldInverse.elements[14]})")
+        }
+
         camera.updateProjectionMatrix()
 
         // Render scene
