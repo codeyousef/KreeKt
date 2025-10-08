@@ -26,6 +26,13 @@ class WebGPURenderPassManager(
     private var pipelineBound = false
 
     /**
+     * Get the internal GPURenderPassEncoder for legacy rendering code.
+     * This is a temporary method to support the transition from direct WebGPU API usage
+     * to the RenderPassManager abstraction.
+     */
+    fun getPassEncoder(): dynamic = passEncoder
+
+    /**
      * Begin render pass with clear color.
      *
      * @param clearColor Framebuffer clear color (RGBA, 0.0-1.0)
@@ -41,22 +48,21 @@ class WebGPURenderPassManager(
             val textureView = framebuffer.handle
                 ?: throw IllegalArgumentException("framebuffer.handle must be GPUTextureView")
 
-            // Create render pass descriptor
-            val descriptor = js(
-                """({
-                colorAttachments: [{
-                    view: textureView,
-                    loadOp: 'clear',
-                    storeOp: 'store',
-                    clearValue: {
-                        r: clearColor.r,
-                        g: clearColor.g,
-                        b: clearColor.b,
-                        a: clearColor.a
-                    }
-                }]
-            })"""
-            )
+            // Create render pass descriptor (build object programmatically for proper Kotlin→JS conversion)
+            val clearValue = js("{}")
+            clearValue.r = clearColor.r
+            clearValue.g = clearColor.g
+            clearValue.b = clearColor.b
+            clearValue.a = clearColor.a
+
+            val colorAttachment = js("{}")
+            colorAttachment.view = textureView
+            colorAttachment.loadOp = "clear"
+            colorAttachment.storeOp = "store"
+            colorAttachment.clearValue = clearValue
+
+            val descriptor = js("{}")
+            descriptor.colorAttachments = arrayOf(colorAttachment)
 
             // Begin render pass
             passEncoder = commandEncoder.beginRenderPass(descriptor)

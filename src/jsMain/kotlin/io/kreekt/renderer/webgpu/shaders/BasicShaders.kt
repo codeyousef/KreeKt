@@ -69,7 +69,8 @@ object BasicShaders {
 
         @fragment
         fn fs_main(in: FragmentInput) -> @location(0) vec4<f32> {
-            return vec4<f32>(in.color, 1.0);
+            // T021: Override to solid red for debugging
+            return vec4<f32>(1.0, 0.0, 0.0, 1.0);
         }
     """.trimIndent()
 

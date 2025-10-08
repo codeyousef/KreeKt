@@ -5,7 +5,7 @@ import io.kreekt.renderer.Renderer
 import io.kreekt.renderer.RendererConfig
 import io.kreekt.renderer.RendererFactory
 import io.kreekt.renderer.RendererInitializationException
-import io.kreekt.renderer.vulkan.VulkanSurface
+import io.kreekt.renderer.SurfaceFactory
 import kotlinx.coroutines.*
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWErrorCallback
@@ -84,11 +84,11 @@ class VoxelCraftJVM {
         // Show window
         glfwShowWindow(window)
 
-        // T023: Initialize Vulkan renderer using RendererFactory
-        Logger.info("🔧 Initializing Vulkan renderer...")
+        // Initialize renderer using platform-agnostic SurfaceFactory
+        Logger.info("🔧 Initializing renderer...")
 
         runBlocking {
-            val surface = VulkanSurface(window)
+            val surface = SurfaceFactory.create(window)
             val config = RendererConfig(enableValidation = true)
 
             renderer = try {

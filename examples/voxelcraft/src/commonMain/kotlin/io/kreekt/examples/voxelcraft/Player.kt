@@ -19,7 +19,8 @@ class Player(val world: VoxelWorld) {
     var position = Vector3(0.0f, 100.0f, 0.0f)
 
     // Rotation (pitch = x-axis, yaw = y-axis)
-    var rotation = Vector3(0.0f, 0.0f, 0.0f)
+    // Initial pitch -0.3 radians (~-17°) to look slightly down at terrain
+    var rotation = Vector3(-0.3f, 0.0f, 0.0f)
 
     // Velocity for physics
     var velocity = Vector3(0.0f, 0.0f, 0.0f)

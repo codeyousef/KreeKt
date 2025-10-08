@@ -13,11 +13,13 @@ class WebGPUPipeline(
     private var fragmentShaderModule: WebGPUShaderModule? = null
 
     /**
-     * Creates the render pipeline.
+     * Creates the render pipeline (synchronous).
      */
-    suspend fun create(): io.kreekt.core.Result<Unit> {
+    fun create(): io.kreekt.core.Result<Unit> {
         return try {
-            // Compile shaders first
+            console.log("🔨 Pipeline.create() START")
+            // Compile shaders first (synchronous)
+            console.log("🔨 Creating vertex shader module...")
             vertexShaderModule = WebGPUShaderModule(
                 device,
                 ShaderModuleDescriptor(
@@ -26,11 +28,14 @@ class WebGPUPipeline(
                     stage = ShaderStage.VERTEX
                 )
             )
+            console.log("🔨 Compiling vertex shader...")
             val vertexResult = vertexShaderModule!!.compile()
+            console.log("🔨 Vertex shader compile result: $vertexResult")
             if (vertexResult is io.kreekt.core.Result.Error) {
                 return vertexResult
             }
 
+            console.log("🔨 Creating fragment shader module...")
             fragmentShaderModule = WebGPUShaderModule(
                 device,
                 ShaderModuleDescriptor(
@@ -39,7 +44,9 @@ class WebGPUPipeline(
                     stage = ShaderStage.FRAGMENT
                 )
             )
+            console.log("🔨 Compiling fragment shader...")
             val fragmentResult = fragmentShaderModule!!.compile()
+            console.log("🔨 Fragment shader compile result: $fragmentResult")
             if (fragmentResult is io.kreekt.core.Result.Error) {
                 return fragmentResult
             }
@@ -153,10 +160,15 @@ class WebGPUPipeline(
             }
 
             // Create the pipeline
+            console.log("🔨 Creating GPU render pipeline...")
             pipeline = device.createRenderPipeline(pipelineDescriptor)
+            console.log("🔨 GPU render pipeline created: $pipeline")
 
+            console.log("🔨 Pipeline.create() SUCCESS")
             io.kreekt.core.Result.Success(Unit)
         } catch (e: Exception) {
+            console.error("🔨 Pipeline.create() EXCEPTION: ${e.message}")
+            console.error(e)
             io.kreekt.core.Result.Error("Pipeline creation failed", e)
         }
     }

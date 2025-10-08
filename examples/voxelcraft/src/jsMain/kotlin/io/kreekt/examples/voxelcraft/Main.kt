@@ -4,7 +4,7 @@ import io.kreekt.camera.PerspectiveCamera
 import io.kreekt.renderer.FPSCounter
 import io.kreekt.renderer.RendererFactory
 import io.kreekt.renderer.RendererInitializationException
-import io.kreekt.renderer.webgpu.WebGPUSurface
+import io.kreekt.renderer.SurfaceFactory
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.*
@@ -73,9 +73,9 @@ suspend fun initGame() = coroutineScope {
 
     // Always reset to proper spawn for debugging
     world.player.position.set(0.0f, 100.0f, 0.0f)
-    world.player.rotation.set(0.0f, 0.0f, 0.0f)
+    world.player.rotation.set(-0.3f, 0.0f, 0.0f)  // Tilt camera down to see terrain
     world.player.isFlying = true
-    Logger.info("📍 Reset player to spawn: (0, 100, 0), flight mode: ON")
+    Logger.info("📍 Reset player to spawn: (0, 100, 0), rotation: (-0.3, 0, 0), flight mode: ON")
 
     generateTerrainAsync(
         scope = this,
@@ -139,10 +139,10 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
 
     updateLoadingProgress("Initializing renderer...")
 
-    // T027: Create render surface using Feature 019 API
-    val surface = WebGPUSurface(canvas)
+    // Create render surface using platform-agnostic SurfaceFactory
+    val surface = SurfaceFactory.create(canvas)
 
-    // T027: Initialize renderer with RendererFactory (automatic backend detection)
+    // Initialize renderer with RendererFactory (automatic backend detection)
     Logger.info("🔧 Initializing renderer backend for VoxelCraft...")
     Logger.info("📊 Backend Negotiation:")
     Logger.info("  Detecting capabilities...")
@@ -150,6 +150,28 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
     // Detect available backends
     val availableBackends = RendererFactory.detectAvailableBackends()
     Logger.info("  Available backends: ${availableBackends.joinToString(", ")}")
+
+    // Check if WebGPU is available
+    if (!availableBackends.contains(io.kreekt.renderer.BackendType.WEBGPU)) {
+        val errorMsg = """
+            ❌ WebGPU Not Available
+
+            VoxelCraft requires WebGPU support.
+
+            WebGPU is available in:
+            • Chrome/Edge 113+ (enabled by default)
+            • Firefox Nightly (enable dom.webgpu.enabled in about:config)
+            • Safari Technology Preview
+
+            Your browser detected: ${availableBackends.joinToString(", ")}
+
+            Please update your browser or enable WebGPU.
+        """.trimIndent()
+
+        Logger.error(errorMsg)
+        updateLoadingProgress(errorMsg.replace("\n", "<br>"))
+        throw RuntimeException("WebGPU not available. Please use a WebGPU-enabled browser.")
+    }
 
     // Create renderer with automatic backend selection (WebGPU → WebGL fallback)
     val renderer = try {
@@ -228,12 +250,13 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
         val deltaTime = ((currentTime - lastTime) / 1000.0).toFloat()
         lastTime = currentTime
 
-        // T002: Temporary diagnostic logging
-        if (frameCount < 10 || frameCount % 60 == 0) {
+        // T002: Temporary diagnostic logging - MORE FREQUENT to catch mesh additions
+        if (frameCount < 100 || frameCount % 60 == 0) {
             console.log("📷 Frame $frameCount: Camera pos: (${camera.position.x}, ${camera.position.y}, ${camera.position.z})")
-            console.log("📷 Frame $frameCount: Camera rot: (${camera.rotation.x}, ${camera.rotation.y}, ${camera.rotation.z})")
             console.log("🧱 Frame $frameCount: Scene children: ${world.scene.children.size}")
-            console.log("👤 Frame $frameCount: Player pos: (${world.player.position.x}, ${world.player.position.y}, ${world.player.position.z})")
+            if (frameCount % 10 == 0) {
+                console.log("👤 Frame $frameCount: Player pos: (${world.player.position.x}, ${world.player.position.y}, ${world.player.position.z})")
+            }
         }
 
         // Update controllers
@@ -248,11 +271,27 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
             world.player.position.y.toFloat(),
             world.player.position.z.toFloat()
         )
+
+        // Set rotation - Player has Vector3, Camera has Euler
+        // IMPORTANT: Must use set() method to properly update Euler
         camera.rotation.set(
-            world.player.rotation.x.toFloat(),
-            world.player.rotation.y.toFloat(),
-            0.0f
+            world.player.rotation.x,
+            world.player.rotation.y,
+            world.player.rotation.z
         )
+
+        // T021: Manually update quaternion from Euler angles since onChange callbacks aren't implemented
+        camera.quaternion.setFromEuler(camera.rotation)
+
+        // Force matrix update immediately after setting rotation
+        camera.updateMatrix()
+
+        // Diagnostic: Verify camera sync
+        if (frameCount < 5) {
+            console.log("🔍 AFTER SYNC - Camera pos: (${camera.position.x}, ${camera.position.y}, ${camera.position.z})")
+            console.log("🔍 AFTER SYNC - Camera rot: (${camera.rotation.x}, ${camera.rotation.y}, ${camera.rotation.z})")
+            console.log("🔍 PLAYER - Player rot: (${world.player.rotation.x}, ${world.player.rotation.y}, ${world.player.rotation.z})")
+        }
 
         // Update camera matrices
         camera.updateMatrixWorld(true)

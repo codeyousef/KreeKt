@@ -1,6 +1,7 @@
 package io.kreekt.renderer.webgpu
 
 import io.kreekt.renderer.webgpu.WebGPURendererFactory
+import io.kreekt.renderer.RendererConfig
 import kotlinx.browser.document
 import kotlinx.coroutines.test.runTest
 import org.w3c.dom.HTMLCanvasElement
@@ -30,17 +31,20 @@ class WebGPURendererFactoryTest {
         // Create renderer using factory
         val renderer = WebGPURendererFactory.create(canvas)
 
+        // Initialize renderer
+        renderer.initialize(RendererConfig())
+
         // Verify renderer was created
         assertNotNull(renderer, "Renderer should be created successfully")
 
         // Verify renderer is functional
-        val stats = renderer.getStats()
+        val stats = renderer.stats
         assertNotNull(stats, "Renderer should provide statistics")
         assertTrue(stats.triangles >= 0, "Statistics should be valid")
 
         console.log("✅ Backend selection test passed")
         console.log("   Renderer type: ${renderer::class.simpleName}")
-        console.log("   Statistics: ${stats.triangles} triangles, ${stats.calls} calls")
+        console.log("   Statistics: ${stats.triangles} triangles, ${stats.drawCalls} calls")
     }
 
     @Test
