@@ -1,8 +1,5 @@
 package io.kreekt.renderer.webgpu
 
-import io.kreekt.renderer.RendererResult
-import kotlinx.coroutines.await
-
 /**
  * Resource descriptor for tracking recreatable resources.
  */
@@ -59,9 +56,9 @@ class ContextLossRecovery {
      * @param device New GPU device
      * @return Result indicating success or failure
      */
-    suspend fun recover(device: GPUDevice): RendererResult<RecoveryStats> {
+    suspend fun recover(device: GPUDevice): io.kreekt.core.Result<RecoveryStats> {
         if (!isRecovering) {
-            return RendererResult.Success(RecoveryStats(0, 0, 0, 0))
+            return io.kreekt.core.Result.Success(RecoveryStats(0, 0, 0, 0))
         }
 
         console.info("Starting context recovery: ${trackedResources.size} resources...")
@@ -108,15 +105,14 @@ class ContextLossRecovery {
 
         if (failures > 0) {
             console.warn("Context recovery completed with $failures failures")
-            return RendererResult.Error(
-                io.kreekt.renderer.RendererException.ContextLost(
-                    "Recovery completed with $failures failures"
-                )
+            return io.kreekt.core.Result.Error(
+                "Recovery completed with $failures failures",
+                RuntimeException("Recovery completed with $failures failures")
             )
         } else {
             console.info("Context recovery successful: $stats")
             onContextRestored?.invoke()
-            return RendererResult.Success(stats)
+            return io.kreekt.core.Result.Success(stats)
         }
     }
 

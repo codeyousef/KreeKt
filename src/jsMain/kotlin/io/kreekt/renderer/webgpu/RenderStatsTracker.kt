@@ -172,34 +172,20 @@ class RenderStatsTracker {
      * Gets current render statistics.
      */
     fun getStats(): RenderStats {
+        val avgFps = if (frameTimeHistory.isNotEmpty()) 1000.0 / frameTimeHistory.average() else 0.0
+        val avgFrameTime = if (frameTimeHistory.isNotEmpty()) frameTimeHistory.average() else 0.0
+
         return RenderStats(
-            frame = frameNumber,
-            calls = drawCalls,
+            fps = avgFps,
+            frameTime = avgFrameTime,
             triangles = triangles,
-            points = points,
-            lines = lines,
-            geometries = geometryCount,
-            textures = textureCount,
-            shaders = shaderCount,
-            programs = programCount
+            drawCalls = drawCalls,
+            textureMemory = textureMemory,
+            bufferMemory = bufferMemory
         )
     }
 
-    /**
-     * Gets extended statistics including performance and memory.
-     */
-    fun getExtendedStats(): ExtendedRenderStats {
-        return ExtendedRenderStats(
-            base = getStats(),
-            frameTime = lastFrameTime,
-            avgFrameTime = avgFrameTime,
-            fps = if (avgFrameTime > 0) 1000.0 / avgFrameTime else 0.0,
-            bufferMemory = bufferMemory,
-            textureMemory = textureMemory,
-            totalMemory = totalMemory,
-            vertices = vertices
-        )
-    }
+    // getExtendedStats() removed - use getStats() directly with new RenderStats structure
 
     /**
      * Resets all statistics.
@@ -227,26 +213,25 @@ class RenderStatsTracker {
      * Gets a formatted statistics summary.
      */
     fun getSummary(): String {
-        val stats = getExtendedStats()
+        val stats = getStats()
         val fps = (stats.fps * 10).toInt() / 10.0
         val frameTime = (stats.frameTime * 100).toInt() / 100.0
-        val avgTime = (stats.avgFrameTime * 100).toInt() / 100.0
 
         return buildString {
             appendLine("=== Render Statistics ===")
-            appendLine("Frame: ${stats.base.frame}")
+            appendLine("Frame: $frameNumber")
             appendLine("FPS: $fps")
-            appendLine("Frame Time: ${frameTime}ms (avg: ${avgTime}ms)")
-            appendLine("Draw Calls: ${stats.base.calls}")
-            appendLine("Triangles: ${stats.base.triangles}")
-            appendLine("Vertices: ${stats.vertices}")
-            appendLine("Geometries: ${stats.base.geometries}")
-            appendLine("Textures: ${stats.base.textures}")
-            appendLine("Shaders: ${stats.base.shaders}")
+            appendLine("Frame Time: ${frameTime}ms")
+            appendLine("Draw Calls: ${stats.drawCalls}")
+            appendLine("Triangles: ${stats.triangles}")
+            appendLine("Vertices: $vertices")
+            appendLine("Geometries: $geometryCount")
+            appendLine("Textures: $textureCount")
+            appendLine("Shaders: $shaderCount")
             appendLine("Memory:")
-            appendLine("  - Buffers: ${formatBytes(stats.bufferMemory)}")
-            appendLine("  - Textures: ${formatBytes(stats.textureMemory)}")
-            appendLine("  - Total: ${formatBytes(stats.totalMemory)}")
+            appendLine("  - Buffers: ${formatBytes(bufferMemory)}")
+            appendLine("  - Textures: ${formatBytes(textureMemory)}")
+            appendLine("  - Total: ${formatBytes(totalMemory)}")
         }
     }
 

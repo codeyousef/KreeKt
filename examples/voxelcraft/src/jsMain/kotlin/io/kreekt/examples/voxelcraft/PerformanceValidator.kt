@@ -96,7 +96,7 @@ object PerformanceValidator {
     fun validateFromStats(stats: RenderStats, fps: Float, backendType: String): ValidationResult {
         val metrics = PerformanceMetrics(
             fps = fps,
-            drawCalls = stats.calls,
+            drawCalls = stats.drawCalls,
             triangles = stats.triangles,
             backendType = backendType
         )

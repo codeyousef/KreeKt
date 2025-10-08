@@ -2,11 +2,9 @@ package io.kreekt.examples.voxelcraft
 
 import io.kreekt.camera.PerspectiveCamera
 import io.kreekt.renderer.FPSCounter
-import io.kreekt.renderer.RenderSurface
-import io.kreekt.renderer.WebGPURenderSurface
-import io.kreekt.renderer.RendererConfig
-import io.kreekt.renderer.webgl.WebGLRenderer
-import io.kreekt.renderer.webgpu.WebGPURendererFactory
+import io.kreekt.renderer.RendererFactory
+import io.kreekt.renderer.RendererInitializationException
+import io.kreekt.renderer.webgpu.WebGPUSurface
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.*
@@ -22,7 +20,7 @@ private var initJob: Job? = null
  * - World generation with Simplex noise (1,024 chunks)
  * - Player controls (WASD movement, mouse camera)
  * - Flight mode (F key toggle)
- * - WebGL2 rendering with KreeKt
+ * - WebGPU rendering with KreeKt (Feature 019/020)
  * - Persistence (save/load to localStorage)
  * - Game loop with delta time
  */
@@ -141,43 +139,54 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
 
     updateLoadingProgress("Initializing renderer...")
 
-    // Create render surface
-    val surface = WebGPURenderSurface(canvas)
+    // T027: Create render surface using Feature 019 API
+    val surface = WebGPUSurface(canvas)
 
-    // Initialize renderer with backend detection
+    // T027: Initialize renderer with RendererFactory (automatic backend detection)
     Logger.info("🔧 Initializing renderer backend for VoxelCraft...")
     Logger.info("📊 Backend Negotiation:")
     Logger.info("  Detecting capabilities...")
 
-    val hasWebGPU = js("'gpu' in navigator").unsafeCast<Boolean>()
+    // Detect available backends
+    val availableBackends = RendererFactory.detectAvailableBackends()
+    Logger.info("  Available backends: ${availableBackends.joinToString(", ")}")
 
-    if (hasWebGPU) {
-        Logger.info("  Available backends: WebGPU 1.0")
-        Logger.info("  Selected: WebGPU (via WebGL2 compatibility)")
-        Logger.info("  Features:")
-        Logger.info("    COMPUTE: Emulated via WebGL2")
-        Logger.info("    RAY_TRACING: Not available")
-        Logger.info("    XR_SURFACE: Not available")
-    } else {
-        Logger.info("  Available backends: WebGL 2.0")
-        Logger.info("  Selected: WebGL2")
-        Logger.info("  Features:")
-        Logger.info("    COMPUTE: Not available")
-        Logger.info("    RAY_TRACING: Not available")
-        Logger.info("    XR_SURFACE: Not available")
+    // Create renderer with automatic backend selection (WebGPU → WebGL fallback)
+    val renderer = try {
+        when (val result = RendererFactory.create(surface)) {
+            is io.kreekt.core.Result.Success -> result.value
+            is io.kreekt.core.Result.Error -> {
+                val exception = result.exception as? RendererInitializationException
+                when (exception) {
+                    is RendererInitializationException.NoGraphicsSupportException -> {
+                        Logger.error("❌ Graphics not supported: ${result.message}")
+                        Logger.error("   Platform: ${exception.platform}")
+                        Logger.error("   Available: ${exception.availableBackends}")
+                        Logger.error("   Required: ${exception.requiredFeatures}")
+                        throw exception
+                    }
+
+                    else -> {
+                        Logger.error("❌ Renderer initialization failed: ${result.message}")
+                        throw exception ?: RuntimeException(result.message)
+                    }
+                }
+            }
+        }
+    } catch (e: Throwable) {
+        Logger.error("❌ Failed to create renderer: ${e.message}")
+        updateLoadingProgress("Error: ${e.message}")
+        throw e
     }
 
-    // Use WebGPU renderer with automatic WebGL fallback
-    Logger.info("🚀 Creating renderer with WebGPU (auto-fallback to WebGL)...")
-    val renderer = WebGPURendererFactory.create(canvas)
-
-    // T020: Track backend type for performance validation
-    val backendType = if (hasWebGPU) "WebGPU" else "WebGL 2.0"
-
+    // Log selected backend
     Logger.info("✅ Renderer initialized!")
-    Logger.info("  Init Time: ~50ms")
-    Logger.info("  Within Budget: true (2000ms limit)")
-    Logger.info("  Backend: $backendType")
+    Logger.info("  Backend: ${renderer.backend}")
+    Logger.info("  Device: ${renderer.capabilities.deviceName}")
+    Logger.info("  Features:")
+    Logger.info("    COMPUTE: ${renderer.capabilities.supportsCompute}")
+    Logger.info("    RAY_TRACING: ${renderer.capabilities.supportsRayTracing}")
+    Logger.info("    MSAA: ${renderer.capabilities.supportsMultisampling} (max ${renderer.capabilities.maxSamples}x)")
 
     // Create camera
     val camera = PerspectiveCamera(
@@ -257,17 +266,17 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
 
         // T014: Update FPS counter with rolling average (every frame)
         val fps = fpsCounter.update(currentTime)
-        val stats = renderer.getStats()
-        updateFPS(fps.toInt(), stats.triangles, stats.calls)
+        val stats = renderer.stats
+        updateFPS(fps.toInt(), stats.triangles, stats.drawCalls)
 
         // T020: Performance validation after warmup (frame 120 = ~2 seconds)
         val validationResult = PerformanceValidator.validateAfterWarmup(
             frameCount = frameCount,
             metrics = PerformanceValidator.PerformanceMetrics(
                 fps = fps,
-                drawCalls = stats.calls,
+                drawCalls = stats.drawCalls,
                 triangles = stats.triangles,
-                backendType = backendType,
+                backendType = renderer.backend.name,
                 frameTime = fpsCounter.getAverageFrameTime()
             )
         )

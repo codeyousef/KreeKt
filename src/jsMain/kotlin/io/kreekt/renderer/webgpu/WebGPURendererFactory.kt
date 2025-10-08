@@ -2,15 +2,14 @@ package io.kreekt.renderer.webgpu
 
 import io.kreekt.renderer.Renderer
 import io.kreekt.renderer.RendererConfig
-import io.kreekt.renderer.RendererResult
-import io.kreekt.renderer.WebGPURenderSurface
 import io.kreekt.renderer.webgl.WebGLRenderer
 import org.w3c.dom.HTMLCanvasElement
 
 /**
  * Factory for creating WebGPU or WebGL renderer with automatic fallback.
- * FR-001: Automatic fallback to WebGL when WebGPU unavailable.
+ * NOTE: This factory is deprecated - use io.kreekt.renderer.RendererFactory instead.
  */
+@Deprecated("Use io.kreekt.renderer.RendererFactory instead", ReplaceWith("RendererFactory.create(surface, config)"))
 object WebGPURendererFactory {
     /**
      * Creates a renderer, preferring WebGPU but falling back to WebGL if unavailable.
@@ -24,15 +23,17 @@ object WebGPURendererFactory {
         return if (gpu != null) {
             console.log("WebGPU available - creating WebGPURenderer")
             val renderer = WebGPURenderer(canvas)
-            val result = renderer.initialize()
+            val config = RendererConfig()
+            val result = renderer.initialize(config)
 
             when (result) {
-                is RendererResult.Success -> {
+                is io.kreekt.core.Result.Success -> {
                     console.log("WebGPURenderer initialized successfully")
                     renderer
                 }
-                is RendererResult.Error -> {
-                    console.warn("WebGPU initialization failed: ${result.exception.message}")
+
+                is io.kreekt.core.Result.Error -> {
+                    console.warn("WebGPU initialization failed: ${result.message}")
                     console.warn("Falling back to WebGL renderer")
                     createWebGLFallback(canvas)
                 }
@@ -47,17 +48,18 @@ object WebGPURendererFactory {
      * Creates a WebGL renderer as fallback.
      */
     private suspend fun createWebGLFallback(canvas: HTMLCanvasElement): Renderer {
-        val renderer = WebGLRenderer(canvas, RendererConfig(antialias = true))
-        val surface = WebGPURenderSurface(canvas)
+        val renderer = WebGLRenderer(canvas)
+        val config = RendererConfig()
 
-        when (val result = renderer.initialize(surface)) {
-            is RendererResult.Success -> {
+        when (val result = renderer.initialize(config)) {
+            is io.kreekt.core.Result.Success -> {
                 console.log("WebGLRenderer initialized successfully (fallback)")
                 return renderer
             }
-            is RendererResult.Error -> {
-                console.error("WebGL fallback initialization failed: ${result.exception.message}")
-                throw result.exception
+
+            is io.kreekt.core.Result.Error -> {
+                console.error("WebGL fallback initialization failed: ${result.message}")
+                throw result.exception ?: RuntimeException(result.message)
             }
         }
     }

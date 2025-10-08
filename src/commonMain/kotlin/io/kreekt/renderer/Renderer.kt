@@ -1,451 +1,148 @@
+/**
+ * T014: Renderer Interface (Feature 019-we-should-not)
+ *
+ * Unified renderer interface for WebGPU/Vulkan/WebGL backends.
+ * Refactored from previous WebGL-only implementation to support multiplatform.
+ */
+
 package io.kreekt.renderer
 
 import io.kreekt.camera.Camera
-import io.kreekt.camera.Viewport
-import io.kreekt.core.math.Color
 import io.kreekt.core.scene.Scene
 
 /**
- * Core renderer interface for all platform-specific implementations.
- * Compatible with Three.js WebGLRenderer API patterns.
+ * Unified renderer interface across platforms.
  *
- * Provides a unified interface for rendering 3D scenes (across * WebGPU), Vulkan, and other graphics APIs.
+ * Platform implementations:
+ * - JVM: VulkanRenderer (primary) via LWJGL 3.3.6
+ * - JS: WebGPURenderer (primary) with WebGLRenderer fallback
+ *
+ * Usage:
+ * ```kotlin
+ * val renderer = RendererFactory.create(surface).getOrThrow()
+ * renderer.initialize(RendererConfig()).getOrThrow()
+ * renderer.render(scene, camera)
+ * renderer.dispose()
+ * ```
+ *
+ * @property backend Active graphics backend (WEBGPU, VULKAN, or WEBGL)
+ * @property capabilities Hardware and API capabilities (FR-024)
+ * @property stats Current frame performance metrics (FR-019)
+ *
+ * Feature Requirements:
+ * - FR-001: WebGPU primary for JavaScript/browser
+ * - FR-002: Vulkan primary for JVM/Native
+ * - FR-011: Unified renderer interface
+ * - FR-019: 60 FPS target, 30 FPS minimum
+ * - FR-020: Visual parity across backends
+ * - FR-022: Fail-fast on initialization errors
+ * - FR-024: Capability detection before rendering
  */
-interface Renderer {
-
-    /**
-     * Renderer capabilities and limits
-     */
+expect interface Renderer {
+    val backend: BackendType
     val capabilities: RendererCapabilities
+    val stats: RenderStats
 
     /**
-     * Current render target (null for default framebuffer)
+     * Initialize the renderer with specified configuration.
+     *
+     * @param config Renderer configuration (backend preference, validation, vsync, MSAA, etc.)
+     * @return Success or RendererError on failure
+     *
+     * FR-022: Fail-fast on initialization errors with detailed diagnostics
+     * FR-024: Detect and validate capabilities before rendering
+     *
+     * Initialization process:
+     * 1. Detect available backends (FR-004)
+     * 2. Select backend (preferredBackend or auto-detect)
+     * 3. Create graphics context (Device+Queue for WebGPU, VkInstance for Vulkan)
+     * 4. Query capabilities (maxTextureSize, MSAA samples, extensions)
+     * 5. Initialize render pipeline and resources
+     *
+     * Throws: RendererInitializationException on failure
      */
-    var renderTarget: RenderTarget?
+    suspend fun initialize(config: RendererConfig): io.kreekt.core.Result<Unit>
 
     /**
-     * Automatically clear the frame before rendering
+     * Render a scene from the camera's perspective.
+     *
+     * @param scene Scene graph to render
+     * @param camera Camera defining view and projection
+     *
+     * FR-019: Must maintain 60 FPS target, 30 FPS minimum acceptable
+     * FR-020: Visual parity across backends (same scene produces same output)
+     *
+     * Rendering process:
+     * 1. Update camera matrices (view, projection)
+     * 2. Frustum culling (skip off-screen objects)
+     * 3. Sort render queue (opaque front-to-back, transparent back-to-front)
+     * 4. Bind shader pipeline
+     * 5. Bind geometry (VBO/IBO)
+     * 6. Issue draw calls
+     * 7. Update stats (FPS, triangles, draw calls)
      */
-    var autoClear: Boolean
+    fun render(scene: Scene, camera: Camera)
 
     /**
-     * Automatically clear color buffer
+     * Resize render targets to new dimensions.
+     *
+     * @param width New width in pixels (must be > 0)
+     * @param height New height in pixels (must be > 0)
+     *
+     * Called on window/canvas resize events.
+     * Recreates swapchain (WebGPU) or framebuffer (Vulkan/WebGL).
      */
-    var autoClearColor: Boolean
+    fun resize(width: Int, height: Int)
 
     /**
-     * Automatically clear depth buffer
+     * Dispose GPU resources and clean up.
+     *
+     * Must be called before application exit to prevent resource leaks.
+     * Renderer is unusable after dispose().
+     *
+     * Cleanup process:
+     * 1. Wait for GPU to finish pending work
+     * 2. Destroy render pipelines
+     * 3. Free GPU buffers (VBO, IBO, UBO)
+     * 4. Destroy textures
+     * 5. Destroy device/context
      */
-    var autoClearDepth: Boolean
+    fun dispose()
 
-    /**
-     * Automatically clear stencil buffer
-     */
-    var autoClearStencil: Boolean
-
-    /**
-     * Clear color for color buffer
-     */
-    var clearColor: Color
-
-    /**
-     * Clear alpha value for color buffer
-     */
-    var clearAlpha: Float
-
-    /**
-     * Enable/disable shadow mapping
-     */
-    var shadowMap: ShadowMapSettings
-
-    /**
-     * Tone mapping type
-     */
-    var toneMapping: ToneMapping
-
-    /**
-     * Tone mapping exposure
-     */
-    var toneMappingExposure: Float
-
-    /**
-     * Current output color space
-     */
-    var outputColorSpace: ColorSpace
-
-    /**
-     * Enable/disable physically correct lighting
-     */
-    var physicallyCorrectLights: Boolean
-
-    /**
-     * Initialize the renderer with the given surface
-     */
-    suspend fun initialize(surface: RenderSurface): RendererResult<Unit>
-
-    /**
-     * Render a scene from a camera's perspective
-     */
-    fun render(scene: Scene, camera: Camera): RendererResult<Unit>
-
-    /**
-     * Set the size of the rendering area
-     */
-    fun setSize(width: Int, height: Int, updateStyle: Boolean = true): RendererResult<Unit>
-
-    /**
-     * Set the device pixel ratio
-     */
-    fun setPixelRatio(pixelRatio: Float): RendererResult<Unit>
-
-    /**
-     * Set the viewport within the render target
-     */
-    fun setViewport(x: Int, y: Int, width: Int, height: Int): RendererResult<Unit>
-
-    /**
-     * Get the current viewport
-     */
-    fun getViewport(): Viewport
-
-    /**
-     * Set the scissor test area
-     */
-    fun setScissorTest(enable: Boolean): RendererResult<Unit>
-
-    /**
-     * Set the scissor area
-     */
-    fun setScissor(x: Int, y: Int, width: Int, height: Int): RendererResult<Unit>
-
-    /**
-     * Clear the current render target
-     */
-    fun clear(color: Boolean = true, depth: Boolean = true, stencil: Boolean = true): RendererResult<Unit>
-
-    /**
-     * Clear the color buffer
-     */
-    fun clearColorBuffer(): RendererResult<Unit>
-
-    /**
-     * Clear the depth buffer
-     */
-    fun clearDepth(): RendererResult<Unit>
-
-    /**
-     * Clear the stencil buffer
-     */
-    fun clearStencil(): RendererResult<Unit>
-
-    /**
-     * Force a specific state update
-     */
-    fun resetState(): RendererResult<Unit>
-
-    /**
-     * Compile all materials in the scene for better performance
-     */
-    fun compile(scene: Scene, camera: Camera): RendererResult<Unit>
-
-    /**
-     * Dispose of renderer resources
-     */
-    fun dispose(): RendererResult<Unit>
-
-    /**
-     * Force context loss (for testing/debugging)
-     */
-    fun forceContextLoss(): RendererResult<Unit>
-
-    /**
-     * Check if context is lost
-     */
-    fun isContextLost(): Boolean
-
-    /**
-     * Get rendering statistics
-     */
-    fun getStats(): RenderStats
-
-    /**
-     * Reset rendering statistics
-     */
-    fun resetStats()
+    // Note: Use the 'stats' property instead of getStats() to avoid JVM signature clash
 }
 
-/**
- * Render target for off-screen rendering
- */
-interface RenderTarget {
-    val width: Int
-    val height: Int
-    val texture: Texture?
-    val depthTexture: Texture?
-    val stencilBuffer: Boolean
-    val depthBuffer: Boolean
-}
-
-/**
- * Shadow mapping settings
- */
-data class ShadowMapSettings(
-    var enabled: Boolean = false,
-    var type: ShadowMapType = ShadowMapType.PCF,
-    var autoUpdate: Boolean = true,
-    var needsUpdate: Boolean = false
-)
-
-/**
- * Shadow map types
- */
-enum class ShadowMapType {
-    BASIC,
-    PCF,
-    PCF_SOFT,
-    VSM
-}
-
-/**
- * Tone mapping types
- */
-enum class ToneMapping {
-    NONE,
-    LINEAR,
-    REINHARD,
-    CINEON,
-    ACES_FILMIC
-}
-
-/**
- * Color spaces
- */
-enum class ColorSpace {
-    sRGB,
-    LINEAR_sRGB,
-    REC_2020,
-    P3,
-    sRGB_LINEAR
-}
-
-/**
- * Rendering statistics
- */
-data class RenderStats(
-    val frame: Int = 0,
-    val calls: Int = 0,
-    val triangles: Int = 0,
-    val points: Int = 0,
-    val lines: Int = 0,
-    val geometries: Int = 0,
-    val textures: Int = 0,
-    val shaders: Int = 0,
-    val programs: Int = 0,
-    val memory: MemoryStats = MemoryStats()
-)
-
-/**
- * Memory usage statistics
- */
-data class MemoryStats(
-    val geometries: Long = 0,
-    val textures: Long = 0,
-    val programs: Long = 0
-)
-
-/**
- * Renderer result type for error handling
- */
-sealed class RendererResult<T> {
-    data class Success<T>(val value: T) : RendererResult<T>()
-    data class Error<T>(val exception: RendererException) : RendererResult<T>()
-
-    fun getOrThrow(): T = when (this) {
-        is Success -> value
-        is Error -> throw exception
-    }
-
-    fun getOrNull(): T? = when (this) {
-        is Success -> value
-        is Error -> null
-    }
-
-    fun onSuccess(action: (T) -> Unit): RendererResult<T> {
-        if (this is Success) action(value)
-        return this
-    }
-
-    fun onError(action: (RendererException) -> Unit): RendererResult<T> {
-        if (this is Error) action(exception)
-        return this
-    }
-
-    fun <R> map(transform: (T) -> R): RendererResult<R> = when (this) {
-        is Success -> Success(transform(value))
-        is Error -> Error(exception)
-    }
-}
-
-/**
- * Renderer-specific exceptions
- */
-sealed class RendererException(message: String, cause: Throwable? = null) : Exception(message, cause) {
-    class InitializationFailed(message: String, cause: Throwable? = null) : RendererException(message, cause)
-    class RenderingFailed(message: String, cause: Throwable? = null) : RendererException(message, cause)
-    class ResourceCreationFailed(message: String, cause: Throwable? = null) : RendererException(message, cause)
-    class InvalidState(message: String) : RendererException(message)
-    class UnsupportedFeature(feature: String) : RendererException("Unsupported feature: $feature")
-    class ContextLost(message: String = "Rendering context lost") : RendererException(message)
-    class OutOfMemory(message: String) : RendererException(message)
-}
-
-/**
- * Renderer configuration options
- */
-data class RendererConfig(
-    val antialias: Boolean = false,
-    val alpha: Boolean = false,
-    val premultipliedAlpha: Boolean = true,
-    val preserveDrawingBuffer: Boolean = false,
-    val powerPreference: PowerPreference = PowerPreference.DEFAULT,
-    val stencil: Boolean = true,
-    val depth: Boolean = true,
-    val logarithmicDepthBuffer: Boolean = false,
-    val precision: Precision = Precision.HIGHP,
-    val debug: Boolean = false
-)
-
-/**
- * Power preference for GPU selection
- */
-enum class PowerPreference {
-    DEFAULT,
-    HIGH_PERFORMANCE,
-    LOW_POWER
-}
-
-/**
- * Precision settings
- */
-enum class Precision {
-    LOWP,
-    MEDIUMP,
-    HIGHP
-}
-
-
-/**
- * Renderer factory interface
- */
-interface RendererFactory {
-    /**
-     * Creates a renderer for the current platform
-     */
-    suspend fun createRenderer(config: RendererConfig = RendererConfig()): RendererResult<Renderer>
-
-    /**
-     * Checks if renderer is supported on current platform
-     */
-    fun isSupported(): Boolean
-
-    /**
-     * Gets renderer capabilities before creation
-     */
-    suspend fun getCapabilities(): RendererCapabilities?
-}
-
-/**
- * Global renderer utilities
- */
-object RendererUtils {
-
-    /**
-     * Calculates optimal render scale for performance
-     */
-    fun getOptimalRenderScale(devicePixelRatio: Float, capabilities: RendererCapabilities): Float {
-        return when {
-            capabilities.maxTextureSize < 2048 -> 0.5f
-            capabilities.maxTextureSize < 4096 -> 0.75f
-            devicePixelRatio > 2f -> 0.8f
-            else -> 1f
-        }.coerceAtMost(devicePixelRatio)
-    }
-
-    /**
-     * Estimates memory usage for a render target
-     */
-    fun estimateRenderTargetMemory(width: Int, height: Int, hasDepth: Boolean, samples: Int = 1): Long {
-        val colorBuffer = width * height * 4L * samples // TextureFormat.RGBA8
-        val depthBuffer = if (hasDepth) width * height * 4L * samples else 0L // 32-bit depth
-        return colorBuffer + depthBuffer
-    }
-
-    /**
-     * Validates render target dimensions
-     */
-    fun validateRenderTargetSize(width: Int, height: Int, capabilities: RendererCapabilities): Boolean {
-        return width > 0 && height > 0 &&
-               width <= capabilities.maxTextureSize &&
-               height <= capabilities.maxTextureSize
-    }
-
-    /**
-     * Gets recommended MSAA samples
-     */
-    fun getRecommendedMSAA(capabilities: RendererCapabilities): Int {
-        return when {
-            capabilities.maxSamples >= 8 -> 4
-            capabilities.maxSamples >= 4 -> 4
-            capabilities.maxSamples >= 2 -> 2
-            else -> 1
-        }
-    }
-}
-
-/**
- * Extension functions for Renderer
+/*
+ * NOTE: Previous implementation (pre-Feature-019) included these additional properties:
+ * - renderTarget, autoClear, autoClearColor, autoClearDepth, autoClearStencil
+ * - clearColor, clearAlpha, shadowMap, toneMapping, toneMappingExposure
+ * - outputColorSpace, physicallyCorrectLights
+ * - setSize, setPixelRatio, setViewport, getViewport, setScissorTest, setScissor
+ * - clear, clearColorBuffer, clearDepth, clearStencil, resetState
+ * - compile, forceContextLoss, isContextLost, resetStats
+ *
+ * These will be restored in platform implementations (VulkanRenderer, WebGPURenderer)
+ * after Feature 019 core refactoring is complete. They are currently deferred to
+ * maintain focus on the WebGPU/Vulkan primary backend architecture.
+ *
+ * See git history for full Three.js-compatible API.
  */
 
-/**
- * Render with automatic error handling
+/*
+ * NOTE: The following types from pre-Feature-019 implementation have been moved:
+ * - RenderTarget: To be implemented in Phase 2-13 (Advanced Features)
+ * - ShadowMapSettings, ShadowMapType: Deferred to lighting system (Phase 2-13)
+ * - ToneMapping, ColorSpace: Deferred to post-processing (Phase 2-13)
+ * - RenderStats: Now in RenderStats.kt (T013)
+ * - MemoryStats: Merged into RenderStats (textureMemory, bufferMemory fields)
+ * - RendererResult: Replaced with Kotlin stdlib Result<T, E>
+ * - RendererException: Now RendererError hierarchy (T016)
+ * - RendererConfig: Now in RendererConfig.kt (T013) with Feature 019 requirements
+ * - PowerPreference: Now in RendererConfig.kt with HIGH_PERFORMANCE/LOW_POWER only
+ * - Precision: Deferred to shader system (Phase 3.7)
+ * - RendererFactory: Now expect object in T017
+ * - RendererUtils: Utility functions deferred to platform implementations
+ * - Extension functions: Deferred to platform implementations
+ *
+ * See git history for full Three.js-compatible API before Feature 019 refactoring.
  */
-fun Renderer.renderSafe(scene: Scene, camera: Camera, onError: (RendererException) -> Unit = {}): Boolean {
-    return render(scene, camera).onError(onError) is RendererResult.Success
-}
-
-/**
- * Set clear color from hex
- */
-fun Renderer.setClearColor(hex: Int, alpha: Float = 1f) {
-    clearColor.setHex(hex)
-    clearAlpha = alpha
-}
-
-/**
- * Set clear color from RGB
- */
-fun Renderer.setClearColor(r: Float, g: Float, b: Float, alpha: Float = 1f) {
-    clearColor.set(r, g, b)
-    clearAlpha = alpha
-}
-
-/**
- * Enable shadows with default settings
- */
-fun Renderer.enableShadows(type: ShadowMapType = ShadowMapType.PCF) {
-    shadowMap = shadowMap.copy(enabled = true, type = type)
-}
-
-/**
- * Disable shadows
- */
-fun Renderer.disableShadows() {
-    shadowMap = shadowMap.copy(enabled = false)
-}
-
-/**
- * Check if feature is supported
- */
-fun Renderer.supports(feature: String): Boolean {
-    return capabilities.supports(feature)
-}

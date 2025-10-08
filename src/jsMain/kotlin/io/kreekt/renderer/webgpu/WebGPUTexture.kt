@@ -1,8 +1,5 @@
 package io.kreekt.renderer.webgpu
 
-import io.kreekt.renderer.RendererException
-import io.kreekt.renderer.RendererResult
-
 /**
  * Texture descriptor for creation.
  */
@@ -31,7 +28,7 @@ class WebGPUTexture(
     /**
      * Creates the GPU texture.
      */
-    fun create(): RendererResult<Unit> {
+    fun create(): io.kreekt.core.Result<Unit> {
         return try {
             val textureDescriptor = js("({})").unsafeCast<GPUTextureDescriptor>()
             descriptor.label?.let { textureDescriptor.label = it }
@@ -58,9 +55,9 @@ class WebGPUTexture(
             // Create default view
             view = texture?.createView()
 
-            RendererResult.Success(Unit)
+            io.kreekt.core.Result.Success(Unit)
         } catch (e: Exception) {
-            RendererResult.Error(RendererException.ResourceCreationFailed("Texture creation failed", e))
+            io.kreekt.core.Result.Error("Texture creation failed: ${e.message}", e)
         }
     }
 
@@ -70,7 +67,7 @@ class WebGPUTexture(
      * @param width Width in pixels
      * @param height Height in pixels
      */
-    fun upload(data: ByteArray, width: Int, height: Int): RendererResult<Unit> {
+    fun upload(data: ByteArray, width: Int, height: Int): io.kreekt.core.Result<Unit> {
         return try {
             texture?.let { tex ->
                 // Create destination for writeTexture
@@ -95,10 +92,10 @@ class WebGPUTexture(
                 }
 
                 device.queue.writeTexture(destination, uint8Array, dataLayout, size)
-                RendererResult.Success(Unit)
-            } ?: RendererResult.Error(RendererException.InvalidState("Texture not created"))
+                io.kreekt.core.Result.Success(Unit)
+            } ?: io.kreekt.core.Result.Error("Texture not created", RuntimeException("Texture not created"))
         } catch (e: Exception) {
-            RendererResult.Error(RendererException.ResourceCreationFailed("Texture upload failed", e))
+            io.kreekt.core.Result.Error("Texture upload failed: ${e.message}", e)
         }
     }
 

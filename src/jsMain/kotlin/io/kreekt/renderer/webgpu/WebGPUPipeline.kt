@@ -1,8 +1,5 @@
 package io.kreekt.renderer.webgpu
 
-import io.kreekt.renderer.RendererException
-import io.kreekt.renderer.RendererResult
-
 /**
  * WebGPU render pipeline implementation.
  * T032: Pipeline state management with shaders, vertex layout, depth/stencil, culling.
@@ -18,7 +15,7 @@ class WebGPUPipeline(
     /**
      * Creates the render pipeline.
      */
-    suspend fun create(): RendererResult<Unit> {
+    suspend fun create(): io.kreekt.core.Result<Unit> {
         return try {
             // Compile shaders first
             vertexShaderModule = WebGPUShaderModule(
@@ -30,7 +27,7 @@ class WebGPUPipeline(
                 )
             )
             val vertexResult = vertexShaderModule!!.compile()
-            if (vertexResult is RendererResult.Error) {
+            if (vertexResult is io.kreekt.core.Result.Error) {
                 return vertexResult
             }
 
@@ -43,7 +40,7 @@ class WebGPUPipeline(
                 )
             )
             val fragmentResult = fragmentShaderModule!!.compile()
-            if (fragmentResult is RendererResult.Error) {
+            if (fragmentResult is io.kreekt.core.Result.Error) {
                 return fragmentResult
             }
 
@@ -158,9 +155,9 @@ class WebGPUPipeline(
             // Create the pipeline
             pipeline = device.createRenderPipeline(pipelineDescriptor)
 
-            RendererResult.Success(Unit)
+            io.kreekt.core.Result.Success(Unit)
         } catch (e: Exception) {
-            RendererResult.Error(RendererException.ResourceCreationFailed("Pipeline creation failed", e))
+            io.kreekt.core.Result.Error("Pipeline creation failed", e)
         }
     }
 

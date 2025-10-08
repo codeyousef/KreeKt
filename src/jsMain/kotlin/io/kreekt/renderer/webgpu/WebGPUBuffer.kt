@@ -1,8 +1,5 @@
 package io.kreekt.renderer.webgpu
 
-import io.kreekt.renderer.RendererException
-import io.kreekt.renderer.RendererResult
-import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Float32Array
 import org.khronos.webgl.Uint16Array
 import org.khronos.webgl.Uint32Array
@@ -20,7 +17,7 @@ class WebGPUBuffer(
     /**
      * Creates the GPU buffer.
      */
-    fun create(): RendererResult<Unit> {
+    fun create(): io.kreekt.core.Result<Unit> {
         return try {
             val bufferDescriptor = js("({})").unsafeCast<GPUBufferDescriptor>()
             bufferDescriptor.size = descriptor.size
@@ -29,9 +26,9 @@ class WebGPUBuffer(
             bufferDescriptor.mappedAtCreation = descriptor.mappedAtCreation
 
             buffer = device.createBuffer(bufferDescriptor)
-            RendererResult.Success(Unit)
+            io.kreekt.core.Result.Success(Unit)
         } catch (e: Exception) {
-            RendererResult.Error(RendererException.ResourceCreationFailed("Buffer creation failed", e))
+            io.kreekt.core.Result.Error("Buffer creation failed", e)
         }
     }
 
@@ -40,7 +37,7 @@ class WebGPUBuffer(
      * @param data Data to upload (FloatArray, IntArray, etc.)
      * @param offset Offset in bytes
      */
-    fun upload(data: FloatArray, offset: Int = 0): RendererResult<Unit> {
+    fun upload(data: FloatArray, offset: Int = 0): io.kreekt.core.Result<Unit> {
         return try {
             buffer?.let { buf ->
                 val float32Array = Float32Array(data.size)
@@ -48,17 +45,17 @@ class WebGPUBuffer(
                     float32Array.asDynamic()[i] = data[i]
                 }
                 device.queue.writeBuffer(buf, offset, float32Array, 0, data.size)
-                RendererResult.Success(Unit)
-            } ?: RendererResult.Error(RendererException.InvalidState("Buffer not created"))
+                io.kreekt.core.Result.Success(Unit)
+            } ?: io.kreekt.core.Result.Error("Buffer not created", IllegalStateException("Buffer not created"))
         } catch (e: Exception) {
-            RendererResult.Error(RendererException.ResourceCreationFailed("Buffer upload failed", e))
+            io.kreekt.core.Result.Error("Buffer upload failed", e)
         }
     }
 
     /**
      * Uploads index data to the buffer.
      */
-    fun uploadIndices(data: IntArray, offset: Int = 0): RendererResult<Unit> {
+    fun uploadIndices(data: IntArray, offset: Int = 0): io.kreekt.core.Result<Unit> {
         return try {
             buffer?.let { buf ->
                 val uint32Array = Uint32Array(data.size)
@@ -66,17 +63,17 @@ class WebGPUBuffer(
                     uint32Array.asDynamic()[i] = data[i]
                 }
                 device.queue.writeBuffer(buf, offset, uint32Array, 0, data.size)
-                RendererResult.Success(Unit)
-            } ?: RendererResult.Error(RendererException.InvalidState("Buffer not created"))
+                io.kreekt.core.Result.Success(Unit)
+            } ?: io.kreekt.core.Result.Error("Buffer not created", IllegalStateException("Buffer not created"))
         } catch (e: Exception) {
-            RendererResult.Error(RendererException.ResourceCreationFailed("Index upload failed", e))
+            io.kreekt.core.Result.Error("Index upload failed", e)
         }
     }
 
     /**
      * Uploads index data as Uint16.
      */
-    fun uploadIndices16(data: ShortArray, offset: Int = 0): RendererResult<Unit> {
+    fun uploadIndices16(data: ShortArray, offset: Int = 0): io.kreekt.core.Result<Unit> {
         return try {
             buffer?.let { buf ->
                 val uint16Array = Uint16Array(data.size)
@@ -84,10 +81,10 @@ class WebGPUBuffer(
                     uint16Array.asDynamic()[i] = data[i]
                 }
                 device.queue.writeBuffer(buf, offset, uint16Array, 0, data.size)
-                RendererResult.Success(Unit)
-            } ?: RendererResult.Error(RendererException.InvalidState("Buffer not created"))
+                io.kreekt.core.Result.Success(Unit)
+            } ?: io.kreekt.core.Result.Error("Buffer not created", IllegalStateException("Buffer not created"))
         } catch (e: Exception) {
-            RendererResult.Error(RendererException.ResourceCreationFailed("Index upload failed", e))
+            io.kreekt.core.Result.Error("Index upload failed", e)
         }
     }
 
