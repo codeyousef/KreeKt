@@ -7,6 +7,24 @@ plugins {
     id("maven-publish")
 }
 
+// Ensure reliable repositories across all modules (mitigate central timeouts)
+allprojects {
+    repositories {
+        maven("https://cache-redirector.jetbrains.com/maven-central")
+        maven("https://maven.pkg.jetbrains.space/kotlin/p/kotlin/bootstrap")
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+
+    // Ensure Kotlin/Native commonization is enabled by default to keep IDE import healthy.
+    // You can disable it explicitly by passing -PdisableNativeCommonization=true (useful for CI or offline JVM-only work).
+    val disableNativeCommonization = (findProperty("disableNativeCommonization") as String?)?.toBoolean() == true
+    tasks.matching { it.name == "commonizeNativeDistribution" }.configureEach {
+        enabled = !disableNativeCommonization
+    }
+}
+
 // Apply plugins to all subprojects
 subprojects {
     apply(plugin = "org.jetbrains.dokka")

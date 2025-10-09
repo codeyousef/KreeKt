@@ -169,11 +169,7 @@ class VoxelWorld(
     }
 
     private fun pumpDirtyChunks(maxPerFrame: Int) {
-        if (isGeneratingTerrain) {
-            Logger.debug("⏸️ pumpDirtyChunks: Skipping (terrain generating), dirtyQueue=${dirtyQueue.size}")
-            return
-        }
-
+        // Allow mesh generation to proceed even during terrain generation so the user sees progress
         // Try to acquire lock, skip if busy
         if (!dirtyQueueMutex.tryLock()) {
             return
