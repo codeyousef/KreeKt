@@ -12,110 +12,116 @@ import kotlin.math.*
 typealias BoundingBox = Box3
 
 /**
- * Frustum plane for culling calculations
+ * Represents a plane in 3D space (ax + by + cz + d = 0).
  */
-data class FrustumPlane(
-    val normal: Vector3,
-    val distance: Float
-) {
-    fun distanceToPoint(point: Vector3): Float {
-        return normal.dot(point) + distance
+private class FrustumPlane {
+    var a = 0f
+    var b = 0f
+    var c = 0f
+    var d = 0f
+
+    fun set(a: Float, b: Float, c: Float, d: Float): FrustumPlane {
+        this.a = a
+        this.b = b
+        this.c = c
+        this.d = d
+        return this
     }
 
-    fun distanceToSphere(center: Vector3, radius: Float): Float {
-        return distanceToPoint(center) - radius
+    fun normalize(): FrustumPlane {
+        val length = kotlin.math.sqrt(a * a + b * b + c * c)
+        if (length > 0) {
+            val invLength = 1f / length
+            a *= invLength
+            b *= invLength
+            c *= invLength
+            d *= invLength
+        }
+        return this
+    }
+
+    fun distanceToPoint(point: Vector3): Float {
+        return a * point.x.toFloat() + b * point.y.toFloat() + c * point.z.toFloat() + d
     }
 }
 
 /**
  * View frustum for visibility culling
  */
-class Frustum(
-    val planes: Array<FrustumPlane> = Array(6) { FrustumPlane(Vector3(0f, 0f, 0f), 0f) }
-) {
-    companion object {
-        const val PLANE_NEAR = 0
-        const val PLANE_FAR = 1
-        const val PLANE_LEFT = 2
-        const val PLANE_RIGHT = 3
-        const val PLANE_TOP = 4
-        const val PLANE_BOTTOM = 5
-    }
+class Frustum {
+    // Frustum planes (left, right, bottom, top, near, far)
+    private val planes = Array(6) { FrustumPlane() }
 
     /**
-     * Extract frustum planes from view-projection matrix
+     * Extracts frustum planes from camera's projection-view matrix.
+     * @param camera Camera with projection and view matrices
      */
     fun setFromMatrix(matrix: Matrix4) {
-        val m = matrix.toArray()
+        val me = matrix.toArray()
 
+        // Extract frustum planes using Gribb-Hartmann method
         // Left plane
-        planes[PLANE_LEFT] = FrustumPlane(
-            normal = Vector3(m[3] + m[0], m[7] + m[4], m[11] + m[8]).normalized,
-            distance = m[15] + m[12]
-        )
+        planes[0].set(
+            me[3] + me[0],
+            me[7] + me[4],
+            me[11] + me[8],
+            me[15] + me[12]
+        ).normalize()
 
         // Right plane
-        planes[PLANE_RIGHT] = FrustumPlane(
-            normal = Vector3(m[3] - m[0], m[7] - m[4], m[11] - m[8]).normalized,
-            distance = m[15] - m[12]
-        )
-
-        // Top plane
-        planes[PLANE_TOP] = FrustumPlane(
-            normal = Vector3(m[3] - m[1], m[7] - m[5], m[11] - m[9]).normalized,
-            distance = m[15] - m[13]
-        )
+        planes[1].set(
+            me[3] - me[0],
+            me[7] - me[4],
+            me[11] - me[8],
+            me[15] - me[12]
+        ).normalize()
 
         // Bottom plane
-        planes[PLANE_BOTTOM] = FrustumPlane(
-            normal = Vector3(m[3] + m[1], m[7] + m[5], m[11] + m[9]).normalized,
-            distance = m[15] + m[13]
-        )
+        planes[2].set(
+            me[3] + me[1],
+            me[7] + me[5],
+            me[11] + me[9],
+            me[15] + me[13]
+        ).normalize()
+
+        // Top plane
+        planes[3].set(
+            me[3] - me[1],
+            me[7] - me[5],
+            me[11] - me[9],
+            me[15] - me[13]
+        ).normalize()
 
         // Near plane
-        planes[PLANE_NEAR] = FrustumPlane(
-            normal = Vector3(m[3] + m[2], m[7] + m[6], m[11] + m[10]).normalized,
-            distance = m[15] + m[14]
-        )
+        planes[4].set(
+            me[3] + me[2],
+            me[7] + me[6],
+            me[11] + me[10],
+            me[15] + me[14]
+        ).normalize()
 
         // Far plane
-        planes[PLANE_FAR] = FrustumPlane(
-            normal = Vector3(m[3] - m[2], m[7] - m[6], m[11] - m[10]).normalized,
-            distance = m[15] - m[14]
-        )
+        planes[5].set(
+            me[3] - me[2],
+            me[7] - me[6],
+            me[11] - me[10],
+            me[15] - me[14]
+        ).normalize()
     }
 
-    /**
-     * Test if point is inside frustum
-     */
-    fun containsPoint(point: Vector3): Boolean {
-        return planes.all { plane ->
-            plane.distanceToPoint(point) >= 0
-        }
-    }
-
-    /**
-     * Test if sphere intersects frustum
-     */
-    fun intersectsSphere(center: Vector3, radius: Float): Boolean {
-        return planes.all { plane ->
-            plane.distanceToSphere(center, radius) >= 0
-        }
-    }
-
-    /**
-     * Test if box intersects frustum
-     */
     fun intersectsBox(box: BoundingBox): Boolean {
-        return planes.all { plane ->
+        for (plane in planes) {
             // Find the positive vertex (furthest along the normal)
             val positive = Vector3(
-                if (plane.normal.x >= 0) box.max.x else box.min.x,
-                if (plane.normal.y >= 0) box.max.y else box.min.y,
-                if (plane.normal.z >= 0) box.max.z else box.min.z
+                if (plane.a >= 0) box.max.x else box.min.x,
+                if (plane.b >= 0) box.max.y else box.min.y,
+                if (plane.c >= 0) box.max.z else box.min.z
             )
-            plane.distanceToPoint(positive) >= 0
+            if (plane.distanceToPoint(positive) < 0) {
+                return false
+            }
         }
+        return true
     }
 }
 

@@ -3,6 +3,7 @@ package io.kreekt.examples.voxelcraft.contract
 import io.kreekt.examples.voxelcraft.BlockType
 import io.kreekt.examples.voxelcraft.ChunkPosition
 import io.kreekt.examples.voxelcraft.VoxelWorld
+import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
 /**
@@ -19,9 +20,9 @@ class WorldContractTest {
      * Test: Verify world generation with seed produces exactly 1,024 chunks
      */
     @Test
-    fun testGenerateWorld() {
+    fun testGenerateWorld() = runTest {
         val seed = 12345L
-        val world = VoxelWorld(seed)
+        val world = VoxelWorld(seed, parentScope = this)
 
         // Generate terrain
         world.generateTerrain()
@@ -39,8 +40,8 @@ class WorldContractTest {
      * Test: Verify out-of-bounds coordinates return null (404)
      */
     @Test
-    fun testGetBlock() {
-        val world = VoxelWorld(12345L)
+    fun testGetBlock() = runTest {
+        val world = VoxelWorld(12345L, parentScope = this)
         world.generateTerrain()
 
         // Expected: world.getBlock(0, 64, 0) returns BlockType (not null)
@@ -62,8 +63,8 @@ class WorldContractTest {
      * Test: Verify out-of-bounds placement returns false (403)
      */
     @Test
-    fun testSetBlock() {
-        val world = VoxelWorld(12345L)
+    fun testSetBlock() = runTest {
+        val world = VoxelWorld(12345L, parentScope = this)
         world.generateTerrain()
 
         // Expected: world.setBlock(0, 64, 0, BlockType.Stone) returns true
@@ -81,8 +82,8 @@ class WorldContractTest {
      */
 
     @Test
-    fun testWorldBounds() {
-        val world = VoxelWorld(12345L)
+    fun testWorldBounds() = runTest {
+        val world = VoxelWorld(12345L, parentScope = this)
         world.generateTerrain()
 
         // Contract: world-api.yaml WorldBounds (-256 to 255 X/Z, 0 to 255 Y)
@@ -116,8 +117,8 @@ class WorldContractTest {
     }
 
     @Test
-    fun testChunkData() {
-        val world = VoxelWorld(12345L)
+    fun testChunkData() = runTest {
+        val world = VoxelWorld(12345L, parentScope = this)
         world.generateTerrain()
 
         // Get a chunk

@@ -31,7 +31,7 @@ class ChunkMeshWindingTest {
 
         // Get position and index attributes
         val positionAttr = geometry.getAttribute("position") as? BufferAttribute
-        val indexAttr = geometry.getIndex() as? BufferAttribute
+        val indexAttr = geometry.index as? BufferAttribute
 
         assertTrue(positionAttr != null, "Geometry should have position attribute")
         assertTrue(indexAttr != null, "Geometry should have index attribute")

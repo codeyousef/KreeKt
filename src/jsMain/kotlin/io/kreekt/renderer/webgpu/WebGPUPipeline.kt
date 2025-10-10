@@ -14,8 +14,11 @@ class WebGPUPipeline(
 
     /**
      * Creates the render pipeline (synchronous).
+     * 
+     * @param customLayout Optional custom pipeline layout. If provided, uses it instead of "auto".
+     *                     T021: Used for dynamic offset support in uniform buffers.
      */
-    fun create(): io.kreekt.core.Result<Unit> {
+    fun create(customLayout: GPUPipelineLayout? = null): io.kreekt.core.Result<Unit> {
         return try {
             console.log("🔨 Pipeline.create() START")
             // Compile shaders first (synchronous)
@@ -54,7 +57,13 @@ class WebGPUPipeline(
             // Create pipeline descriptor
             val pipelineDescriptor = js("({})").unsafeCast<GPURenderPipelineDescriptor>()
             descriptor.label?.let { pipelineDescriptor.label = it }
-            pipelineDescriptor.layout = "auto"
+            
+            // T021 PERFORMANCE: Use custom layout if provided (for dynamic offsets), otherwise use "auto"
+            if (customLayout != null) {
+                pipelineDescriptor.layout = customLayout
+            } else {
+                pipelineDescriptor.layout = "auto"
+            }
 
             // Vertex state
             val vertexState = js("({})").unsafeCast<GPUVertexState>()

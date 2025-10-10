@@ -102,6 +102,9 @@ data class Matrix4(
     fun makePerspective(left: Float, right: Float, top: Float, bottom: Float, near: Float, far: Float): Matrix4 =
         makePerspectiveProjection(left, right, top, bottom, near, far)
 
+    fun makePerspectiveWebGPU(left: Float, right: Float, top: Float, bottom: Float, near: Float, far: Float): Matrix4 =
+        makePerspectiveProjectionWebGPU(left, right, top, bottom, near, far)
+
     fun makeOrthographic(left: Float, right: Float, top: Float, bottom: Float, near: Float, far: Float): Matrix4 =
         makeOrthographicProjection(left, right, top, bottom, near, far)
 

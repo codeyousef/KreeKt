@@ -1,5 +1,7 @@
 package io.kreekt.renderer.webgpu
 
+import org.khronos.webgl.Uint8Array
+
 /**
  * Texture descriptor for creation.
  */
@@ -30,11 +32,13 @@ class WebGPUTexture(
      */
     fun create(): io.kreekt.core.Result<Unit> {
         return try {
-            val textureDescriptor = js("({})").unsafeCast<GPUTextureDescriptor>()
+            val textureDescriptor = js("({})").unsafeCast<dynamic>()
             descriptor.label?.let { textureDescriptor.label = it }
 
-            // Set size
-            val size = js("({ width: descriptor.width, height: descriptor.height, depthOrArrayLayers: descriptor.depth })")
+            val size = js("({})").unsafeCast<dynamic>()
+            size.width = descriptor.width
+            size.height = descriptor.height
+            size.depthOrArrayLayers = descriptor.depth
             textureDescriptor.size = size
 
             textureDescriptor.mipLevelCount = descriptor.mipLevelCount
@@ -50,9 +54,8 @@ class WebGPUTexture(
             }
             textureDescriptor.usage = descriptor.usage
 
-            texture = device.createTexture(textureDescriptor)
+            texture = device.createTexture(textureDescriptor.unsafeCast<GPUTextureDescriptor>())
 
-            // Create default view
             view = texture?.createView()
 
             io.kreekt.core.Result.Success(Unit)
@@ -70,28 +73,32 @@ class WebGPUTexture(
     fun upload(data: ByteArray, width: Int, height: Int): io.kreekt.core.Result<Unit> {
         return try {
             texture?.let { tex ->
-                // Create destination for writeTexture
                 val destination = js("({})").unsafeCast<dynamic>()
                 destination.texture = tex
                 destination.mipLevel = 0
-                destination.origin = js("({ x: 0, y: 0, z: 0 })")
+                val origin = js("({})").unsafeCast<dynamic>()
+                origin.x = 0
+                origin.y = 0
+                origin.z = 0
+                destination.origin = origin
 
-                // Create data layout
                 val dataLayout = js("({})").unsafeCast<dynamic>()
                 dataLayout.offset = 0
-                dataLayout.bytesPerRow = width * 4 // RGBA = 4 bytes per pixel
+                dataLayout.bytesPerRow = width * 4
                 dataLayout.rowsPerImage = height
 
-                // Create size
-                val size = js("({ width: width, height: height, depthOrArrayLayers: 1 })")
+                val writeSize = js("({})").unsafeCast<dynamic>()
+                writeSize.width = width
+                writeSize.height = height
+                writeSize.depthOrArrayLayers = 1
 
-                // Convert ByteArray to Uint8Array
-                val uint8Array = js("new Uint8Array(data.size)")
+                val uint8Array = Uint8Array(data.size)
+                val uint8ArrayDynamic = uint8Array.asDynamic()
                 for (i in data.indices) {
-                    js("uint8Array[i] = data[i]")
+                    uint8ArrayDynamic[i] = data[i].toInt() and 0xFF
                 }
 
-                device.queue.writeTexture(destination, uint8Array, dataLayout, size)
+                device.queue.writeTexture(destination, uint8Array, dataLayout, writeSize)
                 io.kreekt.core.Result.Success(Unit)
             } ?: io.kreekt.core.Result.Error("Texture not created", RuntimeException("Texture not created"))
         } catch (e: Exception) {

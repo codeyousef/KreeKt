@@ -78,13 +78,23 @@ object ChunkMeshGenerator {
         // Determine axis-aligned dimensions
         val (uAxis, vAxis, wAxis) = DirectionHelper.getAxes(direction)
 
-        // Sweep through slices perpendicular to direction
-        for (w in 0..15) {
-            // Build mask for this slice
-            val mask = Array(16) { Array(256) { MaskEntry(BlockType.Air, false) } }
+        // T021: Fix loop bounds based on face direction
+        // UP/DOWN faces: sweep along Y, iterate over XZ plane (16x16)
+        // NORTH/SOUTH faces: sweep along Z, iterate over XY plane (16x256)
+        // EAST/WEST faces: sweep along X, iterate over ZY plane (16x256)
+        val (wMax, uMax, vMax) = when (direction) {
+            FaceDirection.UP, FaceDirection.DOWN -> Triple(255, 15, 15)   // sweep Y, iterate X-Z
+            FaceDirection.NORTH, FaceDirection.SOUTH -> Triple(15, 15, 255) // sweep Z, iterate X-Y
+            FaceDirection.EAST, FaceDirection.WEST -> Triple(15, 15, 255)  // sweep X, iterate Z-Y
+        }
 
-            for (u in 0..15) {
-                for (v in 0..255) {
+        // Sweep through slices perpendicular to direction
+        for (w in 0..wMax) {
+            // Build mask for this slice
+            val mask = Array(uMax + 1) { Array(vMax + 1) { MaskEntry(BlockType.Air, false) } }
+
+            for (u in 0..uMax) {
+                for (v in 0..vMax) {
                     val pos = DirectionHelper.getPosition(direction, u, v, w)
                     val neighborPos = DirectionHelper.getPosition(direction, u, v, w + 1)
 
@@ -99,15 +109,15 @@ object ChunkMeshGenerator {
             }
 
             // Greedily merge adjacent faces in mask
-            for (u in 0..15) {
-                for (v in 0..255) {
+            for (u in 0..uMax) {
+                for (v in 0..vMax) {
                     if (!mask[u][v].render || mask[u][v].blockType == BlockType.Air) continue
 
                     val blockType = mask[u][v].blockType
 
                     // Find width (along u axis)
                     var width = 1
-                    while (u + width <= 15 && mask[u + width][v].render &&
+                    while (u + width <= uMax && mask[u + width][v].render &&
                         mask[u + width][v].blockType == blockType
                     ) {
                         width++
@@ -116,7 +126,7 @@ object ChunkMeshGenerator {
                     // Find height (along v axis)
                     var height = 1
                     var canExtend = true
-                    while (v + height <= 255 && canExtend) {
+                    while (v + height <= vMax && canExtend) {
                         for (du in 0 until width) {
                             if (!mask[u + du][v + height].render ||
                                 mask[u + du][v + height].blockType != blockType
@@ -210,12 +220,15 @@ object ChunkMeshGenerator {
         uvs.add(u0)
         uvs.add(v1)
 
-        // Add colors (face brightness)
+        // T021 BUG FIX: Add actual block colors with brightness shading
+        val (baseR, baseG, baseB) = TextureAtlas.getColorForBlockFace(blockType, direction)
         val brightness = DirectionHelper.getBrightness(direction)
+        
+        // Apply brightness as shading multiplier
         for (i in 0..3) {
-            colors.add(brightness)
-            colors.add(brightness)
-            colors.add(brightness)
+            colors.add(baseR * brightness)
+            colors.add(baseG * brightness)
+            colors.add(baseB * brightness)
         }
 
         // Add indices for 2 triangles (quad)

@@ -50,6 +50,24 @@ class VoxelWorld(
 
     var isGeneratingTerrain = false
         private set
+    
+    // T021: Track initial mesh generation progress for loading screen
+    private var initialMeshTarget = 0  // Expected number of initial meshes (typically 81)
+    private var meshesGeneratedCount = 0  // Actual meshes generated so far
+    
+    val initialMeshGenerationProgress: Float
+        get() = if (initialMeshTarget > 0) {
+            meshesGeneratedCount.toFloat() / initialMeshTarget
+        } else 1.0f
+    
+    val isInitialMeshGenerationComplete: Boolean
+        get() = initialMeshTarget > 0 && meshesGeneratedCount >= initialMeshTarget
+    
+    fun setInitialMeshTarget(count: Int) {
+        initialMeshTarget = count
+        meshesGeneratedCount = 0
+        Logger.info("🎯 T021: Set initial mesh target to $count meshes")
+    }
 
     suspend fun generateTerrain(onProgress: ((Int, Int) -> Unit)? = null) {
         isGeneratingTerrain = true
@@ -177,7 +195,7 @@ class VoxelWorld(
 
         try {
             if (dirtyQueue.isNotEmpty()) {
-                Logger.debug("🔧 pumpDirtyChunks: Processing up to $maxPerFrame chunks (queue=${dirtyQueue.size}, pending=${pendingMeshes.size})")
+                Logger.info("🔧 pumpDirtyChunks: Processing up to $maxPerFrame chunks (queue=${dirtyQueue.size}, pending=${pendingMeshes.size})")
             }
 
             var processed = 0
@@ -202,7 +220,11 @@ class VoxelWorld(
                             chunk.mesh?.let { mesh ->
                                 if (wasNew || mesh.parent == null) {
                                     scene.add(mesh)
-                                    Logger.debug("✅ Added mesh to scene for chunk ${chunk.position}, total meshes=${scene.children.size}")
+                                    meshesGeneratedCount++  // T021: Track mesh generation progress
+                                    val progressInfo = if (initialMeshTarget > 0) {
+                                        " ($meshesGeneratedCount/$initialMeshTarget)"
+                                    } else ""
+                                    Logger.info("✅ Added mesh to scene for chunk ${chunk.position}$progressInfo, total=${scene.children.size}")
                                 }
                             }
                         }

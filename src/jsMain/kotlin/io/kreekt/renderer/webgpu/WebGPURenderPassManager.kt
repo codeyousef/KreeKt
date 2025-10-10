@@ -45,8 +45,24 @@ class WebGPURenderPassManager(
         }
 
         try {
-            val textureView = framebuffer.handle
-                ?: throw IllegalArgumentException("framebuffer.handle must be GPUTextureView")
+            val handle = framebuffer.handle
+                ?: throw IllegalArgumentException("framebuffer.handle must not be null")
+
+            val colorView: GPUTextureView
+            val depthView: GPUTextureView?
+
+            when (handle) {
+                is WebGPUFramebufferAttachments -> {
+                    colorView = handle.colorView
+                    depthView = handle.depthView
+                }
+
+                else -> {
+                    colorView = handle as? GPUTextureView
+                        ?: throw IllegalArgumentException("framebuffer.handle must be GPUTextureView or WebGPUFramebufferAttachments")
+                    depthView = null
+                }
+            }
 
             // Create render pass descriptor (build object programmatically for proper Kotlin→JS conversion)
             val clearValue = js("{}")
@@ -56,13 +72,22 @@ class WebGPURenderPassManager(
             clearValue.a = clearColor.a
 
             val colorAttachment = js("{}")
-            colorAttachment.view = textureView
+            colorAttachment.view = colorView
             colorAttachment.loadOp = "clear"
             colorAttachment.storeOp = "store"
             colorAttachment.clearValue = clearValue
 
             val descriptor = js("{}")
             descriptor.colorAttachments = arrayOf(colorAttachment)
+
+            depthView?.let { depthTextureView ->
+                val depthAttachment = js("{}")
+                depthAttachment.view = depthTextureView
+                depthAttachment.depthClearValue = 1.0
+                depthAttachment.depthLoadOp = "clear"
+                depthAttachment.depthStoreOp = "store"
+                descriptor.depthStencilAttachment = depthAttachment
+            }
 
             // Begin render pass
             passEncoder = commandEncoder.beginRenderPass(descriptor)
