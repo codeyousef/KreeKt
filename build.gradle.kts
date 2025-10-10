@@ -54,7 +54,10 @@ kotlin {
         }
         browser {
             testTask {
-                enabled = false
+                enabled = true
+                useKarma {
+                    useChromeHeadless()
+                }
             }
         }
         nodejs {

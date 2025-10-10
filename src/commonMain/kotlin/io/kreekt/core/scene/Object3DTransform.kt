@@ -198,11 +198,6 @@ internal fun Object3D.updateLocalMatrix() {
     matrix.compose(position, quaternion, scale)
     matrixWorldNeedsUpdate = true
 
-    // T021: Log matrix composition for debugging
-    if (this.name.contains("Camera", ignoreCase = true)) {
-        console.log("T021 [updateLocalMatrix] Camera '${this.name}' composed matrix from position=(${position.x}, ${position.y}, ${position.z}), matrix[0..3]=[${matrix.elements[0]}, ${matrix.elements[1]}, ${matrix.elements[2]}, ${matrix.elements[3]}]")
-    }
-
     // Propagate dirty flag to children
     for (child in children) {
         child.matrixWorldNeedsUpdate = true

@@ -71,11 +71,15 @@ suspend fun initGame() = coroutineScope {
     Logger.info("🔍 Player rotation: (${world.player.rotation.x}, ${world.player.rotation.y}, ${world.player.rotation.z})")
     Logger.info("🔍 Flight mode: ${world.player.isFlying}")
 
-    // Always reset to proper spawn for debugging
-    world.player.position.set(0.0f, 100.0f, 0.0f)
-    world.player.rotation.set(-0.3f, 0.0f, 0.0f)  // Tilt camera down to see terrain
+    // T021: Move camera OUTSIDE and ABOVE terrain to see it clearly
+    // Position at (8, 150, 8) - center of first chunk but much higher up
+    world.player.position.set(8.0f, 150.0f, 8.0f)
+    // Look down and forward: pitch down more (-0.5 ≈ -28°), no yaw
+    world.player.rotation.set(-0.5f, 0.0f, 0.0f)
     world.player.isFlying = true
-    Logger.info("📍 Reset player to spawn: (0, 100, 0), rotation: (-0.3, 0, 0), flight mode: ON")
+    Logger.info("📍 T021: Reset player to high spawn: (8, 150, 8), rotation: (-0.5, 0, 0), flight mode: ON")
+    Logger.info("📍 T021: Camera looking DOWN at terrain from above")
+    Logger.info("📍 T021: Player rotation (radians): x=${world.player.rotation.x}, y=${world.player.rotation.y}, z=${world.player.rotation.z}")
 
     generateTerrainAsync(
         scope = this,
@@ -105,16 +109,12 @@ fun generateTerrainAsync(
         try {
             Logger.info("?? About to generate ${ChunkPosition.TOTAL_CHUNKS} chunks...")
 
-            window.setTimeout({
-                hideLoadingScreen()
-                Logger.info("?? Game loop started (terrain generating in background)!")
-                Logger.info("?? Controls: WASD=Move, Mouse=Look, F=Flight, Space/Shift=Up/Down")
-            }, 100)
-
+            // T021: Generate terrain data first (Phase 1)
             world.generateTerrain { current, total ->
                 val percent = (current * 100) / total
                 if (percent % 10 == 0) {
                     Logger.info("? Generating terrain... $percent% ($current/$total chunks)")
+                    updateLoadingProgress("Generating terrain: $percent% ($current/$total chunks)")
                 }
             }
 
@@ -124,9 +124,35 @@ fun generateTerrainAsync(
             }
 
             val generationTime = js("Date.now()") as Double - startTime
-            updateLoadingProgress("Terrain ready in ${generationTime.toInt()}ms")
             Logger.info("? Terrain generation complete in ${generationTime.toInt()}ms")
-            Logger.info("?? Chunks: ${world.chunkCount}")
+            updateLoadingProgress("Terrain ready, generating meshes...")
+            
+            // T021: Phase 2 - Wait for initial mesh generation to complete
+            val initialChunkCount = 81  // 9×9 grid (INITIAL_GENERATION_RADIUS=4)
+            world.setInitialMeshTarget(initialChunkCount)
+            
+            // Poll mesh generation progress
+            var lastPercent = 0
+            Logger.info("?? Waiting for $initialChunkCount initial meshes to generate...")
+            while (!world.isInitialMeshGenerationComplete) {
+                delay(100)  // Check every 100ms
+                val progress = world.initialMeshGenerationProgress
+                val percent = (progress * 100).toInt()
+                if (percent > lastPercent && percent % 5 == 0) {
+                    val meshCount = (initialChunkCount * progress).toInt()
+                    Logger.info("? Generating meshes... $percent% ($meshCount/$initialChunkCount)")
+                    updateLoadingProgress("Generating meshes: $meshCount/$initialChunkCount ($percent%)")
+                    lastPercent = percent
+                }
+            }
+            
+            // T021: Phase 3 - All meshes ready, wait for user click to start
+            val totalTime = js("Date.now()") as Double - startTime
+            Logger.info("? All $initialChunkCount initial meshes generated in ${totalTime.toInt()}ms total")
+            updateLoadingProgress("World ready!")  // Shows "Click on canvas to start"
+            setupStartOnClick(world)  // Wait for click, then hide loading screen
+            Logger.info("?? World ready with ${world.scene.children.size} meshes!")
+            Logger.info("?? Controls: WASD=Move, Mouse=Look, F=Flight, Space/Shift=Up/Down")
         } catch (e: Throwable) {
             Logger.error("? Generation failed: ${e.message}", e)
             console.error(e)
@@ -282,28 +308,12 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
             world.player.rotation.z
         )
 
-        // T021: Manually update quaternion from Euler angles since onChange callbacks aren't implemented
+        // Manually update quaternion from Euler angles since onChange callbacks aren't implemented
         camera.quaternion.setFromEuler(camera.rotation)
 
-        // T021 FIX: Manually update matrices since onChange callbacks aren't implemented
-        if (frameCount < 3) {
-            console.log("T021-MAIN Frame $frameCount: BEFORE updateMatrix, matrix[12-14]=(${camera.matrix.elements[12]}, ${camera.matrix.elements[13]}, ${camera.matrix.elements[14]})")
-            console.log("T021-MAIN Frame $frameCount: position=(${camera.position.x}, ${camera.position.y}, ${camera.position.z})")
-        }
-
+        // Manually update matrices since onChange callbacks aren't implemented
         camera.updateMatrix()  // Updates local matrix from position/quaternion/scale
-
-        if (frameCount < 3) {
-            console.log("T021-MAIN Frame $frameCount: AFTER updateMatrix, matrix[12-14]=(${camera.matrix.elements[12]}, ${camera.matrix.elements[13]}, ${camera.matrix.elements[14]})")
-            console.log("T021-MAIN Frame $frameCount: BEFORE updateMatrixWorld, matrixWorld[12-14]=(${camera.matrixWorld.elements[12]}, ${camera.matrixWorld.elements[13]}, ${camera.matrixWorld.elements[14]})")
-        }
-
         camera.updateMatrixWorld(true)
-
-        if (frameCount < 3) {
-            console.log("T021-MAIN Frame $frameCount: AFTER updateMatrixWorld, matrixWorld[12-14]=(${camera.matrixWorld.elements[12]}, ${camera.matrixWorld.elements[13]}, ${camera.matrixWorld.elements[14]})")
-            console.log("T021-MAIN Frame $frameCount: matrixWorldInverse[12-14]=(${camera.matrixWorldInverse.elements[12]}, ${camera.matrixWorldInverse.elements[13]}, ${camera.matrixWorldInverse.elements[14]})")
-        }
 
         camera.updateProjectionMatrix()
 
@@ -339,25 +349,74 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
         window.requestAnimationFrame { gameLoop() }
     }
 
+    // T021: Sync camera with player BEFORE starting game loop to fix initial rotation
+    camera.position.set(
+        world.player.position.x.toFloat(),
+        world.player.position.y.toFloat(),
+        world.player.position.z.toFloat()
+    )
+    camera.rotation.set(
+        world.player.rotation.x,
+        world.player.rotation.y,
+        world.player.rotation.z
+    )
+    camera.quaternion.setFromEuler(camera.rotation)
+    camera.updateMatrix()
+    camera.updateMatrixWorld(true)
+
     // Start game loop (loading screen hidden by generateTerrainAsync)
     gameLoop()
 }
 
 fun updateLoadingProgress(message: String) {
     val progressElement = document.getElementById("loading-progress")
-    progressElement?.textContent = message
+    if (message == "World ready!") {
+        // T021: Show click instruction after loading completes
+        progressElement?.innerHTML = "$message<br><br>🖱️ <strong>Click on the canvas to start playing!</strong>"
+    } else {
+        progressElement?.textContent = message
+    }
+}
+
+/**
+ * T021: Setup click handler to start the game.
+ * Loading screen stays visible until user clicks, ensuring pointer lock request
+ * happens with a valid user gesture.
+ */
+fun setupStartOnClick(world: VoxelWorld) {
+    val loading = document.getElementById("loading")
+    val canvas = document.getElementById("kreekt-canvas") as? HTMLCanvasElement
+    
+    // Make loading screen clickable
+    loading?.addEventListener("click", {
+        // Hide loading screen
+        loading.setAttribute("class", "loading hidden")
+        
+        // Request pointer lock (requires user gesture)
+        canvas?.let { c ->
+            js("c.requestPointerLock = c.requestPointerLock || c.mozRequestPointerLock || c.webkitRequestPointerLock")
+            js("if (c.requestPointerLock) c.requestPointerLock()")
+        }
+        
+        console.log("🎮 Game started with ${world.scene.children.size} meshes!")
+    })
+    
+    // Also allow clicking directly on canvas
+    canvas?.addEventListener("click", {
+        // Hide loading screen if still visible
+        loading?.setAttribute("class", "loading hidden")
+        
+        // Request pointer lock
+        js("canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock")
+        js("if (canvas.requestPointerLock) canvas.requestPointerLock()")
+    })
+    
+    console.log("💡 Click anywhere to start playing!")
 }
 
 fun hideLoadingScreen() {
     val loading = document.getElementById("loading")
     loading?.setAttribute("class", "loading hidden")
-
-    // Request pointer lock to start gameplay
-    val canvas = document.getElementById("kreekt-canvas") as? HTMLCanvasElement
-    canvas?.let {
-        js("canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock")
-        js("if (canvas.requestPointerLock) canvas.requestPointerLock()")
-    }
 }
 
 fun updateHUD(world: VoxelWorld) {

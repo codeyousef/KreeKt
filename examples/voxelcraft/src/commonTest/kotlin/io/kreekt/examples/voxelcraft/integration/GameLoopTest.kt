@@ -2,6 +2,7 @@ package io.kreekt.examples.voxelcraft.integration
 
 import io.kreekt.examples.voxelcraft.BlockType
 import io.kreekt.examples.voxelcraft.VoxelWorld
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -22,9 +23,9 @@ class GameLoopTest {
      * 3. Verify player spawns at valid Y position
      */
     @Test
-    fun testWorldGenerationAndSpawn() {
+    fun testWorldGenerationAndSpawn() = runTest {
         // Step 1: Generate world
-        val world = VoxelWorld(12345L)
+        val world = VoxelWorld(12345L, parentScope = this)
         world.generateTerrain()
 
         // Step 2: Verify world generated
@@ -41,8 +42,8 @@ class GameLoopTest {
      * 3. Verify player moved
      */
     @Test
-    fun testPlayerMovement() {
-        val world = VoxelWorld(12345L)
+    fun testPlayerMovement() = runTest {
+        val world = VoxelWorld(12345L, parentScope = this)
         world.generateTerrain()
 
         // Given: Player at starting position
@@ -64,8 +65,8 @@ class GameLoopTest {
      * 3. Verify camera rotated
      */
     @Test
-    fun testCameraRotation() {
-        val world = VoxelWorld(12345L)
+    fun testCameraRotation() = runTest {
+        val world = VoxelWorld(12345L, parentScope = this)
         world.generateTerrain()
 
         // Given: Initial rotation
@@ -88,8 +89,8 @@ class GameLoopTest {
      * 3. Verify block broken
      */
     @Test
-    fun testBreakBlock() {
-        val world = VoxelWorld(12345L)
+    fun testBreakBlock() = runTest {
+        val world = VoxelWorld(12345L, parentScope = this)
         world.generateTerrain()
 
         // Given: Block at position
@@ -112,8 +113,8 @@ class GameLoopTest {
      * 3. Verify block placed
      */
     @Test
-    fun testPlaceBlock() {
-        val world = VoxelWorld(12345L)
+    fun testPlaceBlock() = runTest {
+        val world = VoxelWorld(12345L, parentScope = this)
         world.generateTerrain()
 
         // Given: Air at position
@@ -135,8 +136,8 @@ class GameLoopTest {
      * 3. Verify flight enabled
      */
     @Test
-    fun testFlightMode() {
-        val world = VoxelWorld(12345L)
+    fun testFlightMode() = runTest {
+        val world = VoxelWorld(12345L, parentScope = this)
         world.generateTerrain()
 
         // Given: Non-flying mode

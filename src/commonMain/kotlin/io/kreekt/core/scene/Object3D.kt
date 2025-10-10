@@ -273,11 +273,6 @@ abstract class Object3D {
                 matrixWorld.multiplyMatrices(p.matrixWorld, matrix)
             } ?: matrixWorld.copy(matrix)
 
-            // T021: Log matrixWorld update for debugging
-            if (this.name.contains("Camera", ignoreCase = true)) {
-                console.log("T021 [updateMatrixWorld] Camera '${this.name}' matrixWorld updated: [${matrixWorld.elements[0]}, ${matrixWorld.elements[1]}, ${matrixWorld.elements[2]}, ${matrixWorld.elements[3]}]")
-            }
-
             matrixWorldNeedsUpdate = false
             worldMatrixVersion++
             forceChildren = true

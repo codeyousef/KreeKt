@@ -92,7 +92,9 @@ class PerspectiveCamera(
         val skew = filmOffset
         if (skew != 0f) left = left + near * skew / getFilmWidth()
 
-        projectionMatrix.makePerspective(
+        // T021: Use WebGPU projection (Z ∈ [0, 1]) for correct depth handling
+        // WebGPU and modern graphics APIs use 0..1 depth range, not -1..1 like OpenGL
+        projectionMatrix.makePerspectiveWebGPU(
             left, left + width,
             top, top - height,
             near, far

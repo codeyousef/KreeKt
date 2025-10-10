@@ -57,6 +57,60 @@ object TextureAtlas {
     }
 
     /**
+     * T021 BUG FIX: Get RGB color for a block face.
+     * Returns normalized RGB values (0.0 - 1.0) for vertex colors.
+     *
+     * @param blockType The type of block
+     * @param direction The face direction
+     * @return Triple of (r, g, b) normalized to 0.0-1.0
+     */
+    fun getColorForBlockFace(blockType: BlockType, direction: FaceDirection): Triple<Float, Float, Float> {
+        // Get atlas position for this block face (same logic as UVs)
+        val (atlasX, atlasY) = when (blockType) {
+            BlockType.Air -> 0 to 0
+
+            BlockType.Grass -> when (direction) {
+                FaceDirection.UP -> 0 to 0
+                FaceDirection.DOWN -> 2 to 0
+                else -> 1 to 0
+            }
+
+            BlockType.Dirt -> 2 to 0
+            BlockType.Stone -> 3 to 0
+
+            BlockType.Wood -> when (direction) {
+                FaceDirection.UP, FaceDirection.DOWN -> 1 to 1  // Fixed: was 5 to 1, should be 1 to 1
+                else -> 0 to 1
+            }
+
+            BlockType.Leaves -> 3 to 1
+            BlockType.Sand -> 2 to 1
+            BlockType.Water -> 0 to 2
+        }
+
+        // Color mapping (same as used in generateAtlasData)
+        val color = when (atlasX to atlasY) {
+            (0 to 0) -> Color(34, 139, 34)    // Grass top - green
+            (1 to 0) -> Color(96, 128, 56)    // Grass side - greenish-brown
+            (2 to 0) -> Color(139, 90, 43)    // Dirt - brown
+            (3 to 0) -> Color(128, 128, 128)  // Stone - gray
+            (0 to 1) -> Color(101, 67, 33)    // Wood side - brown
+            (1 to 1) -> Color(139, 90, 43)    // Wood top - lighter brown
+            (2 to 1) -> Color(194, 178, 128)  // Sand - tan
+            (3 to 1) -> Color(34, 139, 34)    // Leaves - green
+            (0 to 2) -> Color(64, 164, 223)   // Water - blue
+            else -> Color(255, 255, 255)      // Default white
+        }
+
+        // Normalize RGB to 0.0-1.0 range for vertex colors
+        return Triple(
+            color.r / 255f,
+            color.g / 255f,
+            color.b / 255f
+        )
+    }
+
+    /**
      * Calculate normalized UV coordinates from atlas position
      */
     private fun calculateUV(atlasX: Int, atlasY: Int): UV {

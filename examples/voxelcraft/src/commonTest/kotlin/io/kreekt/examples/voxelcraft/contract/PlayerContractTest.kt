@@ -5,6 +5,7 @@ import io.kreekt.examples.voxelcraft.BlockType
 import io.kreekt.examples.voxelcraft.Inventory
 import io.kreekt.examples.voxelcraft.Player
 import io.kreekt.examples.voxelcraft.VoxelWorld
+import kotlinx.coroutines.test.TestScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -17,6 +18,8 @@ import kotlin.test.assertTrue
  */
 class PlayerContractTest {
 
+    private val testScope = TestScope()
+
     /**
      * T007: GET /player/state
      *
@@ -25,7 +28,7 @@ class PlayerContractTest {
      */
     @Test
     fun testGetPlayerState() {
-        val world = VoxelWorld(12345L)
+        val world = VoxelWorld(12345L, parentScope = testScope)
         val player = Player(world)
 
         // Expected: player.position is Vector3 (x, y, z)
@@ -50,7 +53,7 @@ class PlayerContractTest {
      */
     @Test
     fun testMovePlayer() {
-        val world = VoxelWorld(12345L)
+        val world = VoxelWorld(12345L, parentScope = testScope)
         val player = Player(world)
 
         // Given: Player at position (0, 100, 0)
@@ -74,7 +77,7 @@ class PlayerContractTest {
      */
     @Test
     fun testRotateCamera() {
-        val world = VoxelWorld(12345L)
+        val world = VoxelWorld(12345L, parentScope = testScope)
         val player = Player(world)
 
         // Given: Player with rotation (0, 0)
@@ -97,7 +100,7 @@ class PlayerContractTest {
      */
     @Test
     fun testToggleFlight() {
-        val world = VoxelWorld(12345L)
+        val world = VoxelWorld(12345L, parentScope = testScope)
         val player = Player(world)
 
         // Given: Player with isFlying = false
@@ -120,7 +123,7 @@ class PlayerContractTest {
 
     @Test
     fun testInventory() {
-        val world = VoxelWorld(12345L)
+        val world = VoxelWorld(12345L, parentScope = testScope)
         val player = Player(world)
 
         // Expected: player.inventory is Inventory class
@@ -132,7 +135,7 @@ class PlayerContractTest {
 
     @Test
     fun testAddToInventory() {
-        val world = VoxelWorld(12345L)
+        val world = VoxelWorld(12345L, parentScope = testScope)
         val player = Player(world)
 
         // Given: Player with empty inventory
@@ -149,7 +152,7 @@ class PlayerContractTest {
 
     @Test
     fun testRotationBounds() {
-        val world = VoxelWorld(12345L)
+        val world = VoxelWorld(12345L, parentScope = testScope)
         val player = Player(world)
 
         // Test pitch clamping:
@@ -168,7 +171,7 @@ class PlayerContractTest {
 
     @Test
     fun testPlayerBoundingBox() {
-        val world = VoxelWorld(12345L)
+        val world = VoxelWorld(12345L, parentScope = testScope)
         val player = Player(world)
 
         // Expected: Player has collision dimensions (width 0.6, height 1.8)
@@ -179,7 +182,7 @@ class PlayerContractTest {
 
     @Test
     fun testGravityPhysics() {
-        val world = VoxelWorld(12345L)
+        val world = VoxelWorld(12345L, parentScope = testScope)
         val player = Player(world)
 
         // Given: Player with isFlying = false at Y = 100
