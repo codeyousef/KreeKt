@@ -26,22 +26,15 @@ private var initJob: Job? = null
  */
 
 fun main() {
-    console.log("🎮 VoxelCraft Starting...")
-
-    window.addEventListener("load", {
-        console.log("📦 Page loaded, waiting for user to click Start...")
-
-        // Expose startGameFromButton to JavaScript using window.asDynamic()
-        window.asDynamic().startGameFromButton = ::startGameFromButton
-    })
-
+    // Expose startGameFromButton to JavaScript immediately (don't wait for load event)
+    window.asDynamic().startGameFromButton = ::startGameFromButton
+    
     window.addEventListener("beforeunload", {
         gameScope.cancel()
     })
 }
 
 fun startGameFromButton() {
-    console.log("🎮 Starting game from button click...")
     initJob?.cancel()
     initJob = gameScope.launch {
         initGame()
@@ -66,20 +59,18 @@ suspend fun initGame() = coroutineScope {
 
     val world = savedState?.restore(this) ?: VoxelWorld(seed = 12345L, parentScope = this)
 
-    // T016: Fix camera/player position - ensure player is at proper spawn height
-    Logger.info("🔍 Player position after load: (${world.player.position.x}, ${world.player.position.y}, ${world.player.position.z})")
-    Logger.info("🔍 Player rotation: (${world.player.rotation.x}, ${world.player.rotation.y}, ${world.player.rotation.z})")
-    Logger.info("🔍 Flight mode: ${world.player.isFlying}")
-
-    // T021: Move camera OUTSIDE and ABOVE terrain to see it clearly
-    // Position at (8, 150, 8) - center of first chunk but much higher up
-    world.player.position.set(8.0f, 150.0f, 8.0f)
-    // Look down and forward: pitch down more (-0.5 ≈ -28°), no yaw
-    world.player.rotation.set(-0.5f, 0.0f, 0.0f)
-    world.player.isFlying = true
-    Logger.info("📍 T021: Reset player to high spawn: (8, 150, 8), rotation: (-0.5, 0, 0), flight mode: ON")
-    Logger.info("📍 T021: Camera looking DOWN at terrain from above")
-    Logger.info("📍 T021: Player rotation (radians): x=${world.player.rotation.x}, y=${world.player.rotation.y}, z=${world.player.rotation.z}")
+    // Set temporary spawn position (terrain not generated yet!)
+    // Will find actual ground level after terrain generation completes
+    val spawnX = -17  // User-specified spawn location
+    val spawnZ = 2
+    val tempSpawnY = 150 // High above terrain, safe temporary position
+    
+    world.player.position.set(spawnX.toFloat(), tempSpawnY.toFloat(), spawnZ.toFloat())
+    world.player.rotation.set(-0.3f, 0.0f, 0.0f)
+    world.player.isFlying = true // Temporary, will disable after finding ground
+    
+    Logger.info("📍 Temporary spawn: ($spawnX, $tempSpawnY, $spawnZ) - flight ON")
+    Logger.info("⏳ Will find ground after terrain generation...")
 
     generateTerrainAsync(
         scope = this,
@@ -98,7 +89,6 @@ fun generateTerrainAsync(
     canvas: HTMLCanvasElement,
     savedState: WorldState?
 ) {
-    Logger.info("?? Generating world...")
     updateLoadingProgress("Starting terrain generation...")
 
     scope.launch {
@@ -107,8 +97,6 @@ fun generateTerrainAsync(
 
     scope.launch {
         try {
-            Logger.info("?? About to generate ${ChunkPosition.TOTAL_CHUNKS} chunks...")
-
             // T021: Generate terrain data first (Phase 1)
             world.generateTerrain { current, total ->
                 val percent = (current * 100) / total
@@ -125,6 +113,32 @@ fun generateTerrainAsync(
 
             val generationTime = js("Date.now()") as Double - startTime
             Logger.info("? Terrain generation complete in ${generationTime.toInt()}ms")
+            
+            // NOW find actual ground level (terrain exists!)
+            // Use user-specified spawn position
+            val spawnX = -17
+            val spawnZ = 2
+            var groundY = 255
+            
+            // Search downward for first solid block
+            while (groundY > 0) {
+                val block = world.getBlock(spawnX, groundY, spawnZ)
+                if (block != null && block != BlockType.Air && !block.isTransparent) {
+                    break
+                }
+                groundY--
+            }
+            
+            // Move player to ground level
+            val finalSpawnY = groundY + 2 // Spawn 2 blocks above ground (player height = 1.8)
+            world.player.position.set(spawnX.toFloat(), finalSpawnY.toFloat(), spawnZ.toFloat())
+            world.player.isFlying = false // Disable flight
+            world.player.velocity.set(0f, 0f, 0f) // Reset velocity
+            
+            Logger.info("📍 Found ground at Y=$groundY, spawning player at Y=$finalSpawnY")
+            Logger.info("🎮 Flight mode: OFF, Gravity: ON, Jump: Space")
+            Logger.info("💡 Press F to toggle flight mode")
+            
             updateLoadingProgress("Terrain ready, generating meshes...")
             
             // T021: Phase 2 - Wait for initial mesh generation to complete
@@ -133,26 +147,40 @@ fun generateTerrainAsync(
             
             // Poll mesh generation progress
             var lastPercent = 0
-            Logger.info("?? Waiting for $initialChunkCount initial meshes to generate...")
             while (!world.isInitialMeshGenerationComplete) {
                 delay(100)  // Check every 100ms
                 val progress = world.initialMeshGenerationProgress
                 val percent = (progress * 100).toInt()
                 if (percent > lastPercent && percent % 5 == 0) {
                     val meshCount = (initialChunkCount * progress).toInt()
-                    Logger.info("? Generating meshes... $percent% ($meshCount/$initialChunkCount)")
                     updateLoadingProgress("Generating meshes: $meshCount/$initialChunkCount ($percent%)")
                     lastPercent = percent
                 }
             }
             
-            // T021: Phase 3 - All meshes ready, wait for user click to start
+            // T021: Phase 3 - All meshes ready, regenerate for correct face culling
             val totalTime = js("Date.now()") as Double - startTime
-            Logger.info("? All $initialChunkCount initial meshes generated in ${totalTime.toInt()}ms total")
+            
+            // Regenerate all meshes to ensure correct face culling at boundaries
+            // This is needed because during initial generation, neighbors might not have
+            // meshes yet, so boundary faces don't get culled correctly
+            world.regenerateAllMeshes()
+            
+            // T021: Wait for regeneration to complete (fixes missing faces bug)
+            lastPercent = 0  // Reset for regeneration tracking
+            while (!world.isRegenerationComplete) {
+                delay(100)  // Check every 100ms
+                val progress = world.regenerationProgress
+                val percent = (progress * 100).toInt()
+                if (percent > lastPercent && percent % 10 == 0) {
+                    val completed = (world.regenerationProgress * initialChunkCount).toInt()
+                    updateLoadingProgress("Regenerating meshes: $completed/$initialChunkCount ($percent%)")
+                    lastPercent = percent
+                }
+            }
+            
             updateLoadingProgress("World ready!")  // Shows "Click on canvas to start"
             setupStartOnClick(world)  // Wait for click, then hide loading screen
-            Logger.info("?? World ready with ${world.scene.children.size} meshes!")
-            Logger.info("?? Controls: WASD=Move, Mouse=Look, F=Flight, Space/Shift=Up/Down")
         } catch (e: Throwable) {
             Logger.error("? Generation failed: ${e.message}", e)
             console.error(e)
@@ -169,13 +197,7 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
     val surface = SurfaceFactory.create(canvas)
 
     // Initialize renderer with RendererFactory (automatic backend detection)
-    Logger.info("🔧 Initializing renderer backend for VoxelCraft...")
-    Logger.info("📊 Backend Negotiation:")
-    Logger.info("  Detecting capabilities...")
-
-    // Detect available backends
     val availableBackends = RendererFactory.detectAvailableBackends()
-    Logger.info("  Available backends: ${availableBackends.joinToString(", ")}")
 
     // Check if WebGPU is available
     if (!availableBackends.contains(io.kreekt.renderer.BackendType.WEBGPU)) {
@@ -231,10 +253,6 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
     Logger.info("✅ Renderer initialized!")
     Logger.info("  Backend: ${renderer.backend}")
     Logger.info("  Device: ${renderer.capabilities.deviceName}")
-    Logger.info("  Features:")
-    Logger.info("    COMPUTE: ${renderer.capabilities.supportsCompute}")
-    Logger.info("    RAY_TRACING: ${renderer.capabilities.supportsRayTracing}")
-    Logger.info("    MSAA: ${renderer.capabilities.supportsMultisampling} (max ${renderer.capabilities.maxSamples}x)")
 
     // Create camera
     val camera = PerspectiveCamera(
@@ -278,15 +296,6 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
         val deltaTime = ((currentTime - lastTime) / 1000.0).toFloat()
         lastTime = currentTime
 
-        // T002: Temporary diagnostic logging - MORE FREQUENT to catch mesh additions
-        if (frameCount < 100 || frameCount % 60 == 0) {
-            console.log("📷 Frame $frameCount: Camera pos: (${camera.position.x}, ${camera.position.y}, ${camera.position.z})")
-            console.log("🧱 Frame $frameCount: Scene children: ${world.scene.children.size}")
-            if (frameCount % 10 == 0) {
-                console.log("👤 Frame $frameCount: Player pos: (${world.player.position.x}, ${world.player.position.y}, ${world.player.position.z})")
-            }
-        }
-
         // Update controllers
         playerController.update(deltaTime)
 
@@ -294,28 +303,58 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
         world.update(deltaTime)
 
         // Sync camera with player
-        camera.position.set(
-            world.player.position.x.toFloat(),
-            world.player.position.y.toFloat(),
-            world.player.position.z.toFloat()
+        val newPosX = world.player.position.x.toFloat()
+        val newPosY = world.player.position.y.toFloat()
+        val newPosZ = world.player.position.z.toFloat()
+        val newRotX = world.player.rotation.x
+        val newRotY = world.player.rotation.y
+        
+        // Only update if camera actually moved (performance optimization)
+        val cameraMoved = (
+            camera.position.x != newPosX ||
+            camera.position.y != newPosY ||
+            camera.position.z != newPosZ ||
+            camera.rotation.x != newRotX ||
+            camera.rotation.y != newRotY
         )
-
-        // Set rotation - Player has Vector3, Camera has Euler
-        // IMPORTANT: Must use set() method to properly update Euler
-        camera.rotation.set(
-            world.player.rotation.x,
-            world.player.rotation.y,
-            world.player.rotation.z
-        )
-
-        // Manually update quaternion from Euler angles since onChange callbacks aren't implemented
-        camera.quaternion.setFromEuler(camera.rotation)
-
-        // Manually update matrices since onChange callbacks aren't implemented
-        camera.updateMatrix()  // Updates local matrix from position/quaternion/scale
-        camera.updateMatrixWorld(true)
-
-        camera.updateProjectionMatrix()
+        
+        if (cameraMoved) {
+            // Position camera at player's eye level (not feet)
+            val eyeHeight = 1.6f  // Player height is 1.8, eyes at ~90%
+            camera.position.set(newPosX, newPosY + eyeHeight, newPosZ)
+            
+            // Calculate look direction from pitch (X) and yaw (Y)
+            val pitch = newRotX.toDouble()
+            val yaw = newRotY.toDouble()
+            
+            // Convert spherical coordinates (pitch/yaw) to Cartesian direction vector
+            // KreeKt cameras look down -Z axis by default (yaw=0 means looking at negative Z)
+            val cosP = kotlin.math.cos(pitch)
+            val sinP = kotlin.math.sin(pitch)
+            val cosY = kotlin.math.cos(yaw)
+            val sinY = kotlin.math.sin(yaw)
+            
+            // Adjusted for KreeKt's coordinate system (-Z forward)
+            // Both X and Z negated to match movement direction calculation
+            val lookDirX = -sinY * cosP
+            val lookDirY = sinP
+            val lookDirZ = -cosY * cosP
+            
+            // Calculate target point to look at (1 unit away in look direction)
+            val lookAtX = camera.position.x + lookDirX.toFloat()
+            val lookAtY = camera.position.y + lookDirY.toFloat()
+            val lookAtZ = camera.position.z + lookDirZ.toFloat()
+            
+            // Use lookAt for proper first-person rotation (avoids orbital camera effect)
+            // lookAt internally uses Vector3.UP (0,1,0) which keeps horizon level
+            camera.lookAt(lookAtX, lookAtY, lookAtZ)
+            
+            // Update matrices
+            camera.updateMatrix()
+            camera.updateMatrixWorld(false) // false = don't force child updates
+        }
+        
+        camera.updateProjectionMatrix() // Cheap, only updates if aspect changed
 
         // Render scene
         renderer.render(world.scene, camera)
@@ -349,22 +388,7 @@ suspend fun continueInitialization(world: VoxelWorld, canvas: HTMLCanvasElement)
         window.requestAnimationFrame { gameLoop() }
     }
 
-    // T021: Sync camera with player BEFORE starting game loop to fix initial rotation
-    camera.position.set(
-        world.player.position.x.toFloat(),
-        world.player.position.y.toFloat(),
-        world.player.position.z.toFloat()
-    )
-    camera.rotation.set(
-        world.player.rotation.x,
-        world.player.rotation.y,
-        world.player.rotation.z
-    )
-    camera.quaternion.setFromEuler(camera.rotation)
-    camera.updateMatrix()
-    camera.updateMatrixWorld(true)
-
-    // Start game loop (loading screen hidden by generateTerrainAsync)
+    // Start game loop (camera matrices will be updated on first frame)
     gameLoop()
 }
 
@@ -397,8 +421,6 @@ fun setupStartOnClick(world: VoxelWorld) {
             js("c.requestPointerLock = c.requestPointerLock || c.mozRequestPointerLock || c.webkitRequestPointerLock")
             js("if (c.requestPointerLock) c.requestPointerLock()")
         }
-        
-        console.log("🎮 Game started with ${world.scene.children.size} meshes!")
     })
     
     // Also allow clicking directly on canvas
@@ -410,8 +432,6 @@ fun setupStartOnClick(world: VoxelWorld) {
         js("canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock")
         js("if (canvas.requestPointerLock) canvas.requestPointerLock()")
     })
-    
-    console.log("💡 Click anywhere to start playing!")
 }
 
 fun hideLoadingScreen() {

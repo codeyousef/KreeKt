@@ -66,8 +66,19 @@ class VoxelWorld(
     fun setInitialMeshTarget(count: Int) {
         initialMeshTarget = count
         meshesGeneratedCount = 0
-        Logger.info("🎯 T021: Set initial mesh target to $count meshes")
     }
+    
+    // T021: Track mesh regeneration progress to fix missing faces
+    private var isRegeneratingMeshes = false
+    private var regenerationTargetCount = 0
+    private var regenerationCompletedCount = 0
+    
+    val isRegenerationComplete: Boolean
+        get() = !isRegeneratingMeshes || (regenerationCompletedCount >= regenerationTargetCount)
+    
+    val regenerationProgress: Float
+        get() = if (regenerationTargetCount == 0) 1f
+                else (regenerationCompletedCount.toFloat() / regenerationTargetCount.toFloat())
 
     suspend fun generateTerrain(onProgress: ((Int, Int) -> Unit)? = null) {
         isGeneratingTerrain = true
@@ -101,9 +112,6 @@ class VoxelWorld(
             dirtyQueueMutex.withLock {
                 if (dirtySet.add(chunk.position)) {
                     dirtyQueue.addLast(chunk)
-                    if (dirtyQueue.size % 10 == 0) {
-                        Logger.debug("📝 onChunkDirty: Queue size now ${dirtyQueue.size}")
-                    }
                 }
             }
         }
@@ -194,21 +202,15 @@ class VoxelWorld(
         }
 
         try {
-            if (dirtyQueue.isNotEmpty()) {
-                Logger.info("🔧 pumpDirtyChunks: Processing up to $maxPerFrame chunks (queue=${dirtyQueue.size}, pending=${pendingMeshes.size})")
-            }
-
             var processed = 0
             while (processed < maxPerFrame && dirtyQueue.isNotEmpty()) {
                 val chunk = dirtyQueue.removeFirst()
                 dirtySet.remove(chunk.position)
 
             if (!chunk.isDirty || pendingMeshes.contains(chunk.position)) {
-                Logger.debug("⏭️ Skipping chunk ${chunk.position}: isDirty=${chunk.isDirty}, pending=${pendingMeshes.contains(chunk.position)}")
                 continue
             }
 
-            Logger.debug("🎨 Starting mesh generation for chunk ${chunk.position}")
             pendingMeshes.add(chunk.position)
             scope.launch {
                 try {
@@ -221,10 +223,15 @@ class VoxelWorld(
                                 if (wasNew || mesh.parent == null) {
                                     scene.add(mesh)
                                     meshesGeneratedCount++  // T021: Track mesh generation progress
-                                    val progressInfo = if (initialMeshTarget > 0) {
-                                        " ($meshesGeneratedCount/$initialMeshTarget)"
-                                    } else ""
-                                    Logger.info("✅ Added mesh to scene for chunk ${chunk.position}$progressInfo, total=${scene.children.size}")
+                                }
+                            }
+                            
+                            // T021: Track regeneration progress to fix missing faces
+                            if (isRegeneratingMeshes) {
+                                regenerationCompletedCount++
+                                if (regenerationCompletedCount >= regenerationTargetCount) {
+                                    isRegeneratingMeshes = false
+                                    Logger.info("✅ Mesh regeneration complete! $regenerationCompletedCount/$regenerationTargetCount chunks")
                                 }
                             }
                         }
@@ -237,10 +244,6 @@ class VoxelWorld(
                 }
             }
                 processed++
-            }
-
-            if (processed > 0) {
-                Logger.debug("✅ pumpDirtyChunks: Processed $processed chunks this frame")
             }
         } finally {
             dirtyQueueMutex.unlock()
@@ -261,6 +264,23 @@ class VoxelWorld(
                     chunk.suppressDirtyEvents = false
                 }
                 chunk.terrainGenerated = true
+                
+                // Mark neighbor chunks dirty to regenerate meshes with correct face culling
+                // This ensures faces at chunk boundaries are properly culled when both chunks exist
+                val neighbors = listOf(
+                    ChunkPosition(position.chunkX - 1, position.chunkZ),
+                    ChunkPosition(position.chunkX + 1, position.chunkZ),
+                    ChunkPosition(position.chunkX, position.chunkZ - 1),
+                    ChunkPosition(position.chunkX, position.chunkZ + 1)
+                )
+                for (neighborPos in neighbors) {
+                    chunks[neighborPos]?.let { neighborChunk ->
+                        if (neighborChunk.terrainGenerated && neighborChunk.mesh != null) {
+                            neighborChunk.markDirty()
+                        }
+                    }
+                }
+                
                 if (chunk.isDirty) {
                     onChunkDirty(chunk)
                 }
@@ -270,6 +290,29 @@ class VoxelWorld(
             generationLocks.remove(position)
         }
         return chunk
+    }
+
+    /**
+     * Regenerate all chunk meshes to ensure correct face culling at boundaries.
+     * Call this after initial terrain generation completes.
+     * 
+     * T021: Now tracks progress so caller can wait for completion.
+     */
+    fun regenerateAllMeshes() {
+        Logger.info("🔄 Regenerating all chunk meshes for correct face culling...")
+        
+        isRegeneratingMeshes = true
+        regenerationTargetCount = 0
+        regenerationCompletedCount = 0
+        
+        for (chunk in chunks.values) {
+            if (chunk.terrainGenerated && chunk.mesh != null) {
+                chunk.markDirty()
+                regenerationTargetCount++
+            }
+        }
+        
+        Logger.info("✅ Marked $regenerationTargetCount chunks dirty for regeneration")
     }
 
     fun dispose() {

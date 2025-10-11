@@ -18,7 +18,7 @@ class CameraController(
     private val canvas: HTMLCanvasElement
 ) {
 
-    private var mouseSensitivity = 0.002 // radians per pixel
+    private var mouseSensitivity = 0.0015 // radians per pixel (Minecraft-like feel)
     private var isPointerLocked = false
 
     init {
@@ -35,11 +35,6 @@ class CameraController(
         // Listen for pointer lock changes
         document.addEventListener("pointerlockchange", {
             isPointerLocked = document.asDynamic().pointerLockElement == canvas
-            if (isPointerLocked) {
-                Logger.debug("🔒 Pointer locked - mouse controls camera")
-            } else {
-                Logger.debug("🔓 Pointer unlocked")
-            }
         })
     }
 
@@ -74,7 +69,7 @@ class CameraController(
      */
     fun handleMouseMove(movementX: Double, movementY: Double) {
         val deltaYaw = movementX * mouseSensitivity
-        val deltaPitch = movementY * mouseSensitivity
+        val deltaPitch = -movementY * mouseSensitivity  // Negate for standard FPS feel (mouse up = look up)
 
         player.rotate(deltaPitch, deltaYaw)
     }

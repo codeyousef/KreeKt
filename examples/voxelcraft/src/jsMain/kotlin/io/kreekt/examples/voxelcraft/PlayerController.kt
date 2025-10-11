@@ -29,7 +29,6 @@ class PlayerController(
     init {
         setupKeyboardListeners()
         setupMouseListeners()
-        Logger.info("🎮 PlayerController initialized - keyboard/mouse listening")
     }
 
     private fun setupKeyboardListeners() {
@@ -59,7 +58,6 @@ class PlayerController(
         // Toggle flight with F key
         if (key == "f") {
             player.toggleFlight()
-            Logger.info("✈️ Flight: ${if (player.isFlying) "ON" else "OFF"}")
         }
     }
 

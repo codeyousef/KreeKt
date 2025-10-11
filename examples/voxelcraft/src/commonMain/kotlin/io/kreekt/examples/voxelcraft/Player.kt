@@ -71,18 +71,25 @@ class Player(val world: VoxelWorld) {
      * Check if player's AABB would collide with solid blocks at position
      */
     private fun checkCollision(x: Float, y: Float, z: Float): Boolean {
-        // Check corners of player's bounding box
+        // Check corners of player's bounding box (use ceiling for max bounds)
         val minX = (x - width / 2).toInt()
-        val maxX = (x + width / 2).toInt()
+        val maxX = ((x + width / 2) + 0.99f).toInt()
         val minY = y.toInt()
-        val maxY = (y + height).toInt()
+        val maxY = ((y + height) + 0.99f).toInt()
         val minZ = (z - depth / 2).toInt()
-        val maxZ = (z + depth / 2).toInt()
+        val maxZ = ((z + depth / 2) + 0.99f).toInt()
 
         for (blockX in minX..maxX) {
             for (blockY in minY..maxY) {
                 for (blockZ in minZ..maxZ) {
                     val block = world.getBlock(blockX, blockY, blockZ)
+                    
+                    // CRITICAL: Treat null (unloaded chunk) as SOLID to prevent falling through
+                    // BUT only for terrain heights (Y < 100), not in sky
+                    if (block == null && blockY < 100) {
+                        return true // Treat unloaded chunks as solid in terrain range
+                    }
+                    
                     if (block != null && block != BlockType.Air && !block.isTransparent) {
                         return true // Collision detected
                     }
@@ -97,10 +104,23 @@ class Player(val world: VoxelWorld) {
      * Rotate camera (pitch = up/down, yaw = left/right)
      */
     fun rotate(deltaPitch: Double, deltaYaw: Double) {
+        // Update pitch (up/down) - clamp to ±90°
         rotation.x += deltaPitch.toFloat()
-        rotation.y += deltaYaw.toFloat()
-        // Clamp pitch to ±90°
         rotation.x = rotation.x.coerceIn((-PI / 2).toFloat(), (PI / 2).toFloat())
+        
+        // Update yaw (left/right)
+        rotation.y += deltaYaw.toFloat()
+        
+        // Wrap yaw to -π to π range (prevents infinite accumulation and quaternion issues)
+        while (rotation.y > PI.toFloat()) {
+            rotation.y -= (2 * PI).toFloat()
+        }
+        while (rotation.y < (-PI).toFloat()) {
+            rotation.y += (2 * PI).toFloat()
+        }
+        
+        // Ensure roll is always zero (FPS cameras don't tilt sideways)
+        rotation.z = 0f
     }
 
     /**
@@ -143,9 +163,9 @@ class Player(val world: VoxelWorld) {
                 move(Vector3(0.0f, velocity.y * deltaTime, 0.0f))
             }
 
-            // Ground detection (raycast downward)
-            if (checkCollision(position.x, position.y - 0.1f, position.z)) {
-                isOnGround = true
+            // Ground detection - check further down for more reliable detection
+            isOnGround = checkCollision(position.x, position.y - 0.5f, position.z)
+            if (isOnGround) {
                 velocity.y = 0.0f
             }
         }

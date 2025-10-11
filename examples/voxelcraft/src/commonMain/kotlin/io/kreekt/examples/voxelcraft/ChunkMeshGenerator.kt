@@ -22,11 +22,14 @@ object ChunkMeshGenerator {
      */
     suspend fun generate(chunk: Chunk): BufferGeometry {
         var operations = 0
-        val vertices = mutableListOf<Float>()
-        val normals = mutableListOf<Float>()
-        val uvs = mutableListOf<Float>()
-        val colors = mutableListOf<Float>()
-        val indices = mutableListOf<Int>()
+        // Pre-allocate with estimated capacity to reduce ArrayList resizing overhead
+        // Typical chunk has ~1000-2000 vertices depending on terrain complexity
+        val estimatedVertices = 4096
+        val vertices = ArrayList<Float>(estimatedVertices)
+        val normals = ArrayList<Float>(estimatedVertices)
+        val uvs = ArrayList<Float>(estimatedVertices * 2 / 3) // UVs are 2D (2 components per vertex)
+        val colors = ArrayList<Float>(estimatedVertices)
+        val indices = ArrayList<Int>(estimatedVertices * 3 / 2) // ~1.5 indices per vertex
 
         var vertexOffset = 0
 
@@ -49,9 +52,6 @@ object ChunkMeshGenerator {
         // Convert indices to FloatArray for BufferAttribute
         val indexArray = indices.map { it.toFloat() }.toFloatArray()
         geometry.setIndex(BufferAttribute(indexArray, 1))
-
-        // T004/T022: Temporary diagnostic logging to debug mesh generation
-        Logger.debug("🧊 Chunk mesh: ${vertices.size/3} verts, ${indices.size/3} tris")
 
         // Compute bounding volumes for frustum culling
         geometry.computeBoundingBox()
@@ -102,7 +102,7 @@ object ChunkMeshGenerator {
                     val neighbor = chunk.getNeighborBlock(neighborPos[0], neighborPos[1], neighborPos[2])
 
                     // Should we render this face?
-                    if (shouldRenderFace(block, neighbor)) {
+                    if (shouldRenderFace(block, neighbor, neighborPos)) {
                         mask[u][v] = MaskEntry(block, true)
                     }
                 }
@@ -162,10 +162,22 @@ object ChunkMeshGenerator {
 
     /**
      * Check if face should be rendered (culling hidden faces)
+     * 
+     * Fixed: Properly handle chunk boundaries - assume solid neighbor when unknown
      */
-    private fun shouldRenderFace(block: BlockType, neighbor: BlockType?): Boolean {
+    private fun shouldRenderFace(block: BlockType, neighbor: BlockType?, neighborPos: IntArray): Boolean {
         if (block == BlockType.Air) return false
-        if (neighbor == null) return true // Chunk boundary
+        
+        // If neighbor is null, check if it's a valid chunk boundary
+        if (neighbor == null) {
+            // At bottom of world (Y < 0) - don't render face (void/bedrock)
+            if (neighborPos[1] < 0) return false
+            // At top of world (Y > 255) - render face (open to sky)
+            if (neighborPos[1] > 255) return true
+            // At horizontal chunk boundary - assume solid neighbor (don't render to prevent see-through)
+            return false
+        }
+        
         if (neighbor == BlockType.Air) return true
         if (neighbor.isTransparent) return true
         return false

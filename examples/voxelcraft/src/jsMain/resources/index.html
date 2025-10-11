@@ -206,24 +206,30 @@
             transform: scale(1.05);
         }
 
-        /* Loading indicator */
+        /* Loading indicator - Fully opaque to hide terrain generation */
         .loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             color: white;
             text-align: center;
-            background: rgba(0, 0, 0, 0.9);
-            padding: 30px 40px;
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
+            background: #1a1a1a;
+            z-index: 9999;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: opacity 0.3s;
         }
         
         .loading:hover {
-            background: rgba(0, 0, 0, 0.95);
+            background: #1a1a1a;
+            opacity: 0.98;
         }
 
         .loading h2 {
@@ -258,7 +264,9 @@
         }
 
         .hidden {
-            display: none;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease-out;
         }
     </style>
 </head>

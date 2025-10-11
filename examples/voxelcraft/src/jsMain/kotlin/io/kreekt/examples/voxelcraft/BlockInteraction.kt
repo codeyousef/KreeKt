@@ -35,8 +35,6 @@ class BlockInteraction(
 
         // Add to inventory
         player.inventory.add(block, 1)
-
-        Logger.info("⛏️ Broke ${block.name} at (${target.x}, ${target.y}, ${target.z})")
     }
 
     /**
@@ -53,22 +51,18 @@ class BlockInteraction(
 
         // Cannot place inside player
         if (isInsidePlayer(placePos)) {
-            Logger.warn("⚠️ Cannot place block inside player")
             return
         }
 
         // Check if space is empty
         val existing = world.getBlock(placePos.x, placePos.y, placePos.z)
         if (existing != null && existing != BlockType.Air) {
-            Logger.warn("⚠️ Cannot place block in occupied space")
             return
         }
 
         // Place block
         val selectedBlock = player.inventory.selectedBlock
         world.setBlock(placePos.x, placePos.y, placePos.z, selectedBlock)
-
-        Logger.info("🧱 Placed ${selectedBlock.name} at (${placePos.x}, ${placePos.y}, ${placePos.z})")
     }
 
     /**

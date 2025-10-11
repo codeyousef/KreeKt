@@ -29,6 +29,10 @@ xcuserdata
 .claude/
 
 # Specs directory (planning docs not for version control)
+specs/
+
+# Log file (local tracking only)
+log.md
 
 # Node.js (for JS target dependencies)
 node_modules/
